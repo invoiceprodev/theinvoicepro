@@ -1,4 +1,4 @@
-import { sendEmail, isEmailJSConfigured } from "@/lib/emailjs";
+import { apiRequest, hasApiBaseUrl } from "@/lib/api-client";
 import { supabaseClient } from "@/lib/supabase";
 import type { Subscription, Plan, Profile } from "@/types";
 
@@ -20,8 +20,21 @@ export interface TrialEmailParams {
  * Check if trial emails can be sent
  */
 export const canSendTrialEmails = (): boolean => {
-  return isEmailJSConfigured();
+  return hasApiBaseUrl();
 };
+
+async function sendTrialEmailViaApi(input: {
+  to: string;
+  toName: string;
+  subject: string;
+  message: string;
+  metadata?: Record<string, string>;
+}) {
+  return apiRequest<{ ok: true; id: string }>("/emails/trial", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
 
 /**
  * Get user profile for email
@@ -53,7 +66,7 @@ export const sendTrialStartedEmail = async (
 ): Promise<boolean> => {
   try {
     if (!canSendTrialEmails()) {
-      console.warn("[Trial Email] EmailJS not configured, skipping trial started email");
+      console.warn("[Trial Email] API email service not configured, skipping trial started email");
       return false;
     }
 
@@ -70,21 +83,18 @@ export const sendTrialStartedEmail = async (
       year: "numeric",
     });
 
-    const templateParams = {
-      to_email: profile.business_email,
-      to_name: profile.full_name || "User",
+    await sendTrialEmailViaApi({
+      to: profile.business_email,
+      toName: profile.full_name || "User",
       subject: `Welcome to Your ${plan.name} Trial!`,
-      email_type: "trial_started",
-      trial_plan_name: plan.name,
-      trial_price: `R${plan.price.toFixed(2)}`,
-      trial_end_date: formattedEndDate,
-      trial_duration: "14 days",
-      business_name: profile.company_name || "Online Invoicing System",
-      user_name: profile.full_name || "User",
       message: `Welcome to your ${plan.name} trial! Your 14-day free trial has started and will end on ${formattedEndDate}. During your trial, you'll have full access to all features. After the trial period, your subscription will automatically convert to the Starter plan at R${plan.price.toFixed(2)}/month unless you cancel.`,
-    };
-
-    await sendEmail(templateParams);
+      metadata: {
+        Plan: plan.name,
+        Price: `R${plan.price.toFixed(2)}`,
+        "Trial Ends": formattedEndDate,
+        Duration: "14 days",
+      },
+    });
     console.log(`[Trial Email] Trial started email sent to ${profile.business_email}`);
     return true;
   } catch (error) {
@@ -104,7 +114,7 @@ export const sendTrialEndingReminderEmail = async (
 ): Promise<boolean> => {
   try {
     if (!canSendTrialEmails()) {
-      console.warn("[Trial Email] EmailJS not configured, skipping trial reminder email");
+      console.warn("[Trial Email] API email service not configured, skipping trial reminder email");
       return false;
     }
 
@@ -123,21 +133,18 @@ export const sendTrialEndingReminderEmail = async (
 
     const daysRemaining = Math.ceil((trialEndDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 
-    const templateParams = {
-      to_email: profile.business_email,
-      to_name: profile.full_name || "User",
+    await sendTrialEmailViaApi({
+      to: profile.business_email,
+      toName: profile.full_name || "User",
       subject: `Your Trial Ends in ${daysRemaining} Days`,
-      email_type: "trial_reminder",
-      trial_plan_name: plan.name,
-      trial_price: `R${plan.price.toFixed(2)}`,
-      trial_end_date: formattedEndDate,
-      days_remaining: daysRemaining.toString(),
-      business_name: profile.company_name || "Online Invoicing System",
-      user_name: profile.full_name || "User",
       message: `Your ${plan.name} trial is ending soon! You have ${daysRemaining} days remaining. On ${formattedEndDate}, your trial will convert to the Starter plan at R${plan.price.toFixed(2)}/month. To avoid being charged, you can cancel anytime before the trial ends.`,
-    };
-
-    await sendEmail(templateParams);
+      metadata: {
+        Plan: plan.name,
+        "Days Remaining": daysRemaining.toString(),
+        "Trial Ends": formattedEndDate,
+        Price: `R${plan.price.toFixed(2)}`,
+      },
+    });
     console.log(`[Trial Email] Trial reminder email sent to ${profile.business_email}`);
     return true;
   } catch (error) {
@@ -158,7 +165,7 @@ export const sendSubscriptionActivatedEmail = async (
 ): Promise<boolean> => {
   try {
     if (!canSendTrialEmails()) {
-      console.warn("[Trial Email] EmailJS not configured, skipping subscription activated email");
+      console.warn("[Trial Email] API email service not configured, skipping subscription activated email");
       return false;
     }
 
@@ -175,21 +182,18 @@ export const sendSubscriptionActivatedEmail = async (
       year: "numeric",
     });
 
-    const templateParams = {
-      to_email: profile.business_email,
-      to_name: profile.full_name || "User",
+    await sendTrialEmailViaApi({
+      to: profile.business_email,
+      toName: profile.full_name || "User",
       subject: `Welcome to ${plan.name} Plan!`,
-      email_type: "subscription_activated",
-      plan_name: plan.name,
-      plan_price: `R${plan.price.toFixed(2)}`,
-      renewal_date: formattedRenewalDate,
-      payment_id: paymentId || "N/A",
-      business_name: profile.company_name || "Online Invoicing System",
-      user_name: profile.full_name || "User",
       message: `Your trial has ended and your subscription to the ${plan.name} plan is now active! You've been charged R${plan.price.toFixed(2)} for your first month. Your subscription will automatically renew on ${formattedRenewalDate}. Thank you for choosing us!`,
-    };
-
-    await sendEmail(templateParams);
+      metadata: {
+        Plan: plan.name,
+        Price: `R${plan.price.toFixed(2)}`,
+        "Renewal Date": formattedRenewalDate,
+        "Payment ID": paymentId || "N/A",
+      },
+    });
     console.log(`[Trial Email] Subscription activated email sent to ${profile.business_email}`);
     return true;
   } catch (error) {
@@ -210,7 +214,7 @@ export const sendPaymentFailedEmail = async (
 ): Promise<boolean> => {
   try {
     if (!canSendTrialEmails()) {
-      console.warn("[Trial Email] EmailJS not configured, skipping payment failed email");
+      console.warn("[Trial Email] API email service not configured, skipping payment failed email");
       return false;
     }
 
@@ -220,20 +224,17 @@ export const sendPaymentFailedEmail = async (
       return false;
     }
 
-    const templateParams = {
-      to_email: profile.business_email,
-      to_name: profile.full_name || "User",
+    await sendTrialEmailViaApi({
+      to: profile.business_email,
+      toName: profile.full_name || "User",
       subject: "Action Required: Payment Failed",
-      email_type: "payment_failed",
-      plan_name: plan.name,
-      plan_price: `R${plan.price.toFixed(2)}`,
-      error_message: errorMessage,
-      business_name: profile.company_name || "Online Invoicing System",
-      user_name: profile.full_name || "User",
       message: `We were unable to process your payment for the ${plan.name} plan (R${plan.price.toFixed(2)}/month). Your subscription has been paused. Please update your payment method in your account settings to reactivate your subscription and continue accessing all features.`,
-    };
-
-    await sendEmail(templateParams);
+      metadata: {
+        Plan: plan.name,
+        Price: `R${plan.price.toFixed(2)}`,
+        Error: errorMessage,
+      },
+    });
     console.log(`[Trial Email] Payment failed email sent to ${profile.business_email}`);
     return true;
   } catch (error) {

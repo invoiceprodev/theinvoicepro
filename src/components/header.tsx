@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, X, PlayCircle, Loader2, LayoutDashboard, ShieldCheck } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router";
-import { useDemoLogin } from "@/hooks/use-demo-login";
 
 const navigationLinks = [
   { name: "Home", href: "#home" },
@@ -15,7 +14,6 @@ const navigationLinks = [
 
 export const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { handleDemoLogin, isLoading: isDemoLoading } = useDemoLogin();
 
   const handleNavClick = (href: string) => {
     setIsOpen(false);
@@ -61,39 +59,6 @@ export const Header = () => {
 
           {/* Desktop CTA Buttons */}
           <div className="hidden md:flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className="transition-all duration-300 hover:scale-105 hover:bg-primary/10 active:scale-95 gap-1.5">
-              <Link to="/dashboard">
-                <LayoutDashboard className="h-3.5 w-3.5" />
-                Dashboard
-              </Link>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className="transition-all duration-300 hover:scale-105 hover:bg-purple-500/10 text-purple-600 dark:text-purple-400 active:scale-95 gap-1.5">
-              <Link to="/admin">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                Admin
-              </Link>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDemoLogin}
-              disabled={isDemoLoading}
-              className="transition-all duration-300 hover:scale-105 hover:bg-primary/10 active:scale-95 gap-1.5">
-              {isDemoLoading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <PlayCircle className="h-3.5 w-3.5" />
-              )}
-              Try Demo
-            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -170,40 +135,6 @@ export const Header = () => {
                   style={{
                     animation: isOpen ? "slideInFromRight 0.3s ease-out 0.4s backwards" : "none",
                   }}>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    asChild
-                    className="w-full transition-all duration-200 hover:scale-105 active:scale-95 gap-2"
-                    onClick={() => setIsOpen(false)}>
-                    <Link to="/dashboard">
-                      <LayoutDashboard className="h-4 w-4" />
-                      Dashboard
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="lg"
-                    asChild
-                    className="w-full transition-all duration-200 hover:scale-105 active:scale-95 gap-2 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800"
-                    onClick={() => setIsOpen(false)}>
-                    <Link to="/admin">
-                      <ShieldCheck className="h-4 w-4" />
-                      Admin
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={() => {
-                      setIsOpen(false);
-                      handleDemoLogin();
-                    }}
-                    disabled={isDemoLoading}
-                    className="w-full transition-all duration-200 hover:scale-105 active:scale-95 gap-2">
-                    {isDemoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
-                    Try Demo
-                  </Button>
                   <Button
                     variant="outline"
                     size="lg"

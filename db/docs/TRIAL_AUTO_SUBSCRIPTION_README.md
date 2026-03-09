@@ -8,9 +8,8 @@ The trial auto-subscription system automatically converts expired trial subscrip
 
 | File                                         | Purpose                                        |
 | -------------------------------------------- | ---------------------------------------------- |
-| `src/services/trial-conversion.service.ts`   | Core conversion business logic                 |
-| `netlify/functions/trial-conversion-cron.ts` | Scheduled Netlify Function (daily at 2 AM UTC) |
-| `src/utils/trial-conversion-test.ts`         | Test helper utilities                          |
+| Backend scheduler / cron endpoint            | Scheduled execution for daily trial conversion |
+| `api/src/server.ts`                          | Subscription conversion and notification entry points |
 
 ### How It Works
 
@@ -27,27 +26,27 @@ The trial auto-subscription system automatically converts expired trial subscrip
    - `db/migrations/TRIAL_TRACKING_MIGRATION.sql`
    - `db/migrations/TRIAL_CARD_COLLECTION_MIGRATION.sql`
 
-2. **Configure Environment Variables** (Netlify):
+2. **Configure Environment Variables** (API):
 
    - `VITE_API_URL` — Supabase project URL
    - `VITE_SUPABASE_API_KEY` — Service role key (not anon key)
    - `CRON_SECRET` — Optional authorization token
 
-3. **Enable Scheduling** in `netlify.toml`
+3. **Enable Scheduling** in Railway or your external scheduler
 
-4. **Deploy** to Netlify
+4. **Deploy** the API
 
 ### Testing
 
 ```bash
 # Manual trigger
-curl -X POST https://your-site.netlify.app/.netlify/functions/trial-conversion-cron \
+curl -X POST https://api.theinvoicepro.co.za/trial-conversion-cron \
   -H "Authorization: Bearer YOUR_CRON_SECRET"
 ```
 
 ### Monitoring
 
-- **Netlify Dashboard**: Functions → trial-conversion-cron → Logs
+- **Railway / API logs**: Inspect the scheduler target and backend logs
 - **Database**: Query `subscription_history` for conversion records
 
 ### Related Documentation

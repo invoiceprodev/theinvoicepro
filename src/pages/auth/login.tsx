@@ -1,5 +1,6 @@
-import { useLogin } from "@refinedev/core";
-import { Link } from "react-router";
+import { useEffect } from "react";
+import { useList, useLogin } from "@refinedev/core";
+import { Link, useSearchParams } from "react-router";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -7,13 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { InputPassword } from "@/components/refine-ui/form/input-password";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { FileText, AlertCircle, Mail, KeyRound } from "lucide-react";
+import { InputPassword } from "@/components/refine-ui/form/input-password";
+import { FileText, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { resendConfirmationEmail } from "@/providers/auth";
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { getSelectedPlanCheckout, setSelectedPlanCheckout } from "@/lib/plan-selection";
+import type { Plan } from "@/types";
 
 const loginSchema = z.object({
   email: z.string().min(1, "Email is required").email("Please enter a valid email address"),
@@ -22,14 +22,18 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-const DEMO_EMAIL = "demo@theinvoicepro.co.za";
-const DEMO_PASSWORD = "Demo@123";
-
 export const LoginPage = () => {
-  const { mutate: login, error: loginError } = useLogin<LoginFormValues>();
-  const [resendLoading, setResendLoading] = useState(false);
-  const [resendSuccess, setResendSuccess] = useState(false);
-  const navigate = useNavigate();
+  const { mutate: login, error: loginError } = useLogin<LoginFormValues & { password?: string }>();
+  const [searchParams] = useSearchParams();
+  const selectedPlanId = searchParams.get("plan");
+  const selectedPlan = getSelectedPlanCheckout();
+  const { result: plansResult } = useList<Plan>({
+    resource: "plans",
+    pagination: { mode: "off" },
+    queryOptions: {
+      enabled: Boolean(selectedPlanId && !selectedPlan),
+    },
+  });
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -39,87 +43,51 @@ export const LoginPage = () => {
     },
   });
 
-  const handleUseDemoCredentials = () => {
-    form.setValue("email", DEMO_EMAIL, { shouldValidate: true });
-    form.setValue("password", DEMO_PASSWORD, { shouldValidate: true });
-  };
-
-  const onSubmit = (values: LoginFormValues) => {
-    setResendSuccess(false);
-    login(values);
-  };
-
-  const handleResendConfirmation = async () => {
-    const email = form.getValues("email");
-    if (!email) {
+  useEffect(() => {
+    if (!selectedPlanId || selectedPlan || !plansResult?.data?.length) {
       return;
     }
 
-    setResendLoading(true);
-    setResendSuccess(false);
-
-    const result = await resendConfirmationEmail(email);
-
-    setResendLoading(false);
-
-    if (result.success) {
-      setResendSuccess(true);
+    const matchedPlan = (plansResult.data as Plan[]).find((plan) => plan.id === selectedPlanId);
+    if (matchedPlan) {
+      setSelectedPlanCheckout(matchedPlan);
     }
+  }, [plansResult, selectedPlan, selectedPlanId]);
+
+  const onSubmit = (values: LoginFormValues) => {
+    login(values);
   };
 
   const isLoading = form.formState.isSubmitting;
-  const isEmailNotConfirmed = loginError && (loginError as any).name === "EmailNotConfirmed";
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-background px-4 py-8">
       <div className="w-full max-w-md space-y-6">
-        {/* Logo/Brand */}
         <div className="flex flex-col items-center justify-center space-y-2">
           <div className="flex items-center gap-2">
             <FileText className="w-8 h-8 text-primary" />
             <span className="text-2xl font-bold">InvoicePro</span>
           </div>
-          <p className="text-sm text-muted-foreground">Welcome back!</p>
+          <p className="text-sm text-muted-foreground">Welcome back</p>
         </div>
 
-        {/* Login Card */}
         <Card className="shadow-lg">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold">Login</CardTitle>
-            <CardDescription>Enter your email and password to access your account</CardDescription>
+            <CardDescription>Enter your email to access your account</CardDescription>
+            {selectedPlanId && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-primary">
+                Sign in to continue with your selected plan and complete card setup.
+              </div>
+            )}
           </CardHeader>
 
           <CardContent>
-            {/* Error Alert */}
             {loginError && (
-              <Alert variant={isEmailNotConfirmed ? "default" : "destructive"} className="mb-4">
+              <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>{isEmailNotConfirmed ? "Email Not Confirmed" : "Login Failed"}</AlertTitle>
-                <AlertDescription className="mt-2 space-y-2">
-                  <p>{(loginError as any).message}</p>
-                  {isEmailNotConfirmed && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleResendConfirmation}
-                      disabled={resendLoading || resendSuccess}
-                      className="mt-2 w-full">
-                      <Mail className="w-4 h-4 mr-2" />
-                      {resendLoading ? "Sending..." : resendSuccess ? "Email Sent!" : "Resend Confirmation Email"}
-                    </Button>
-                  )}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Success Alert for Resend */}
-            {resendSuccess && (
-              <Alert className="mb-4 border-green-500 text-green-700 dark:text-green-400">
-                <Mail className="h-4 w-4" />
-                <AlertTitle>Email Sent!</AlertTitle>
-                <AlertDescription>
-                  Please check your inbox and click the confirmation link to verify your account.
-                </AlertDescription>
+                <AlertTitle>Login Failed</AlertTitle>
+                <AlertDescription>{(loginError as any).message || "Unable to start login."}</AlertDescription>
               </Alert>
             )}
 
@@ -132,13 +100,7 @@ export const LoginPage = () => {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input
-                          type="email"
-                          placeholder="you@example.com"
-                          {...field}
-                          disabled={isLoading}
-                          className="transition-all"
-                        />
+                        <Input type="email" placeholder="you@example.com" {...field} disabled={isLoading} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -159,49 +121,15 @@ export const LoginPage = () => {
                   )}
                 />
 
-                <div className="flex items-center justify-end">
-                  <Link
-                    to="/forgot-password"
-                    className={cn(
-                      "text-sm text-primary hover:underline",
-                      "transition-colors",
-                      isLoading && "pointer-events-none opacity-50",
-                    )}>
-                    Forgot password?
-                  </Link>
-                </div>
-
                 <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-                  {isLoading ? "Logging in..." : "Login"}
+                  {isLoading ? "Signing in..." : "Login"}
                 </Button>
+
+                <p className="text-center text-xs text-muted-foreground">
+                  Secure sign-in continues automatically after you submit.
+                </p>
               </form>
             </Form>
-
-            {/* Demo Credentials Hint */}
-            <div className="mt-2 rounded-lg border border-purple-500/30 bg-purple-500/10 p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <KeyRound className="w-4 h-4 text-purple-500 shrink-0" />
-                <span className="text-sm font-semibold text-purple-700 dark:text-purple-300">Demo Access</span>
-              </div>
-              <div className="space-y-1 text-xs text-muted-foreground font-mono">
-                <div className="flex items-center gap-2">
-                  <span className="w-16 shrink-0 text-muted-foreground/70">Email</span>
-                  <span className="text-purple-700 dark:text-purple-200">{DEMO_EMAIL}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-16 shrink-0 text-muted-foreground/70">Password</span>
-                  <span className="text-purple-700 dark:text-purple-200">{DEMO_PASSWORD}</span>
-                </div>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleUseDemoCredentials}
-                className="w-full border-purple-500/40 bg-purple-500/10 text-purple-700 hover:bg-purple-500/20 hover:text-purple-800 dark:text-purple-300 dark:hover:text-purple-200 text-xs">
-                Use Demo Credentials
-              </Button>
-            </div>
           </CardContent>
 
           <CardFooter className="flex flex-col space-y-4">
@@ -209,18 +137,18 @@ export const LoginPage = () => {
               Don't have an account?{" "}
               <Link
                 to="/register"
-                className={cn(
-                  "text-primary font-semibold hover:underline",
-                  "transition-colors",
-                  isLoading && "pointer-events-none opacity-50",
-                )}>
+                className={cn("text-primary font-semibold hover:underline", isLoading && "pointer-events-none opacity-50")}>
                 Sign up
               </Link>
             </div>
+            <Button variant="outline" className="w-full" size="lg" asChild>
+              <Link to="/register" className={cn(isLoading && "pointer-events-none opacity-50")}>
+                Create Account
+              </Link>
+            </Button>
           </CardFooter>
         </Card>
 
-        {/* Back to home link */}
         <div className="text-center">
           <Link to="/" className="text-sm text-muted-foreground hover:text-primary transition-colors">
             ← Back to home
@@ -229,4 +157,4 @@ export const LoginPage = () => {
       </div>
     </div>
   );
-};
+}

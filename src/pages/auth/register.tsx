@@ -1,5 +1,6 @@
-import { useRegister } from "@refinedev/core";
-import { Link } from "react-router";
+import { useEffect } from "react";
+import { useList, useRegister } from "@refinedev/core";
+import { Link, useSearchParams } from "react-router";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -7,10 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { InputPassword } from "@/components/refine-ui/form/input-password";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { InputPassword } from "@/components/refine-ui/form/input-password";
 import { FileText, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getSelectedPlanCheckout, setSelectedPlanCheckout } from "@/lib/plan-selection";
+import type { Plan } from "@/types";
 
 const registerSchema = z
   .object({
@@ -28,6 +31,16 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export const RegisterPage = () => {
   const { mutate: register, error: registerError } = useRegister<RegisterFormValues>();
+  const [searchParams] = useSearchParams();
+  const selectedPlan = getSelectedPlanCheckout();
+  const selectedPlanId = searchParams.get("plan");
+  const { result: plansResult } = useList<Plan>({
+    resource: "plans",
+    pagination: { mode: "off" },
+    queryOptions: {
+      enabled: Boolean(selectedPlanId && !selectedPlan),
+    },
+  });
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -39,6 +52,17 @@ export const RegisterPage = () => {
     },
   });
 
+  useEffect(() => {
+    if (!selectedPlanId || selectedPlan || !plansResult?.data?.length) {
+      return;
+    }
+
+    const matchedPlan = (plansResult.data as Plan[]).find((plan) => plan.id === selectedPlanId);
+    if (matchedPlan) {
+      setSelectedPlanCheckout(matchedPlan);
+    }
+  }, [plansResult, selectedPlan, selectedPlanId]);
+
   const onSubmit = (values: RegisterFormValues) => {
     register(values);
   };
@@ -48,7 +72,6 @@ export const RegisterPage = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-background px-4 py-8">
       <div className="w-full max-w-md space-y-6">
-        {/* Logo/Brand */}
         <div className="flex flex-col items-center justify-center space-y-2">
           <div className="flex items-center gap-2">
             <FileText className="w-8 h-8 text-primary" />
@@ -57,21 +80,25 @@ export const RegisterPage = () => {
           <p className="text-sm text-muted-foreground">Create your account</p>
         </div>
 
-        {/* Register Card */}
         <Card className="shadow-lg">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold">Sign Up</CardTitle>
-            <CardDescription>Enter your information to create an account</CardDescription>
+            <CardDescription>Enter your details and we will send a confirmation link to your email</CardDescription>
+            {selectedPlan && (!selectedPlanId || selectedPlan.id === selectedPlanId) && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-primary">
+                Selected plan: <strong>{selectedPlan.name}</strong>
+                {selectedPlan.trial_days ? ` with a ${selectedPlan.trial_days}-day trial` : ""}
+              </div>
+            )}
           </CardHeader>
 
           <CardContent>
-            {/* Error Alert */}
             {registerError && (
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Registration Failed</AlertTitle>
                 <AlertDescription>
-                  {(registerError as any).message || "An error occurred during registration. Please try again."}
+                  {(registerError as any).message || "Unable to start signup. Please try again."}
                 </AlertDescription>
               </Alert>
             )}
@@ -83,15 +110,9 @@ export const RegisterPage = () => {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Name</FormLabel>
+                      <FormLabel>Full Name</FormLabel>
                       <FormControl>
-                        <Input
-                          type="text"
-                          placeholder="John Doe"
-                          {...field}
-                          disabled={isLoading}
-                          className="transition-all"
-                        />
+                        <Input type="text" placeholder="John Doe" {...field} disabled={isLoading} autoComplete="name" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -105,13 +126,7 @@ export const RegisterPage = () => {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input
-                          type="email"
-                          placeholder="you@example.com"
-                          {...field}
-                          disabled={isLoading}
-                          className="transition-all"
-                        />
+                        <Input type="email" placeholder="you@example.com" {...field} disabled={isLoading} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -149,6 +164,10 @@ export const RegisterPage = () => {
                 <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
                   {isLoading ? "Creating account..." : "Sign Up"}
                 </Button>
+
+                <p className="text-center text-xs text-muted-foreground">
+                  After signup, confirm your email before your account is activated in the app.
+                </p>
               </form>
             </Form>
           </CardContent>
@@ -158,18 +177,13 @@ export const RegisterPage = () => {
               Already have an account?{" "}
               <Link
                 to="/login"
-                className={cn(
-                  "text-primary font-semibold hover:underline",
-                  "transition-colors",
-                  isLoading && "pointer-events-none opacity-50",
-                )}>
+                className={cn("text-primary font-semibold hover:underline", isLoading && "pointer-events-none opacity-50")}>
                 Login
               </Link>
             </div>
           </CardFooter>
         </Card>
 
-        {/* Back to home link */}
         <div className="text-center">
           <Link to="/" className="text-sm text-muted-foreground hover:text-primary transition-colors">
             ← Back to home
@@ -178,4 +192,4 @@ export const RegisterPage = () => {
       </div>
     </div>
   );
-};
+}

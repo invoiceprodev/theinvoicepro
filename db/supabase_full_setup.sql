@@ -7,8 +7,8 @@
 --   3. Click "Run" (or press Ctrl+Enter / Cmd+Enter)
 --   4. This script is safe to re-run (uses IF NOT EXISTS / DROP IF EXISTS)
 --
--- Supabase Project: pfhbexbmarxelehrdcuz
--- Organisation:     dflsfsnzbhtcvucazyhl
+-- Supabase Project: <your-supabase-project-id>
+-- Organisation:     <your-supabase-org-id>
 --
 -- Sections in this file:
 --   1.  Extensions
@@ -78,7 +78,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- =========================== TABLES =========================
 -- Creation order respects FK dependencies:
---   plans → profiles → clients → invoices → invoice_items
+--   plans → profiles → clients → invoices → invoice_items → expenses
 --   → subscriptions → payments → trial_conversions
 --   → webhook_logs → subscription_history
 
@@ -86,11 +86,17 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE TABLE IF NOT EXISTS plans (
   id             UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
   name           TEXT         NOT NULL UNIQUE,
+  description    TEXT,
   price          DECIMAL(10,2) NOT NULL,
   currency       TEXT         NOT NULL DEFAULT 'ZAR',
   billing_cycle  TEXT         NOT NULL DEFAULT 'monthly'
                               CHECK (billing_cycle IN ('monthly', 'yearly')),
   features       JSONB,
+  is_popular     BOOLEAN      NOT NULL DEFAULT false,
+  trial_days     INTEGER      NOT NULL DEFAULT 0
+                              CHECK (trial_days >= 0),
+  requires_card  BOOLEAN      NOT NULL DEFAULT false,
+  auto_renew     BOOLEAN      NOT NULL DEFAULT false,
   is_active      BOOLEAN      NOT NULL DEFAULT true,
   created_at     TIMESTAMPTZ  DEFAULT NOW(),
   updated_at     TIMESTAMPTZ  DEFAULT NOW()
@@ -101,59 +107,92 @@ COMMENT ON TABLE plans IS 'Pricing tier definitions for TheInvoicePro subscripti
 -- ── profiles ───────────────────────────────────────────────
 -- Extends auth.users. FK to auth.users added below via ALTER TABLE.
 CREATE TABLE IF NOT EXISTS profiles (
-  id               UUID        PRIMARY KEY,
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  auth0_user_id    TEXT        UNIQUE,
+  auth_provider    TEXT        NOT NULL DEFAULT 'auth0'
+                               CHECK (auth_provider IN ('auth0', 'supabase')),
   full_name        TEXT,
   role             TEXT        NOT NULL DEFAULT 'user'
                                CHECK (role IN ('user', 'admin')),
   avatar_url       TEXT,
-  -- Business settings (added by BUSINESS_SETTINGS_MIGRATION)
   company_name     TEXT,
   business_email   TEXT,
   business_phone   TEXT,
   business_address TEXT,
   currency         TEXT        DEFAULT 'ZAR',
   logo_url         TEXT,
+  registration_number TEXT,
+  vat_enabled      BOOLEAN     NOT NULL DEFAULT true,
+  vat_rate         NUMERIC(5,2) NOT NULL DEFAULT 15.00
+                               CHECK (vat_rate >= 0 AND vat_rate <= 100),
+  vat_number       TEXT,
+  default_language TEXT        NOT NULL DEFAULT 'en',
+  invoice_prefix   TEXT        NOT NULL DEFAULT 'INV-',
+  default_payment_terms INTEGER NOT NULL DEFAULT 30
+                               CHECK (default_payment_terms >= 0),
+  default_invoice_notes TEXT,
+  default_invoice_terms TEXT,
+  last_login_at    TIMESTAMPTZ,
   created_at       TIMESTAMPTZ DEFAULT NOW(),
   updated_at       TIMESTAMPTZ DEFAULT NOW()
 );
 
 COMMENT ON TABLE  profiles          IS 'User profile extending auth.users with business information';
+COMMENT ON COLUMN profiles.auth0_user_id    IS 'Canonical Auth0 subject identifier, e.g. auth0|abc123';
+COMMENT ON COLUMN profiles.auth_provider    IS 'Identity provider backing this profile';
 COMMENT ON COLUMN profiles.company_name     IS 'Business/company name for invoicing';
 COMMENT ON COLUMN profiles.business_email   IS 'Business contact email';
 COMMENT ON COLUMN profiles.business_phone   IS 'Business contact phone';
 COMMENT ON COLUMN profiles.business_address IS 'Business address for invoices';
 COMMENT ON COLUMN profiles.currency         IS 'Default currency for invoices (ZAR, USD, EUR, GBP, etc.)';
 COMMENT ON COLUMN profiles.logo_url         IS 'Business logo URL from Supabase Storage';
+COMMENT ON COLUMN profiles.registration_number IS 'Company registration number shown in settings and invoices';
+COMMENT ON COLUMN profiles.vat_enabled      IS 'Whether VAT should be enabled by default for this tenant';
+COMMENT ON COLUMN profiles.vat_rate         IS 'Default VAT percentage used for invoices and compliance reporting';
+COMMENT ON COLUMN profiles.vat_number       IS 'VAT registration number shown on tax invoices';
+COMMENT ON COLUMN profiles.default_language IS 'Default dashboard language';
+COMMENT ON COLUMN profiles.invoice_prefix   IS 'Default prefix for generated invoice numbers';
+COMMENT ON COLUMN profiles.default_payment_terms IS 'Default payment terms in days';
+COMMENT ON COLUMN profiles.default_invoice_notes IS 'Default notes prefilled on new invoices';
+COMMENT ON COLUMN profiles.default_invoice_terms IS 'Default terms and conditions prefilled on new invoices';
+COMMENT ON COLUMN profiles.last_login_at    IS 'Most recent successful login timestamp from API/Auth layer';
 
 -- ── clients ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS clients (
   id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id    UUID        NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  user_id    UUID        NOT NULL DEFAULT auth.uid() REFERENCES profiles(id) ON DELETE CASCADE,
   name       TEXT        NOT NULL,
   email      TEXT        NOT NULL,
   company    TEXT,
   phone      TEXT,
   address    TEXT,
+  status     TEXT        NOT NULL DEFAULT 'Active'
+                         CHECK (status IN ('Active', 'Inactive', 'Suspended')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (user_id, email)
 );
 
 COMMENT ON TABLE clients IS 'Customer/client records owned by a profile';
+COMMENT ON COLUMN clients.status IS 'Client status used in dashboard filtering and lifecycle management';
 
 -- ── invoices ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS invoices (
   id              UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
   invoice_number  TEXT          NOT NULL UNIQUE,
-  user_id         UUID          NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  user_id         UUID          NOT NULL DEFAULT auth.uid() REFERENCES profiles(id) ON DELETE CASCADE,
   client_id       UUID          NOT NULL REFERENCES clients(id)  ON DELETE RESTRICT,
   invoice_date    DATE          NOT NULL,
   due_date        DATE          NOT NULL,
   status          TEXT          NOT NULL DEFAULT 'pending'
-                                CHECK (status IN ('paid', 'pending', 'overdue')),
+                                CHECK (status IN ('draft', 'sent', 'paid', 'pending', 'overdue')),
+  currency        TEXT          NOT NULL DEFAULT 'ZAR',
   subtotal        DECIMAL(10,2) NOT NULL DEFAULT 0,
   tax_percentage  DECIMAL(5,2)  NOT NULL DEFAULT 0,
   tax_amount      DECIMAL(10,2) NOT NULL DEFAULT 0,
+  discount_type   TEXT          NOT NULL DEFAULT 'percentage'
+                                CHECK (discount_type IN ('percentage', 'fixed')),
+  discount        NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (discount >= 0),
   total           DECIMAL(10,2) NOT NULL DEFAULT 0,
   notes           TEXT,
   created_at      TIMESTAMPTZ   DEFAULT NOW(),
@@ -161,6 +200,9 @@ CREATE TABLE IF NOT EXISTS invoices (
 );
 
 COMMENT ON TABLE invoices IS 'Invoice header records';
+COMMENT ON COLUMN invoices.currency IS 'Invoice currency used for display and calculations';
+COMMENT ON COLUMN invoices.discount_type IS 'Discount mode applied to invoice total: percentage or fixed';
+COMMENT ON COLUMN invoices.discount IS 'Discount value applied before tax/total finalisation';
 
 -- ── invoice_items ──────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS invoice_items (
@@ -174,6 +216,31 @@ CREATE TABLE IF NOT EXISTS invoice_items (
 );
 
 COMMENT ON TABLE invoice_items IS 'Line items belonging to an invoice';
+
+-- ── expenses ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS expenses (
+  id             UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id        UUID          NOT NULL DEFAULT auth.uid() REFERENCES profiles(id) ON DELETE CASCADE,
+  category       TEXT          NOT NULL
+                                CHECK (category IN ('Pay Client', 'Pay Salary', 'Subscription', 'Operating Cost', 'Other')),
+  recipient      TEXT          NOT NULL,
+  amount         NUMERIC(10,2) NOT NULL CHECK (amount >= 0),
+  currency       TEXT          NOT NULL DEFAULT 'ZAR',
+  payment_method TEXT          CHECK (payment_method IN ('Bank Transfer', 'Cash', 'Card', 'EFT')),
+  date           DATE          NOT NULL DEFAULT CURRENT_DATE,
+  status         TEXT          NOT NULL DEFAULT 'Pending'
+                                CHECK (status IN ('Pending', 'Paid', 'Cancelled')),
+  notes          TEXT,
+  vat_applicable BOOLEAN       NOT NULL DEFAULT false,
+  created_at     TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE expenses IS 'Tenant-owned business expenses used for dashboard tracking and VAT compliance';
+COMMENT ON COLUMN expenses.category IS 'Expense category used by dashboard summaries';
+COMMENT ON COLUMN expenses.recipient IS 'Payee or recipient of the expense';
+COMMENT ON COLUMN expenses.payment_method IS 'How the expense was paid';
+COMMENT ON COLUMN expenses.vat_applicable IS 'Whether this expense should contribute to VAT input calculations';
 
 -- ── subscriptions ──────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS subscriptions (
@@ -312,6 +379,8 @@ ALTER TABLE profiles
 -- profiles
 CREATE INDEX IF NOT EXISTS idx_profiles_role     ON profiles(role);
 CREATE INDEX IF NOT EXISTS idx_profiles_currency ON profiles(currency);
+CREATE INDEX IF NOT EXISTS idx_profiles_vat_enabled ON profiles(vat_enabled);
+CREATE INDEX IF NOT EXISTS idx_profiles_auth_provider ON profiles(auth_provider);
 
 -- plans
 CREATE INDEX IF NOT EXISTS idx_plans_name      ON plans(name);
@@ -320,6 +389,8 @@ CREATE INDEX IF NOT EXISTS idx_plans_is_active ON plans(is_active);
 -- clients
 CREATE INDEX IF NOT EXISTS idx_clients_user_id ON clients(user_id);
 CREATE INDEX IF NOT EXISTS idx_clients_email   ON clients(email);
+CREATE INDEX IF NOT EXISTS idx_clients_status  ON clients(status);
+CREATE INDEX IF NOT EXISTS idx_clients_user_status ON clients(user_id, status);
 
 -- invoices
 CREATE INDEX IF NOT EXISTS idx_invoices_user_id        ON invoices(user_id);
@@ -327,12 +398,23 @@ CREATE INDEX IF NOT EXISTS idx_invoices_client_id      ON invoices(client_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_status         ON invoices(status);
 CREATE INDEX IF NOT EXISTS idx_invoices_invoice_number ON invoices(invoice_number);
 CREATE INDEX IF NOT EXISTS idx_invoices_invoice_date   ON invoices(invoice_date DESC);
+CREATE INDEX IF NOT EXISTS idx_invoices_currency       ON invoices(currency);
 -- composite
 CREATE INDEX IF NOT EXISTS idx_invoices_user_status  ON invoices(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_invoices_client_date  ON invoices(client_id, invoice_date DESC);
+CREATE INDEX IF NOT EXISTS idx_invoices_user_due_date ON invoices(user_id, due_date DESC);
 
 -- invoice_items
 CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice_id ON invoice_items(invoice_id);
+
+-- expenses
+CREATE INDEX IF NOT EXISTS idx_expenses_user_id ON expenses(user_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_status ON expenses(status);
+CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category);
+CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date DESC);
+CREATE INDEX IF NOT EXISTS idx_expenses_user_date ON expenses(user_id, date DESC);
+CREATE INDEX IF NOT EXISTS idx_expenses_user_status ON expenses(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_expenses_user_category ON expenses(user_id, category);
 
 -- subscriptions
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id      ON subscriptions(user_id);
@@ -388,6 +470,7 @@ ALTER TABLE plans              ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clients            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invoices           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invoice_items      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE expenses           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subscriptions      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payments           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE trial_conversions  ENABLE ROW LEVEL SECURITY;
@@ -546,6 +629,48 @@ CREATE POLICY "Admins can view all invoice items"
   ON invoice_items FOR SELECT
   USING (is_admin());
 
+-- ── expenses ───────────────────────────────────────────────
+DROP POLICY IF EXISTS "Users can view own expenses" ON expenses;
+DROP POLICY IF EXISTS "Users can insert own expenses" ON expenses;
+DROP POLICY IF EXISTS "Users can update own expenses" ON expenses;
+DROP POLICY IF EXISTS "Users can delete own expenses" ON expenses;
+DROP POLICY IF EXISTS "Admins can view all expenses" ON expenses;
+DROP POLICY IF EXISTS "Admins can insert any expense" ON expenses;
+DROP POLICY IF EXISTS "Admins can update any expense" ON expenses;
+DROP POLICY IF EXISTS "Admins can delete expenses" ON expenses;
+
+CREATE POLICY "Users can view own expenses"
+  ON expenses FOR SELECT
+  USING (user_id = auth.uid());
+
+CREATE POLICY "Users can insert own expenses"
+  ON expenses FOR INSERT
+  WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can update own expenses"
+  ON expenses FOR UPDATE
+  USING (user_id = auth.uid());
+
+CREATE POLICY "Users can delete own expenses"
+  ON expenses FOR DELETE
+  USING (user_id = auth.uid());
+
+CREATE POLICY "Admins can view all expenses"
+  ON expenses FOR SELECT
+  USING (is_admin());
+
+CREATE POLICY "Admins can insert any expense"
+  ON expenses FOR INSERT
+  WITH CHECK (is_admin());
+
+CREATE POLICY "Admins can update any expense"
+  ON expenses FOR UPDATE
+  USING (is_admin());
+
+CREATE POLICY "Admins can delete expenses"
+  ON expenses FOR DELETE
+  USING (is_admin());
+
 -- ── subscriptions ──────────────────────────────────────────
 DROP POLICY IF EXISTS "Users can view own subscriptions"   ON subscriptions;
 DROP POLICY IF EXISTS "Users can insert own subscriptions" ON subscriptions;
@@ -683,6 +808,7 @@ DROP TRIGGER IF EXISTS update_profiles_updated_at       ON profiles;
 DROP TRIGGER IF EXISTS update_plans_updated_at          ON plans;
 DROP TRIGGER IF EXISTS update_clients_updated_at        ON clients;
 DROP TRIGGER IF EXISTS update_invoices_updated_at       ON invoices;
+DROP TRIGGER IF EXISTS update_expenses_updated_at       ON expenses;
 DROP TRIGGER IF EXISTS update_subscriptions_updated_at  ON subscriptions;
 DROP TRIGGER IF EXISTS update_payments_updated_at       ON payments;
 DROP TRIGGER IF EXISTS update_trial_conversions_updated_at ON trial_conversions;
@@ -701,6 +827,10 @@ CREATE TRIGGER update_clients_updated_at
 
 CREATE TRIGGER update_invoices_updated_at
   BEFORE UPDATE ON invoices
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_expenses_updated_at
+  BEFORE UPDATE ON expenses
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_subscriptions_updated_at

@@ -3,7 +3,7 @@
 import { useTheme } from "@/components/refine-ui/theme/theme-provider";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Moon, Sun, Monitor } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 
 type ThemeToggleProps = {
   className?: string;
@@ -11,21 +11,10 @@ type ThemeToggleProps = {
 
 export function ThemeToggle({ className }: ThemeToggleProps) {
   const { theme, setTheme } = useTheme();
+  const resolvedTheme = theme === "dark" ? "dark" : "light";
 
   const cycleTheme = () => {
-    switch (theme) {
-      case "light":
-        setTheme("dark");
-        break;
-      case "dark":
-        setTheme("system");
-        break;
-      case "system":
-        setTheme("light");
-        break;
-      default:
-        setTheme("light");
-    }
+    setTheme(resolvedTheme === "dark" ? "light" : "dark");
   };
 
   return (
@@ -51,7 +40,7 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
           "transition-all",
           "duration-200",
           {
-            "-rotate-90 scale-0": theme === "dark" || theme === "system",
+            "-rotate-90 scale-0": resolvedTheme === "dark",
           },
         )}
       />
@@ -65,27 +54,12 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
           "transition-all",
           "duration-200",
           {
-            "rotate-0 scale-100": theme === "dark",
-            "rotate-90 scale-0": theme === "light" || theme === "system",
+            "rotate-0 scale-100": resolvedTheme === "dark",
+            "rotate-90 scale-0": resolvedTheme === "light",
           },
         )}
       />
-      <Monitor
-        className={cn(
-          "absolute",
-          "h-[1.2rem]",
-          "w-[1.2rem]",
-          "rotate-0",
-          "scale-0",
-          "transition-all",
-          "duration-200",
-          {
-            "scale-100": theme === "system",
-            "scale-0": theme === "light" || theme === "dark",
-          },
-        )}
-      />
-      <span className="sr-only">Toggle theme (Light → Dark → System)</span>
+      <span className="sr-only">Toggle theme (Light or Dark)</span>
     </Button>
   );
 }

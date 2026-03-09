@@ -9,19 +9,19 @@ The PayFast webhook handler processes Instant Transaction Notifications (ITN) to
 **Production:**
 
 ```
-https://your-app.netlify.app/.netlify/functions/payfast-webhook
+https://api.theinvoicepro.co.za/payfast/webhook
 ```
 
 **Local testing (ngrok):**
 
 ```
-https://xxxx-xx-xxx.ngrok.io/.netlify/functions/payfast-webhook
+https://xxxx-xx-xxx.ngrok.io/payfast/webhook
 ```
 
 ## Local Testing with ngrok
 
-1. Start Netlify dev: `netlify dev` (port 8888)
-2. Start ngrok: `ngrok http 8888`
+1. Start the local API on port `3000`
+2. Start ngrok: `ngrok http 3000`
 3. Copy HTTPS URL from ngrok output
 4. Set as ITN URL in PayFast Sandbox Dashboard
 
@@ -66,8 +66,8 @@ Run `db/migrations/PAYFAST_WEBHOOK_LOGS_TABLE.sql` to enable persistent webhook 
 
 ## Deployment
 
-1. Set all `VITE_PAYFAST_*` env vars in Netlify Dashboard
-2. Deploy site
+1. Set backend `PAYFAST_*` env vars in Railway
+2. Deploy API
 3. Update PayFast production webhook URL
 
 ## Troubleshooting
@@ -80,7 +80,6 @@ Run `db/migrations/PAYFAST_WEBHOOK_LOGS_TABLE.sql` to enable persistent webhook 
 
 ## Related Files
 
-- `src/services/payfast-webhook.service.ts`
-- `netlify/functions/payfast-webhook.ts`
+- `api/src/server.ts`
 - `db/migrations/PAYFAST_WEBHOOK_LOGS_TABLE.sql`
 - `db/docs/PAYFAST_SETUP.md`

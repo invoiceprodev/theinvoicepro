@@ -445,13 +445,47 @@ export async function createTrialSubscription(params: {
   userName: string;
   amount: number;
   subscriptionId: string;
-}): Promise<{ url: string; merchantId: string; signature: string }> {
-  const { userId, userEmail, userName, amount, subscriptionId } = params;
+  planName?: string;
+  trialDays?: number;
+  billingCycle?: "monthly" | "yearly";
+}): Promise<{
+  url: string;
+  merchantId: string;
+  signature: string;
+  debug: {
+    mode: string;
+    payfastUrl: string;
+    merchantId: string;
+    returnUrl: string;
+    cancelUrl: string;
+    notifyUrl: string;
+    amount: string;
+    itemName: string;
+    itemDescription: string;
+    billingDate: string;
+    frequency: string;
+    cycles: string;
+    subscriptionType: string;
+    emailAddress: string;
+    customUserId: string;
+    customSubscriptionId: string;
+    signaturePresent: boolean;
+  };
+}> {
+  const {
+    userId,
+    userEmail,
+    userName,
+    amount,
+    subscriptionId,
+    planName = "InvoicePro Trial Subscription",
+    trialDays = 14,
+    billingCycle = "monthly",
+  } = params;
 
   const merchantId = import.meta.env.VITE_PAYFAST_MERCHANT_ID;
   const merchantKey = import.meta.env.VITE_PAYFAST_MERCHANT_KEY;
-  const passphrase = import.meta.env.VITE_PAYFAST_PASSPHRASE;
-  const isSandbox = import.meta.env.VITE_PAYFAST_SANDBOX === "true";
+  const mode = import.meta.env.VITE_PAYFAST_MODE || "sandbox";
 
   if (!merchantId || !merchantKey) {
     throw new Error("PayFast credentials not configured");
@@ -461,12 +495,17 @@ export async function createTrialSubscription(params: {
   const merchantPaymentId = `TRIAL_${userId}_${Date.now()}`;
 
   // Build payment data for subscription
+  const returnUrl = `${window.location.origin}/auth/card-setup/success?user_id=${userId}&subscription_id=${subscriptionId}`;
+  const cancelUrl = `${window.location.origin}/auth/card-setup?user_id=${userId}&email=${encodeURIComponent(userEmail)}&name=${encodeURIComponent(userName)}&error=cancelled`;
+  const notifyUrl = `${import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || window.location.origin}/payfast/webhook`;
+  const billingDate = getTrialEndDate(trialDays);
+
   const paymentData = {
     merchant_id: merchantId,
     merchant_key: merchantKey,
-    return_url: `${window.location.origin}/auth/card-setup/success?user_id=${userId}&subscription_id=${subscriptionId}`,
-    cancel_url: `${window.location.origin}/auth/card-setup?user_id=${userId}&email=${encodeURIComponent(userEmail)}&name=${encodeURIComponent(userName)}&error=cancelled`,
-    notify_url: `${window.location.origin}/.netlify/functions/payfast-webhook`,
+    return_url: returnUrl,
+    cancel_url: cancelUrl,
+    notify_url: notifyUrl,
 
     // Payer details
     name_first: userName.split(" ")[0] || userName,
@@ -476,14 +515,17 @@ export async function createTrialSubscription(params: {
     // Transaction details
     m_payment_id: merchantPaymentId,
     amount: amount.toFixed(2),
-    item_name: "InvoicePro Trial Subscription",
-    item_description: `14-day free trial, then R${amount}/month`,
+    item_name: planName,
+    item_description:
+      trialDays > 0
+        ? `${trialDays}-day free trial, then R${amount}/${billingCycle === "yearly" ? "year" : "month"}`
+        : `${planName} recurring subscription`,
 
     // Subscription specific fields
     subscription_type: "1", // Subscription
-    billing_date: getTrialEndDate(), // Start billing after 14 days
+    billing_date: billingDate,
     recurring_amount: amount.toFixed(2),
-    frequency: "3", // Monthly
+    frequency: billingCycle === "yearly" ? "6" : "3",
     cycles: "0", // Unlimited cycles
 
     // Custom fields
@@ -496,7 +538,7 @@ export async function createTrialSubscription(params: {
   const signature = generateSignature(paymentData);
 
   // Build PayFast URL with query parameters
-  const payfastUrl = isSandbox ? "https://sandbox.payfast.co.za/eng/process" : "https://www.payfast.co.za/eng/process";
+  const payfastUrl = mode === "live" ? "https://www.payfast.co.za/eng/process" : "https://sandbox.payfast.co.za/eng/process";
 
   const queryString = new URLSearchParams({
     ...paymentData,
@@ -507,15 +549,34 @@ export async function createTrialSubscription(params: {
     url: `${payfastUrl}?${queryString}`,
     merchantId,
     signature,
+    debug: {
+      mode,
+      payfastUrl,
+      merchantId,
+      returnUrl,
+      cancelUrl,
+      notifyUrl,
+      amount: paymentData.amount,
+      itemName: paymentData.item_name,
+      itemDescription: paymentData.item_description,
+      billingDate,
+      frequency: paymentData.frequency,
+      cycles: paymentData.cycles,
+      subscriptionType: paymentData.subscription_type,
+      emailAddress: paymentData.email_address,
+      customUserId: paymentData.custom_str1,
+      customSubscriptionId: paymentData.custom_str2,
+      signaturePresent: Boolean(signature),
+    },
   };
 }
 
 /**
  * Get trial end date (14 days from now) in PayFast format
  */
-function getTrialEndDate(): string {
+function getTrialEndDate(trialDays = 14): string {
   const trialEndDate = new Date();
-  trialEndDate.setDate(trialEndDate.getDate() + 14);
+  trialEndDate.setDate(trialEndDate.getDate() + trialDays);
 
   // Format: YYYY-MM-DD
   return trialEndDate.toISOString().split("T")[0];

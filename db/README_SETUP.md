@@ -9,8 +9,13 @@ This guide explains how to run the consolidated database setup script in Supabas
 - A Supabase project created and accessible
 - Supabase project credentials added to your `.env` file:
   ```
-  VITE_SUPABASE_API_KEY=your_anon_key
+  VITE_SUPABASE_URL=https://your_project_id.supabase.co
+  VITE_SUPABASE_ANON_KEY=your_anon_key
+  ```
+  or the Refine-generated equivalent:
+  ```
   VITE_SUPABASE_PROJECT_ID=your_project_id
+  VITE_SUPABASE_API_KEY=your_anon_key
   ```
 - Access to the **Supabase SQL Editor** (Dashboard → SQL Editor)
 
@@ -21,7 +26,7 @@ This guide explains how to run the consolidated database setup script in Supabas
 ### Step 1 — Open the SQL Editor
 
 1. Go to [supabase.com](https://supabase.com) and log in
-2. Select your project (`pfhbexbmarxelehrdcuz`)
+2. Select your project (`<your-supabase-project-id>`)
 3. In the left sidebar click **SQL Editor**
 4. Click **+ New query**
 
@@ -86,7 +91,7 @@ ORDER BY tablename, indexname;
 | Check        | Expected                                             |
 | ------------ | ---------------------------------------------------- |
 | Tables       | 10 tables, all with `rls_enabled = true`             |
-| Plans        | Trial R170, Starter R170, Pro R899, Enterprise R1799 |
+| Plans        | Starter/Trial R150, Pro R320, Enterprise R480 |
 | Foreign keys | 8+ constraints across tables                         |
 | Indexes      | 30+ indexes                                          |
 
@@ -98,9 +103,15 @@ The logo upload feature requires a Supabase Storage bucket:
 
 1. In the Supabase Dashboard go to **Storage**
 2. Click **New bucket**
-3. Name it: `business-logos`
+3. Name it: `company-branding`
 4. Set it to **Public**
 5. Click **Create bucket**
+
+This should match:
+
+```env
+SUPABASE_BRANDING_BUCKET=company-branding
+```
 
 See `db/setup/STORAGE_BUCKET_SETUP.md` for full bucket policy details.
 
@@ -112,7 +123,7 @@ See `db/setup/STORAGE_BUCKET_SETUP.md` for full bucket policy details.
 
 | Table                  | Description                                             |
 | ---------------------- | ------------------------------------------------------- |
-| `plans`                | Pricing tiers (Trial, Starter, Pro, Enterprise)         |
+| `plans`                | Pricing tiers (Starter/Trial, Pro, Enterprise)          |
 | `profiles`             | User profiles extending `auth.users` with business info |
 | `clients`              | Customer/client records owned by a profile              |
 | `invoices`             | Invoice header records                                  |
@@ -150,12 +161,35 @@ See `db/setup/STORAGE_BUCKET_SETUP.md` for full bucket policy details.
 
 ### Seed Data
 
-| Plan       | Price    | Currency | Cycle   |
-| ---------- | -------- | -------- | ------- |
-| Trial      | R170.00  | ZAR      | monthly |
-| Starter    | R170.00  | ZAR      | monthly |
-| Pro        | R899.00  | ZAR      | monthly |
-| Enterprise | R1799.00 | ZAR      | monthly |
+| Plan          | Price   | Currency | Cycle   |
+| ------------- | ------- | -------- | ------- |
+| Starter/Trial | R150.00 | ZAR      | monthly |
+| Pro           | R320.00 | ZAR      | monthly |
+| Enterprise    | R480.00 | ZAR      | monthly |
+
+---
+
+## Current Incremental Migrations Often Needed
+
+If the project has already been created from an older schema, also run the newer migrations that match the current app:
+
+- [`db/migrations/AUTH0_IDENTITY_ALIGNMENT.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/AUTH0_IDENTITY_ALIGNMENT.sql)
+- [`db/migrations/AUTH0_PROFILE_DECOUPLING.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/AUTH0_PROFILE_DECOUPLING.sql)
+- [`db/migrations/PLAN_METADATA_ALIGNMENT.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/PLAN_METADATA_ALIGNMENT.sql)
+- [`db/migrations/EXPENSE_RECIPIENT_DETAILS.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/EXPENSE_RECIPIENT_DETAILS.sql)
+
+---
+
+## Local Trial Bypass Note
+
+For local or staging app testing while PayFast is unresolved, the app can temporarily activate trials without card setup when these env flags are enabled:
+
+```env
+TRIAL_BYPASS_ENABLED=true
+VITE_TRIAL_BYPASS_ENABLED=true
+```
+
+This bypass is application-level only. It is not created by SQL and does not change the Supabase schema.
 
 ---
 

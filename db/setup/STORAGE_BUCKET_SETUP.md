@@ -1,26 +1,26 @@
-# Supabase Storage Bucket Setup for Business Logos
+# Supabase Storage Bucket Setup for Company Branding
 
 ## Required Storage Bucket
 
-The Business Settings feature requires a Supabase Storage bucket named `business-logos` to store user business logo uploads.
+The Business Settings feature requires a Supabase Storage bucket named `company-branding` to store business logo uploads.
 
 ## Setup Instructions
 
 1. **Go to Supabase Dashboard**
 
-   - Navigate to: https://supabase.com/dashboard/project/pfhbexbmarxelehrdcuz/storage/buckets
+   - Navigate to: `https://supabase.com/dashboard/project/<your-supabase-project-id>/storage/buckets`
 
 2. **Create New Bucket**
 
    - Click "New bucket"
-   - Bucket name: `business-logos`
+   - Bucket name: `company-branding`
    - Make bucket public: **Yes** (required for public logo access on invoices)
    - File size limit: 2MB (recommended)
-   - Allowed MIME types: `image/png`, `image/jpeg`, `image/jpg`, `image/svg+xml`
+   - Allowed MIME types: `image/png`, `image/jpeg`, `image/webp`, `image/svg+xml`
 
 3. **Set Bucket Policies**
 
-Run the following in Supabase SQL Editor to set proper access policies:
+If you are uploading logos through the API service-role path, public read is usually the only requirement. If you still want direct bucket policies, adapt them to the current bucket/folder structure:
 
 ```sql
 -- Allow authenticated users to upload their own logos
@@ -29,8 +29,8 @@ ON storage.objects
 FOR INSERT
 TO authenticated
 WITH CHECK (
-  bucket_id = 'business-logos'
-  AND (storage.foldername(name))[1] = 'logos'
+  bucket_id = 'company-branding'
+  AND (storage.foldername(name))[1] = 'companies'
 );
 
 -- Allow authenticated users to update their own logos
@@ -39,8 +39,8 @@ ON storage.objects
 FOR UPDATE
 TO authenticated
 USING (
-  bucket_id = 'business-logos'
-  AND (storage.foldername(name))[1] = 'logos'
+  bucket_id = 'company-branding'
+  AND (storage.foldername(name))[1] = 'companies'
 );
 
 -- Allow public read access to all logos
@@ -48,7 +48,7 @@ CREATE POLICY "Public read access to logos"
 ON storage.objects
 FOR SELECT
 TO public
-USING (bucket_id = 'business-logos');
+USING (bucket_id = 'company-branding');
 ```
 
 ## File Structure
@@ -56,9 +56,9 @@ USING (bucket_id = 'business-logos');
 Uploaded logos are stored with the following structure:
 
 ```
-business-logos/
-  └── logos/
-      └── {user_id}-{timestamp}.{ext}
+company-branding/
+  └── companies/
+      └── {profile_id}/logo
 ```
 
 ## Usage in Application
@@ -74,7 +74,7 @@ The settings page (`/settings`) allows users to:
 
 **Upload fails with "bucket not found":**
 
-- Verify the bucket name is exactly `business-logos`
+- Verify the bucket name is exactly `company-branding`
 - Check bucket exists in Supabase Dashboard
 
 **Upload fails with "permission denied":**

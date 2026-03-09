@@ -2,8 +2,8 @@
 
 ## Database Connection
 
-**Organization ID:** dflsfsnzbhtcvucazyhl  
-**Project ID:** pfhbexbmarxelehrdcuz
+**Organization ID:** `<your-supabase-org-id>`  
+**Project ID:** `<your-supabase-project-id>`
 
 ---
 
@@ -56,7 +56,7 @@ Supabase Auth integrated. Profiles auto-created via `handle_new_user()` trigger.
 
 - [ ] All foreign key constraints are created (`db/setup/FOREIGN_KEYS_SETUP.sql`)
 - [ ] RLS enabled on all tables
-- [ ] `business-logos` storage bucket created (`db/setup/STORAGE_BUCKET_SETUP.md`)
+- [ ] `company-branding` storage bucket created (`db/setup/STORAGE_BUCKET_SETUP.md`)
 - [ ] Payments table created (`db/setup/PAYMENTS_TABLE_SETUP.sql`)
 - [ ] Trial analytics table created (`db/migrations/TRIAL_ANALYTICS_MIGRATION.sql`)
 - [ ] Business settings migration run (`db/migrations/BUSINESS_SETTINGS_MIGRATION.sql`)

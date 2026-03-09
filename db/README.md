@@ -48,9 +48,9 @@ db/
 
 ## Supabase Connection
 
-- **Organization ID:** `dflsfsnzbhtcvucazyhl`
-- **Project ID:** `pfhbexbmarxelehrdcuz`
-- **Dashboard:** https://supabase.com/dashboard/project/pfhbexbmarxelehrdcuz
+- **Organization ID:** `<your-supabase-org-id>`
+- **Project ID:** `<your-supabase-project-id>`
+- **Dashboard:** `https://supabase.com/dashboard/project/<your-supabase-project-id>`
 
 ---
 
@@ -66,7 +66,7 @@ Run these in order in the Supabase SQL Editor:
 6. ⚠️ `db/migrations/TRIAL_CARD_COLLECTION_MIGRATION.sql` — Add payfast_token column
 7. ⚠️ `db/migrations/TRIAL_ANALYTICS_MIGRATION.sql` — Create trial_conversions table
 8. ⚠️ `db/migrations/SUBSCRIPTION_TOKEN_MIGRATION.sql` — Add subscription token support
-9. ⚠️ `db/setup/STORAGE_BUCKET_SETUP.md` — Create `business-logos` storage bucket (manual)
+9. ⚠️ `db/setup/STORAGE_BUCKET_SETUP.md` — Create `company-branding` storage bucket (manual)
 
 ---
 

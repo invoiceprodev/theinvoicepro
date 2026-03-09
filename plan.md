@@ -1,492 +1,508 @@
-# Project: TheInvoicePro — SaaS Invoicing Platform
+# TheInvoicePro Migration Plan
 
-## Overview
+## Objective
 
-A multi-tenant SaaS invoicing platform for small businesses. Customers access their own dashboard to manage invoices, clients, and expenses. Platform admins manage all tenants, plans, and metrics from a separate admin interface. The landing page at theinvoicepro.co.za drives signups.
+Migrate the current app to the target production architecture:
 
-### SaaS Structure
+- Customer app: `https://theinvoicepro.co.za`
+- Admin app: `https://admin.theinvoicepro.co.za`
+- Backend API: `https://api.theinvoicepro.co.za`
+- Frontend hosting: `Vercel`
+- Backend hosting: `Railway`
+- Database and storage: `Supabase`
+- Auth: `Auth0`
+- Billing: `PayFast`
+- Email: `Resend`
 
+## Current State Summary
+
+The current codebase is still transitional.
+
+- Frontend uses Refine, React, Vite, and direct Supabase access
+- Auth is still Supabase Auth based
+- Some server logic still assumes frontend/serverless execution patterns
+- Email flow is being migrated to API-side delivery through Resend
+- No dedicated Railway API is established yet
+- Customer and admin experiences are still coupled inside one frontend app
+
+## Traceability Rules
+
+Each implementation phase should track:
+
+- Goal
+- Scope
+- Affected systems
+- Dependencies
+- Acceptance criteria
+- Risks and rollback notes
+
+Suggested work item format:
+
+```text
+ID: ARC-01
+Phase: 1
+Area: Auth / API / Frontend / Database / Billing / Email / Infra
+Goal:
+Scope:
+Dependencies:
+Acceptance:
+Rollback:
+Status:
 ```
-theinvoicepro.co.za         → Landing page (marketing + pricing + signup)
-theinvoicepro.co.za/dashboard  → Customer Dashboard (invoices, clients, expenses)
-theinvoicepro.co.za/admin      → Platform Admin (tenants, plans, metrics)
-api.theinvoicepro.co.za        → Backend API (deferred — using Supabase directly)
-```
 
----
+## Target System Boundaries
 
-## 🌐 Landing Page
+### Customer Frontend
 
-<phase number="1" title="Core Landing Page Structure">
+- Public landing page
+- Signup and login entry points
+- Customer dashboard for invoices, clients, expenses, compliance, plans, settings
+- Hosted on Vercel
+- Uses Auth0 for session/authentication
+- Uses Railway API for privileged operations
 
-Deliver a functional landing page with hero section, 4-tier pricing display, and navigation elements.
+### Admin Frontend
 
-#### Tasks
+- Separate admin login
+- Admin dashboard and operational tools
+- Hosted on Vercel
+- Uses Auth0 with admin role enforcement
+- Uses Railway API for admin operations
 
-- [x] Create hero section with headline, subheadline, and Sign-up/Login CTAs
-- [x] Build header navigation with logo area and CTA buttons
-- [x] Display 4 pricing tier cards with plan names, prices, and feature lists
-- [x] Create footer with basic navigation links
+### Backend API
 
-#### Notes
+- Hosted on Railway
+- Owns privileged business logic
+- Owns PayFast webhook handling and verification
+- Owns Resend email sending
+- Owns server-side billing and subscription workflows
+- Owns any cross-tenant or admin-only operations
 
-- Data source: Mock data (hardcoded content)
-- Prices shown in ZAR by default
+### Database and Storage
 
-</phase>
+- Supabase Postgres remains source of truth
+- Supabase Storage remains file/object storage layer
+- RLS must be compatible with Auth0 user mapping and API access strategy
 
-<phase number="2" title="Currency Switcher & Enhanced Content">
+## Phase Plan
 
-Add currency switching, testimonials, and "Trusted By" logos.
+### Phase 1: Architecture Audit
 
-#### Tasks
+Status: `pending`
 
-- [x] Add currency switcher toggle in pricing section
-- [x] Create testimonials section with 3-4 customer quotes and avatars
-- [x] Build "Trusted By" section with company logos
-- [x] Implement currency conversion logic for pricing tiers
-- [x] Add smooth scroll navigation from header to sections
+Goal:
 
-</phase>
+- Produce a clear gap analysis between the current implementation and the target architecture
 
-<phase number="3" title="Payment Methods & Polish">
+Scope:
 
-Display supported payment methods, responsive design, and micro-interactions.
+- Inventory frontend-only logic that should move to API
+- Inventory direct Supabase reads/writes
+- Inventory current auth assumptions
+- Inventory email and billing integrations
+- Inventory deployment-specific assumptions
 
-#### Tasks
+Affected systems:
 
-- [x] Add payment method icons/badges in pricing section
-- [x] Implement mobile hamburger menu for header navigation
-- [x] Add hover effects and animations to pricing cards
-- [x] Create highlighted "Popular" badge for Pro tier
-- [x] Add smooth transitions and micro-interactions
-- [x] Optimize CTA button placement and styling
+- Customer app
+- Admin app
+- Supabase
+- serverless-era legacy code paths
 
-</phase>
+Deliverables:
 
-<phase number="4" title="Advanced Landing Page Features">
+- Current vs target architecture matrix
+- List of blocking migrations
+- Ownership map for frontend/API/database/auth concerns
 
-Add FAQ, feature comparison table, and SEO polish.
+Acceptance criteria:
 
-#### Tasks
+- Every major integration point is classified as keep, move, replace, or remove
 
-- [ ] Create FAQ section with collapsible questions
-- [ ] Build feature comparison table for all pricing tiers
-- [ ] Add social proof metrics in hero or dedicated section
-- [ ] Implement newsletter signup form in footer
-- [ ] Add meta tags for SEO optimization
+### Phase 2: Repository and Deployment Model
 
-#### Notes
+Status: `pending`
 
-- FAQ uses shadcn-ui Accordion component
-- Newsletter form is UI only (no backend yet)
+Goal:
 
-</phase>
+- Define the implementation shape for customer frontend, admin frontend, and Railway API
 
----
+Scope:
 
-## 👤 Customer Dashboard (theinvoicepro.co.za/dashboard)
+- Decide monorepo or structured single repo layout
+- Define shared package boundaries
+- Define environment variable sets for Vercel, Railway, and Supabase
+- Define domain routing and callback URL ownership
 
-A per-tenant dashboard where business owners manage their invoices, clients, and expenses after logging in.
+Affected systems:
 
-<phase number="5" title="Invoice List View">
+- Repo structure
+- Vercel projects
+- Railway service
+- CI/CD
 
-Working invoice list page with table, status filters, and sidebar navigation.
+Deliverables:
 
-#### Tasks
+- Final repo layout
+- Deployment topology
+- Environment variable matrix
 
-- [x] Set up invoice data types and mock data
-- [x] Create invoice list page with data table
-- [x] Add status badges and formatting for amounts
-- [x] Implement sidebar navigation with Invoice section
+Acceptance criteria:
 
-#### Notes
+- A new engineer can tell where customer, admin, and API code belong without ambiguity
 
-- Invoice statuses: Paid (green), Pending (yellow), Overdue (red)
-- Sidebar includes: Dashboard, Invoices, Clients, Expenses, Settings
+### Phase 3: Auth Migration to Auth0
 
-</phase>
+Status: `pending`
 
-<phase number="6" title="Create & Edit Invoices">
+Goal:
 
-Add functionality to create and edit invoices with client selection and line items.
+- Replace Supabase Auth with Auth0 for both customer and admin applications
 
-#### Tasks
+Scope:
 
-- [x] Build create invoice form with client dropdown
-- [x] Add line items section with add/remove rows
-- [x] Implement auto-calculation for totals
-- [x] Add save and preview functionality
-- [x] Create invoice detail view page
-- [x] Build edit invoice form
-- [x] Add status update actions (Mark as Paid, Mark as Sent)
-- [x] Implement basic print preview
+- Customer login/signup/logout
+- Admin login/logout
+- Auth callbacks for both subdomains
+- Session handling in frontend apps
+- Route protection
+- Admin role mapping
+- User identity mapping into Supabase records
 
-#### Notes
+Affected systems:
 
-- Form: Client*, Invoice Date*, Due Date*, Line Items*, Tax %, Notes
-- Invoice number auto-generated
+- Frontend auth providers
+- Protected routes
+- User provisioning
+- Supabase profile mapping
 
-</phase>
+Dependencies:
 
-<phase number="7" title="Client Management">
+- Phase 2 deployment/domain decisions
 
-Create and manage customer/client information linked to invoices.
+Deliverables:
 
-#### Tasks
+- Auth0 tenant/app configuration checklist
+- Updated frontend auth layer
+- User provisioning strategy for `profiles`
 
-- [x] Create client list page with data table
-- [x] Build create client form
-- [x] Add edit client functionality
-- [x] Display invoice count per client
+Acceptance criteria:
 
-#### Notes
+- Customer and admin authentication work through Auth0
+- Admin access is role-gated
+- No app path depends on Supabase Auth session state
 
-- Client fields: Name*, Email*, Company, Phone, Address
-- Client list shows total invoices and outstanding balance
+### Phase 4: Backend API Extraction
 
-</phase>
+Status: `pending`
 
-<phase number="8" title="Expense Tracking">
+Goal:
 
-Add expense management so users can log, categorise, and view their business expenses.
+- Introduce Railway API as the owner of privileged server-side logic
 
-#### Key Features
+Scope:
 
-- View all expenses in a table (date, category, amount, description)
-- Create new expense entry
-- Edit existing expense
-- Delete expense
-- Category breakdown summary
+- API bootstrap
+- Auth0 token validation middleware
+- Health endpoints
+- API route structure
+- Shared error handling and logging
 
-#### Tasks
+Affected systems:
 
-- [ ] Create expense list page with data table (date, category, description, amount)
-- [ ] Build create expense form (amount*, date*, category\*, description, receipt notes)
-- [ ] Add edit expense functionality
-- [ ] Add delete expense with confirmation
-- [ ] Add expense category summary cards (total per category)
-- [ ] Add expenses to dashboard sidebar navigation
+- Railway service
+- Frontend data flow
+- Operational integrations
 
-#### Notes
+Dependencies:
 
-- Data source: Supabase (connected)
-- Expense categories: Travel, Office Supplies, Software, Marketing, Utilities, Other
-- Amounts in ZAR by default
-- Add `expenses` table to Supabase schema
-- RLS: users only see their own expenses
+- Phase 2 repo/deployment model
+- Phase 3 Auth0 approach
 
-</phase>
+Deliverables:
 
-<phase number="9" title="Dashboard Overview & Analytics">
+- Running Railway API service
+- Authenticated API skeleton
+- Base configuration for environments
 
-Dashboard home with key metrics, recent activity, and quick actions.
+Acceptance criteria:
 
-#### Tasks
+- API is deployable independently
+- Customer and admin frontends can call authenticated API endpoints
 
-- [x] Create dashboard home page with metric cards
-- [x] Add recent invoices widget
-- [x] Build simple revenue chart
-- [x] Add quick action buttons
+### Phase 5: Frontend Data Access Realignment
 
-#### Notes
+Status: `pending`
 
-- Metrics: Total Revenue, Pending Amount, Total Invoices, Active Clients
-- Chart shows last 6 months revenue
-- Quick actions: Create Invoice, Add Client
+Goal:
 
-</phase>
+- Move unsafe or privileged mutations from direct client-side execution to the API
 
-<phase number="10" title="Email Invoice & PDF">
+Scope:
 
-Send invoices by email with PDF attachments.
+- Identify safe direct Supabase reads vs API-only operations
+- Replace direct writes where ownership, secrets, or cross-tenant logic is involved
+- Define API contracts for customer and admin features
 
-#### Tasks
+Affected systems:
 
-- [x] Integrate email service (EmailJS)
-- [x] Add PDF generation library for invoices
-- [x] Create email template with invoice preview
-- [x] Add "Send Invoice" button to invoice detail page
-- [x] Change landing page currency default to ZAR
-- [x] Update dashboard currency display to default ZAR
+- Customer dashboard
+- Admin dashboard
+- Supabase access layer
+- Railway API
 
-#### Notes
+Deliverables:
 
-- Email service: EmailJS with environment variables
-- PDF library: jsPDF for client-side generation
-- **REQUIRES SETUP**: Configure EmailJS (see EMAILJS_SETUP.md)
+- Data access policy by resource
+- Updated frontend service layer
+- API endpoint map
 
-</phase>
+Acceptance criteria:
 
-<phase number="11" title="Subscription Plan Management">
+- Privileged logic is no longer executed from browser-only code
+- Frontend responsibilities are clearly separated from backend responsibilities
 
-Let customers view their current plan, compare options, and upgrade/downgrade.
+### Phase 6: Billing and Subscription Hardening
 
-#### Tasks
+Status: `pending`
 
-- [ ] Create plans page showing current plan and usage
-- [ ] Display plan comparison table
-- [ ] Add upgrade/downgrade flow
-- [ ] Show billing history
+Goal:
 
-#### Notes
+- Centralize and harden PayFast billing flows
 
-- Plans: Trial (R170 / 14-day free), Starter (R170/mo), Pro, Enterprise
-- Billing history is mock data for now
+Scope:
 
-</phase>
+- Checkout/session creation
+- Subscription lifecycle changes
+- Recurring billing support
+- Webhook verification and replay safety
+- Payment and subscription audit logging
+- Retry/failure handling
 
-<phase number="12" title="Business Settings">
+Affected systems:
 
-Business profile settings: logo, currency, address displayed on invoices.
+- Railway API
+- PayFast integration
+- Supabase tables: `subscriptions`, `payments`, `subscription_history`, `webhook_logs`
 
-#### Tasks
+Dependencies:
 
-- [x] Create business settings page at /dashboard/settings
-- [x] Build business info form (company name, email, phone, address)
-- [x] Add logo upload functionality with preview
-- [x] Add currency selector with common currencies
-- [x] Save settings to Supabase
+- Phase 4 API extraction
 
-#### Notes
+Deliverables:
 
-- Logo stored in Supabase Storage (business-logos bucket)
-- Business info appears on generated invoices
+- Server-owned PayFast integration
+- Verified webhook flow
+- Subscription state machine rules
 
-</phase>
+Acceptance criteria:
 
----
+- Billing events are processed on the backend only
+- Subscription state is traceable from logs and database records
 
-## 🔐 Authentication
+### Phase 7: Email Migration to Resend
 
-<phase number="13" title="Authentication & Login System">
+Status: `pending`
 
-Login, signup, and protected routes with real Supabase Auth.
+Goal:
 
-#### Tasks
+- Keep email delivery server-side through Resend
 
-- [x] Create login page with email/password form and validation
-- [x] Create signup page with registration form
-- [x] Integrate real Supabase Auth (replace mock auth)
-- [x] Implement protected routes for dashboard and admin
-- [x] Add logout button in dashboard/admin headers
-- [ ] Fix login button not responding after demo user removal
+Scope:
 
-#### Notes
+- Invoice emails
+- Trial emails
+- Subscription/billing emails
+- Shared email template approach
+- Event-triggered sending from API
 
-- Login at /login, Signup at /signup
-- After login: regular users → /dashboard, admins → /admin
-- Forms use shadcn-ui with Zod validation
-- Auth provider must use only Supabase — no demo/mock user fallbacks
+Affected systems:
 
-</phase>
+- Railway API
+- Email templates
+- Frontend UI triggers
 
----
+Dependencies:
 
-## 💳 Payments & Subscriptions
+- Phase 4 API extraction
 
-<phase number="14" title="PayFast Payment Integration">
+Deliverables:
 
-PayFast payment gateway for invoice payments and subscription billing.
+- Resend integration module
+- Email template inventory
+- Event-to-email mapping
 
-#### Tasks
+Acceptance criteria:
 
-- [x] Set up PayFast service and configuration
-- [x] Add Pay Now button to invoices
-- [x] Create payments table and webhook handler
-- [x] Add payment history to invoices
-- [x] Integrate subscription payments with PayFast
-- [x] Test payment flow in sandbox mode
+- Emails are sent through Resend from the backend
+- No production email sending depends on browser credentials
 
-#### Notes
+### Phase 8: Database and Storage Alignment
 
-- PayFast supports ZAR natively
-- Webhook URL must be publicly accessible
-- **REQUIRES SETUP**: PayFast merchant account (see PAYFAST_SETUP.md)
+Status: `pending`
 
-</phase>
+Goal:
 
-<phase number="15" title="Trial with Card & Auto-Subscription">
+- Finalize Supabase schema and RLS for the target architecture
 
-Card collection at trial signup with automatic Starter subscription after 14 days.
+Scope:
 
-#### Tasks
+- Confirm schema required by customer and admin apps
+- Confirm storage model
+- Confirm Auth0 identity mapping to `profiles`
+- Confirm API service-role usage strategy
+- Finalize migration scripts and full setup script
 
-- [x] Update Trial plan price to R170.00 in database and landing page
-- [x] Add card collection step during signup/trial activation
-- [x] Create trial period tracking (start_date, end_date)
-- [x] Build trial countdown widget for dashboard
-- [x] Implement auto-subscription service (daily check for expired trials)
-- [x] Set up PayFast recurring payment for auto-subscription
-- [x] Add email notifications (3 days before end, trial end, subscription activated)
-- [x] Create trial-to-paid conversion tracking
+Affected systems:
 
-#### Notes
+- Supabase Postgres
+- Supabase Storage
+- RLS policies
+- Provisioning logic
 
-- Card authorized but not charged during trial
-- After 14 days: auto-charge R170.00 → activate Starter plan
-- User can cancel before trial ends
+Dependencies:
 
-</phase>
+- Auth and API decisions from earlier phases
 
----
+Deliverables:
 
-## 🏗️ Platform Structure
+- Final schema baseline
+- RLS model definition
+- Storage policy definition
+- Migration history
 
-<phase number="16" title="Supabase Integration & Real Data">
+Acceptance criteria:
 
-Full Supabase database schema, real auth, RLS policies, and data migration.
+- Fresh environment can be provisioned from canonical setup files
+- Existing environments can be upgraded safely with migrations
 
-#### Tasks
+### Phase 9: App Separation and Frontend Delivery
 
-- [x] Create database schema (users, profiles, plans, invoices, clients, subscriptions, invoice_items)
-- [x] Set up table relationships and foreign keys
-- [x] Integrate Supabase Auth
-- [x] Configure Supabase data provider in Refine
-- [x] Migrate invoices, clients, plans to Supabase
-- [x] Set up RLS policies for all tables
+Status: `pending`
 
-#### Notes
+Goal:
 
-- Data source: Supabase (connected)
-- RLS: users see own data, admins see all
-- **IMPORTANT**: Run FOREIGN_KEYS_SETUP.sql in Supabase SQL Editor
+- Cleanly separate customer and admin frontend delivery for Vercel deployment
 
-</phase>
+Scope:
 
-<phase number="17" title="File Structure Reorganization">
+- Customer app deployment config
+- Admin app deployment config
+- Shared components and shared config boundaries
+- Auth0 callback/logout URLs per domain
+- Public vs admin-only route separation
 
-Separate landing page, customer dashboard, and admin into distinct directories.
+Affected systems:
 
-#### Tasks
+- Customer frontend
+- Admin frontend
+- Vercel configuration
 
-- [x] Create directory structure (pages/landing, pages/dashboard, pages/admin)
-- [x] Move landing page files to pages/landing/
-- [x] Move dashboard pages to pages/dashboard/
-- [x] Update all import paths and route configurations
+Dependencies:
 
-</phase>
+- Phases 2 through 5
 
-<phase number="21" title="Route Restructuring">
+Deliverables:
 
-Restructure customer app routes to match the intended SaaS URL structure.
+- Deployable Vercel projects
+- Domain-aware environment configs
+- Separate frontend release process
 
-#### Tasks
+Acceptance criteria:
 
-- [x] Rename `/signup` to `/register`
-- [x] Move invoice routes from `/dashboard/invoices` to `/invoices`, `/invoices/create`, `/invoices/:id`, `/invoices/:id/edit`
-- [x] Move client routes from `/dashboard/clients` to `/clients`, `/clients/create`, `/clients/:id/edit`
-- [x] Move plans from `/dashboard/plans` to `/plans`
-- [x] Move settings from `/dashboard/settings` to `/settings`
-- [x] Add `/onboarding` as a new protected route (placeholder page for now)
-- [x] Remove `/payments` route from customer app
-- [x] Update all internal navigation links and sidebar to use new routes
-- [x] Update Refine resource definitions to match new routes
+- Customer and admin apps can deploy independently
+- Admin routes are no longer coupled to customer domain routing
 
-#### Notes
+### Phase 10: Rollout, Testing, and Cutover
 
-- Public routes: `/`, `/login`, `/register`
-- Protected routes: `/dashboard`, `/invoices/*`, `/clients/*`, `/plans`, `/settings`, `/onboarding`
-- `/dashboard` remains as the home/overview page
-- Admin stays at `/admin`
-- `/payments` removed from customer-facing routes
+Status: `pending`
 
-</phase>
+Goal:
 
----
+- Migrate safely to the target architecture with rollback control
 
-## 🛠️ Platform Admin (theinvoicepro.co.za/admin)
+Scope:
 
-Separate admin interface for managing all tenants, plans, and platform-wide metrics. Only accessible to admin role users.
+- Environment-by-environment rollout
+- Migration ordering
+- Smoke tests
+- Auth tests
+- Billing tests
+- Email tests
+- Observability and alerting
 
-<phase number="18" title="Admin: Plan Management">
+Affected systems:
 
-Admin interface to manage pricing tiers with full CRUD.
+- Vercel
+- Railway
+- Supabase
+- Auth0
+- PayFast
+- Resend
 
-#### Tasks
+Deliverables:
 
-- [x] Set up admin layout with sidebar navigation
-- [x] Create plans list page showing all tiers
-- [x] Build create/edit plan form (name, price, features, billing cycle)
-- [x] Add activate/deactivate plan toggle
+- Cutover checklist
+- Rollback plan
+- Post-deploy verification checklist
 
-#### Notes
+Acceptance criteria:
 
-- Admin sidebar: Dashboard, Tenants, Plans, Metrics
-- Plan fields: Name*, Price*, Currency, Features, Billing Cycle
+- Customer login, admin login, invoice flow, billing flow, and email flow all pass in production
 
-</phase>
+## Workstream Matrix
 
-<phase number="19" title="Admin: Tenant Management">
+### Auth
 
-Full tenant management — view all registered businesses, their subscriptions, and manage accounts.
+- Replace Supabase Auth usage
+- Introduce Auth0 SDK/server validation
+- Map Auth0 identities to `profiles`
+- Implement admin role enforcement
 
-#### Key Features
+### API
 
-- View all tenants (businesses/users) with plan and status
-- View tenant details (invoices count, clients, subscription history)
-- Manually upgrade/downgrade a tenant's plan
-- Suspend or reactivate a tenant account
-- Delete a tenant account with confirmation
-- Search and filter tenants by plan, status
+- Create Railway service
+- Move privileged mutations and webhooks
+- Add API contracts for frontends
 
-#### Tasks
+### Database
 
-- [x] Create tenant list page (name, email, plan, status, joined date, invoice count)
-- [x] Build tenant detail view with subscription history timeline
-- [x] Add upgrade/downgrade plan modal
-- [ ] Add suspend/reactivate account action
-- [ ] Add delete tenant action with confirmation modal
-- [ ] Add search bar and filter by plan/status
+- Keep Supabase as data/store layer
+- Finalize schema and RLS
+- Support Auth0 subject-to-profile mapping
 
-#### Notes
+### Billing
 
-- "Tenant" = a registered business/user on the platform
-- Suspension: sets account status to `suspended`, blocks dashboard access
-- Deletion: soft delete (mark as deleted, retain data for 30 days)
-- Admins can override any subscription manually
+- Centralize PayFast in backend
+- Verify webhook signatures
+- Persist billing audit trail
 
-</phase>
+### Email
 
-<phase number="20" title="Admin: Platform Metrics">
+- Remove obsolete client-side email patterns
+- Implement Resend templates and send pipeline
 
-Platform-wide analytics dashboard showing MRR, active tenants, churn, and plan distribution.
+### Frontend
 
-#### Tasks
+- Separate customer/admin delivery
+- Remove assumptions tied to single-domain/single-app deployment
 
-- [x] Create admin dashboard home with metric cards (MRR, Active Tenants, Churn Rate, New Signups)
-- [x] Build revenue chart by plan tier (last 6 months)
-- [x] Display recent subscription activities widget
-- [x] Add plan distribution pie/bar chart
-- [x] Show growth metrics (new clients, upgrades, churn)
+## Immediate Next Actions
 
-#### Notes
+1. Produce the phase-1 audit matrix from the current repo.
+2. Decide repo/deployment structure for customer, admin, and API surfaces.
+3. Define Auth0 identity and role model before changing frontend auth code.
+4. Stand up the Railway API skeleton before migrating PayFast and Resend logic.
 
-- All metrics pulled from Supabase
-- Charts use recharts (already in project)
+## Status Tracker
 
-</phase>
-
-<phase number="22" title="Admin: Route Restructuring">
-
-Restructure the admin app to use clean, dedicated routes with its own login page.
-
-#### Tasks
-
-- [x] Create admin login page at `/login` with `VITE_AUTH_MODE=internal` message support
-- [x] Set up admin protected routes: `/dashboard`, `/tenants`, `/tenants/:id`, `/tenants/:id/edit`, `/tiers`, `/tiers/:id/edit`, `/settings`
-- [x] Update admin sidebar navigation links to match new route structure
-- [x] Rename plan management routes from `/admin/plans` → `/tiers` and `/admin/plans/:id/edit` → `/tiers/:id/edit`
-- [x] Rename tenant routes from `/admin/tenants` → `/tenants`, `/admin/tenants/:id` → `/tenants/:id`, `/admin/tenants/:id/edit` → `/tenants/:id/edit`
-- [x] Ensure admin `/dashboard` is separate from customer `/dashboard`
-- [x] Update all internal admin navigation links and Refine resource definitions
-
-#### Notes
-
-- Admin is a standalone app — routes are NOT prefixed with `/admin`
-- Public route: `/login` (admin-specific login with internal auth mode message)
-- Protected routes: `/dashboard`, `/tenants/*`, `/tiers/*`, `/settings`
-- `VITE_AUTH_MODE=internal` shows explicit admin-only login message on login screen
-- Admin authorization via Supabase role/claims/email allowlist
-
-</phase>
+- Phase 1: `pending`
+- Phase 2: `pending`
+- Phase 3: `pending`
+- Phase 4: `pending`
+- Phase 5: `pending`
+- Phase 6: `pending`
+- Phase 7: `pending`
+- Phase 8: `pending`
+- Phase 9: `pending`
+- Phase 10: `pending`

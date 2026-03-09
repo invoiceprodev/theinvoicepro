@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronRight, ListIcon, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
+import { getProfileBridgeSnapshot, subscribeProfileBridge } from "@/lib/profile-bridge";
 
 export function Sidebar() {
   const { open } = useShadcnSidebar();
@@ -190,6 +191,13 @@ function SidebarHeader() {
   const { title } = useRefineOptions();
   const { open, isMobile } = useShadcnSidebar();
   const Link = useLink();
+  const [profileSnapshot, setProfileSnapshot] = React.useState(getProfileBridgeSnapshot());
+
+  React.useEffect(() => subscribeProfileBridge(setProfileSnapshot), []);
+
+  const defaultTitleText = typeof title.text === "string" ? title.text : "InvoicePro";
+  const companyName = profileSnapshot.profile?.company_name?.trim() || defaultTitleText;
+  const logoUrl = profileSnapshot.profile?.logo_url || null;
 
   return (
     <ShadcnSidebarHeader
@@ -223,14 +231,20 @@ function SidebarHeader() {
             "pl-5": open,
           },
         )}>
-        <div>{title.icon}</div>
-        <h2
-          className={cn("text-sm", "font-bold", "transition-opacity", "duration-200", {
+        <div
+          className={cn(
+            "flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-background",
+          )}>
+          {logoUrl ? <img src={logoUrl} alt={companyName} className="h-full w-full object-contain" /> : title.icon}
+        </div>
+        <div
+          className={cn("min-w-0 transition-opacity duration-200", {
             "opacity-0": !open,
             "opacity-100": open,
           })}>
-          {title.text}
-        </h2>
+          <h2 className="truncate text-sm font-bold">{companyName}</h2>
+          {companyName !== defaultTitleText ? <p className="truncate text-[11px] text-muted-foreground">{defaultTitleText}</p> : null}
+        </div>
       </Link>
 
       <ShadcnSidebarTrigger

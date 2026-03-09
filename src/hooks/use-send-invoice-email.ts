@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { useOne } from "@refinedev/core";
 import { sendInvoiceEmail, isEmailServiceReady } from "@/services/invoice-email.service";
+import { useSubscriptionState } from "@/hooks/use-subscription-state";
+import { getPlanEntitlements } from "@/lib/plan-entitlements";
+import { getProfileBridgeSnapshot } from "@/lib/profile-bridge";
 import type { Invoice, Profile } from "@/types";
 
 interface UseSendInvoiceEmailProps {
-  invoice: Invoice;
+  invoice?: Invoice | null;
   onSuccess?: () => void;
   onError?: (error: Error) => void;
 }
@@ -12,26 +14,25 @@ interface UseSendInvoiceEmailProps {
 export const useSendInvoiceEmail = ({ invoice, onSuccess, onError }: UseSendInvoiceEmailProps) => {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Fetch business profile for email customization
-  const { query } = useOne<Profile>({
-    resource: "profiles",
-    id: invoice.user_id,
-    queryOptions: {
-      enabled: !!invoice.user_id,
-    },
-  });
-
-  const businessProfile = query.data?.data;
+  const { subscription } = useSubscriptionState();
+  const entitlements = getPlanEntitlements(subscription?.plan);
+  const businessProfile = getProfileBridgeSnapshot().profile as Profile | null;
 
   const sendEmail = async (options?: {
     recipientEmail?: string;
     recipientName?: string;
     includeAttachment?: boolean;
   }) => {
+    if (!invoice) {
+      const errorMsg = "Invoice details are still loading.";
+      setError(errorMsg);
+      onError?.(new Error(errorMsg));
+      return;
+    }
+
     // Check if email service is configured
     if (!isEmailServiceReady()) {
-      const errorMsg = "Email service is not configured. Please add EmailJS credentials to your .env file.";
+      const errorMsg = "Email service is not configured. Please start the local API and set VITE_API_URL.";
       setError(errorMsg);
       onError?.(new Error(errorMsg));
       return;
@@ -43,10 +44,11 @@ export const useSendInvoiceEmail = ({ invoice, onSuccess, onError }: UseSendInvo
     try {
       await sendInvoiceEmail({
         invoice,
-        businessProfile,
+        businessProfile: businessProfile || undefined,
         recipientEmail: options?.recipientEmail,
         recipientName: options?.recipientName,
         includeAttachment: options?.includeAttachment ?? true,
+        includePlatformBranding: !entitlements.removeBranding,
       });
 
       onSuccess?.();
@@ -63,6 +65,6 @@ export const useSendInvoiceEmail = ({ invoice, onSuccess, onError }: UseSendInvo
     sendEmail,
     isSending,
     error,
-    isConfigured: isEmailServiceReady(),
+    isConfigured: isEmailServiceReady() && !!invoice,
   };
 };

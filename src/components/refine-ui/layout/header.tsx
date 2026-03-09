@@ -1,3 +1,4 @@
+import * as React from "react"
 import {
   useRefineOptions,
   useActiveAuthProvider,
@@ -14,6 +15,7 @@ import { UserAvatar } from "@/components/refine-ui/layout/user-avatar"
 import { useSidebar, SidebarTrigger } from "@/components/ui/sidebar"
 import { LogOutIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { getProfileBridgeSnapshot, subscribeProfileBridge } from "@/lib/profile-bridge"
 
 export const Header = () => {
   const { isMobile } = useSidebar()
@@ -48,8 +50,14 @@ function DesktopHeader() {
 
 function MobileHeader() {
   const { open, isMobile } = useSidebar()
-
   const { title } = useRefineOptions()
+  const [profileSnapshot, setProfileSnapshot] = React.useState(getProfileBridgeSnapshot())
+
+  React.useEffect(() => subscribeProfileBridge(setProfileSnapshot), [])
+
+  const defaultTitleText = typeof title.text === "string" ? title.text : "InvoicePro"
+  const companyName = profileSnapshot.profile?.company_name?.trim() || defaultTitleText
+  const logoUrl = profileSnapshot.profile?.logo_url || null
 
   return (
     <header
@@ -95,21 +103,22 @@ function MobileHeader() {
           },
         )}
       >
-        <div>{title.icon}</div>
-        <h2
+        <div
           className={cn(
-            "text-sm",
-            "font-bold",
-            "transition-opacity",
-            "duration-200",
-            {
-              "opacity-0": !open,
-              "opacity-100": open,
-            },
+            "flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-background",
           )}
         >
-          {title.text}
-        </h2>
+          {logoUrl ? <img src={logoUrl} alt={companyName} className={cn("h-full", "w-full", "object-contain")} /> : title.icon}
+        </div>
+        <div
+          className={cn("min-w-0 transition-opacity duration-200", {
+            "opacity-0": !open,
+            "opacity-100": open,
+          })}
+        >
+          <h2 className={cn("truncate text-sm font-bold")}>{companyName}</h2>
+          {companyName !== defaultTitleText ? <p className={cn("truncate text-[11px] text-muted-foreground")}>{defaultTitleText}</p> : null}
+        </div>
       </div>
 
       <ThemeToggle className={cn("h-8", "w-8")} />

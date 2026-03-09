@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useList } from "@refinedev/core";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link } from "react-router";
+import { useNavigate } from "react-router";
 import {
   Check,
   ArrowRight,
@@ -15,94 +17,11 @@ import {
   Star,
   ChevronLeft,
   ChevronRight,
-  PlayCircle,
-  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useDemoLogin } from "@/hooks/use-demo-login";
-
-type Currency = "USD" | "ZAR" | "EUR";
-
-interface PricingTier {
-  name: string;
-  description: string;
-  price: {
-    USD: number;
-    ZAR: number;
-    EUR: number;
-  };
-  features: string[];
-  popular?: boolean;
-  cta: string;
-}
-
-const pricingTiers: PricingTier[] = [
-  {
-    name: "Trial",
-    description: "Perfect for testing the waters",
-    price: { ZAR: 170, USD: 9.99, EUR: 9 },
-    features: [
-      "14-day free trial",
-      "Up to 20 invoices per month",
-      "10 client profiles",
-      "Basic templates",
-      "Email support",
-    ],
-    cta: "Start Free Trial",
-  },
-  {
-    name: "Starter",
-    description: "For freelancers and small businesses",
-    price: { USD: 9.99, ZAR: 170, EUR: 350 },
-    features: [
-      "150 Invoices / Month",
-      "50 Saved Clients",
-      "5 Team Members",
-      "Unlimited Saved Items",
-      "Quotes, Expenses & Compliance Tracking",
-      "Recurring Statements",
-      "PDF Export",
-      "Remove Branding",
-      "Custom Emails",
-    ],
-    cta: "Get Started",
-  },
-  {
-    name: "Pro",
-    description: "Most popular for growing businesses",
-    price: { USD: 49, ZAR: 899, EUR: 45 },
-    features: [
-      "250 Invoices / Month",
-      "100 Saved Clients",
-      "5 Team Members",
-      "Unlimited Saved Items",
-      "Quotes, Expenses & Compliance Tracking",
-      "Recurring Statements",
-      "PDF Export",
-      "Remove Branding",
-      "Custom Emails",
-    ],
-    popular: true,
-    cta: "Get Started",
-  },
-  {
-    name: "Enterprise",
-    description: "For large teams and organizations",
-    price: { USD: 99, ZAR: 1799, EUR: 89 },
-    features: [
-      "Unlimited Invoices / Month",
-      "Unlimited Saved Clients",
-      "10 Team Members",
-      "Unlimited Saved Items",
-      "Quotes, Expenses & Compliance Tracking",
-      "Recurring Statements",
-      "PDF Export",
-      "Remove Branding",
-      "Custom Emails",
-    ],
-    cta: "Contact Sales",
-  },
-];
+import { mockPlans } from "@/data/plans";
+import type { Plan } from "@/types";
+import { setSelectedPlanCheckout } from "@/lib/plan-selection";
 
 const testimonials = [
   {
@@ -154,16 +73,36 @@ const paymentMethods = [
   { name: "PayFast", color: "bg-orange-600" },
 ];
 
-const currencySymbols: Record<Currency, string> = {
+const currencySymbols: Record<string, string> = {
   USD: "$",
   ZAR: "R",
   EUR: "€",
 };
 
 export const LandingPage = () => {
-  const [currency, setCurrency] = useState<Currency>("ZAR");
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
-  const { handleDemoLogin, isLoading: isDemoLoading } = useDemoLogin();
+  const navigate = useNavigate();
+  const { result: plansResult } = useList<Plan>({
+    resource: "plans",
+    filters: [{ field: "is_active", operator: "eq", value: true }],
+    pagination: { mode: "off" },
+  });
+
+  const pricingPlans =
+    plansResult?.data && plansResult.data.length > 0
+      ? [...(plansResult.data as Plan[])].sort((a, b) => {
+          const rank = (plan: Plan) => {
+            const name = plan.name.toLowerCase();
+            if (name.includes("starter") || name.includes("trial") || name === "basic") return 0;
+            if (name === "pro") return 1;
+            if (name === "enterprise") return 2;
+            return 10;
+          };
+          return rank(a) - rank(b) || a.price - b.price;
+        })
+      : plansResult
+        ? mockPlans
+        : [];
 
   const nextTestimonial = () => {
     setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
@@ -171,6 +110,25 @@ export const LandingPage = () => {
 
   const prevTestimonial = () => {
     setCurrentTestimonial((prev) => (prev - 1 + testimonials.length) % testimonials.length);
+  };
+
+  const beginPlanSignup = (plan: Plan) => {
+    setSelectedPlanCheckout(plan);
+    navigate(`/register?plan=${encodeURIComponent(plan.id)}`);
+  };
+
+  const handleHeroStartTrial = () => {
+    const starterPlan = pricingPlans.find((plan) => {
+      const name = plan.name.toLowerCase();
+      return name.includes("starter") || name.includes("trial") || name === "basic";
+    });
+
+    if (starterPlan) {
+      beginPlanSignup(starterPlan);
+      return;
+    }
+
+    navigate("/register");
   };
 
   return (
@@ -201,20 +159,9 @@ export const LandingPage = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
               <Button
                 size="lg"
-                asChild
+                onClick={handleHeroStartTrial}
                 className="w-full sm:w-auto text-base px-8 transition-all duration-300 hover:scale-105 hover:shadow-lg active:scale-95">
-                <Link to="/register">
-                  Start Free Trial <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                onClick={handleDemoLogin}
-                disabled={isDemoLoading}
-                className="w-full sm:w-auto text-base px-8 transition-all duration-300 hover:scale-105 hover:bg-primary/5 active:scale-95 gap-2">
-                {isDemoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
-                Try Demo
+                Start Free Trial <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
 
@@ -273,25 +220,8 @@ export const LandingPage = () => {
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
             <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Simple, Transparent Pricing</h2>
             <p className="text-lg text-muted-foreground">
-              Choose the perfect plan for your business. All plans include a 7-day free trial.
+              Choose the perfect plan for your business. Plans are managed centrally and reflected here automatically.
             </p>
-
-            {/* Currency Switcher */}
-            <div className="flex justify-center gap-2 pt-4">
-              {(["USD", "ZAR", "EUR"] as Currency[]).map((curr) => (
-                <Button
-                  key={curr}
-                  variant={currency === curr ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setCurrency(curr)}
-                  className={cn(
-                    "transition-all duration-300",
-                    currency === curr ? "scale-105 shadow-md" : "hover:scale-105",
-                  )}>
-                  {curr}
-                </Button>
-              ))}
-            </div>
 
             {/* Payment Methods */}
             <div className="flex flex-wrap justify-center gap-3 pt-6">
@@ -310,18 +240,25 @@ export const LandingPage = () => {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
-            {pricingTiers.map((tier, index) => (
+          {plansResult ? (
+          <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
+            {pricingPlans.map((tier, index) => {
+              const isPopular = !!(tier.is_popular || tier.isPopular);
+              const trialDays = Number(tier.trial_days || 0);
+              const requiresCard = Boolean(tier.requires_card) || Number(tier.price || 0) > 0;
+              const cta = trialDays > 0 ? "Start Trial" : "Buy Plan";
+
+              return (
               <Card
-                key={tier.name}
+                key={tier.id}
                 className={cn(
                   "relative transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:-translate-y-2",
-                  tier.popular && "border-primary shadow-lg scale-105 md:scale-110",
+                  isPopular && "border-primary shadow-lg scale-105 md:scale-110",
                 )}
                 style={{
                   animation: `fadeInUp 0.5s ease-out ${index * 0.1}s backwards`,
                 }}>
-                {tier.popular && (
+                {isPopular && (
                   <div className="absolute -top-4 left-0 right-0 flex justify-center">
                     <Badge className="bg-gradient-to-r from-primary to-primary/60 text-white px-4 py-1 shadow-lg animate-pulse">
                       <Star className="w-3 h-3 mr-1 inline fill-current" />
@@ -329,28 +266,28 @@ export const LandingPage = () => {
                     </Badge>
                   </div>
                 )}
-                {tier.name === "Trial" && (
+                {trialDays > 0 && (
                   <div className="absolute -top-4 left-0 right-0 flex justify-center">
                     <Badge className="bg-gradient-to-r from-green-600 to-green-500 text-white px-4 py-1 shadow-lg">
                       <Zap className="w-3 h-3 mr-1 inline" />
-                      14-Day Free Trial
+                      {trialDays}-Day Free Trial
                     </Badge>
                   </div>
                 )}
-                <CardHeader className={cn((tier.popular || tier.name === "Trial") && "pt-8")}>
+                <CardHeader className={cn((isPopular || trialDays > 0) && "pt-8")}>
                   <CardTitle className="text-2xl">{tier.name}</CardTitle>
-                  <CardDescription>{tier.description}</CardDescription>
+                  <CardDescription>{tier.description || "Professional invoicing plan"}</CardDescription>
                   <div className="pt-4">
                     <span className="text-4xl font-bold">
-                      {currencySymbols[currency]}
-                      {tier.price[currency]}
+                      {tier.currency === "ZAR" ? currencySymbols.ZAR : tier.currency === "USD" ? currencySymbols.USD : tier.currency === "EUR" ? currencySymbols.EUR : `${tier.currency} `}
+                      {Number(tier.price).toFixed(2)}
                     </span>
-                    <span className="text-muted-foreground">/month</span>
+                    <span className="text-muted-foreground">/{tier.billing_cycle}</span>
                   </div>
-                  {tier.name === "Trial" && (
+                  {(trialDays > 0 || requiresCard) && (
                     <div className="pt-2">
                       <Badge variant="outline" className="text-xs font-normal border-orange-500 text-orange-600">
-                        Card required - Charged after 14 days
+                        {trialDays > 0 ? "Card required via PayFast" : "Card required via PayFast"}
                       </Badge>
                     </div>
                   )}
@@ -363,22 +300,31 @@ export const LandingPage = () => {
                         <span className="text-sm">{feature}</span>
                       </li>
                     ))}
+                    {trialDays > 0 && tier.auto_renew && (
+                      <li className="flex items-start gap-2">
+                        <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                        <span className="text-sm">Auto-renews after {trialDays} days unless cancelled before renewal.</span>
+                      </li>
+                    )}
                   </ul>
                 </CardContent>
                 <CardFooter>
                   <Button
                     className={cn(
                       "w-full transition-all duration-300 hover:scale-105 active:scale-95",
-                      tier.popular && "bg-primary hover:bg-primary/90 shadow-md",
+                      isPopular && "bg-primary hover:bg-primary/90 shadow-md",
                     )}
-                    variant={tier.popular ? "default" : "outline"}
-                    asChild>
-                    <Link to="/dashboard/invoices">{tier.cta}</Link>
+                    variant={isPopular ? "default" : "outline"}
+                    onClick={() => beginPlanSignup(tier)}>
+                    {cta}
                   </Button>
                 </CardFooter>
               </Card>
-            ))}
+            )})}
           </div>
+          ) : (
+            <p className="text-center text-sm text-muted-foreground">Loading pricing plans...</p>
+          )}
         </div>
       </section>
 

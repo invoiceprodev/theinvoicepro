@@ -1,190 +1,132 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, CreditCard, Shield, Lock, CheckCircle2 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { apiRequest } from "@/lib/api-client";
+import type { Plan, Subscription } from "@/types";
+import { clearSelectedPlanCheckout } from "@/lib/plan-selection";
+import { setSubscriptionBridgeSnapshot } from "@/lib/subscription-bridge";
 
 interface CardCollectionStepProps {
   userId: string;
   userEmail: string;
   userName: string;
+  plan: Plan;
 }
 
-export const CardCollectionStep = ({ userId, userEmail, userName }: CardCollectionStepProps) => {
+export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCollectionStepProps) => {
   const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [subscriptionCreated, setSubscriptionCreated] = useState(false);
+  const [debugPayload, setDebugPayload] = useState<Record<string, string | boolean> | null>(null);
+  const [debugUrl, setDebugUrl] = useState<string | null>(null);
+  const showPayFastDebug = import.meta.env.DEV;
+  const allowTrialBypass = import.meta.env.VITE_TRIAL_BYPASS_ENABLED === "true";
 
-  // Trial plan details (R170.00 as per Phase 20)
-  const TRIAL_PRICE = 170.0;
-  const TRIAL_DAYS = 14;
-  const CURRENCY = "ZAR";
+  const trialDays = Number(plan.trial_days || 0);
+  const amount = Number(plan.price || 0);
 
-  useEffect(() => {
-    // Check if subscription already exists
-    checkExistingSubscription();
-  }, [userId]);
+  const createSubscription = async () => {
+    const response = await apiRequest<{ data: { subscription: Subscription; plan: Plan; existing: boolean } }>(
+      "/subscriptions/trial-setup",
+      {
+        method: "POST",
+        body: JSON.stringify({ planId: plan.id }),
+      },
+    );
 
-  const checkExistingSubscription = async () => {
-    try {
-      const { data, error } = await supabase.from("subscriptions").select("id, status").eq("user_id", userId).single();
-
-      if (data && !error) {
-        setSubscriptionCreated(true);
-        // If subscription exists, redirect to dashboard after a moment
-        setTimeout(() => {
-          navigate("/dashboard");
-        }, 2000);
-      }
-    } catch (err) {
-      // No subscription exists yet, that's fine
+    const subscription = response.data.subscription;
+    if (!subscription?.id) {
+      throw new Error("Failed to create trial subscription.");
     }
+
+    return subscription;
   };
 
   const handleSetupCard = async () => {
     setIsProcessing(true);
     setError(null);
+    setDebugUrl(null);
 
     try {
-      // Step 1: Get the Trial plan ID
-      const { data: trialPlan, error: planError } = await supabase
-        .from("plans")
-        .select("id, name, price")
-        .eq("name", "Trial")
-        .single();
+      const subscription = await createSubscription();
 
-      if (planError || !trialPlan) {
-        throw new Error("Trial plan not found. Please contact support.");
-      }
+      setSubscriptionCreated(true);
 
-      // Step 2: Calculate trial dates
-      const trialStartDate = new Date();
-      const trialEndDate = new Date();
-      trialEndDate.setDate(trialEndDate.getDate() + TRIAL_DAYS);
-
-      // Step 3: Create trial subscription (without token initially)
-      const { data: subscription, error: subError } = await supabase
-        .from("subscriptions")
-        .insert({
-          user_id: userId,
-          plan_id: trialPlan.id,
-          status: "trial",
-          start_date: trialStartDate.toISOString().split("T")[0],
-          renewal_date: trialEndDate.toISOString().split("T")[0],
-          trial_start_date: trialStartDate.toISOString().split("T")[0],
-          trial_end_date: trialEndDate.toISOString().split("T")[0],
-        })
-        .select()
-        .single();
-
-      if (subError || !subscription) {
-        throw new Error("Failed to create trial subscription.");
-      }
-
-      // Step 4: Prepare PayFast subscription data
-      const payfastData = generatePayFastSubscriptionData({
-        subscriptionId: subscription.id,
-        userId: userId,
-        userName: userName,
-        userEmail: userEmail,
-        amount: TRIAL_PRICE,
-        planName: trialPlan.name,
-        trialDays: TRIAL_DAYS,
+      const payment = await apiRequest<{
+        data: {
+          url: string;
+          debug: Record<string, string | boolean>;
+        };
+      }>(`/subscriptions/${subscription.id}/payfast-checkout`, {
+        method: "POST",
       });
 
-      // Step 5: Submit to PayFast for card authorization
-      submitToPayFast(payfastData);
-    } catch (err: any) {
-      setError(err.message || "Failed to set up card authorization. Please try again.");
+      if (showPayFastDebug) {
+        setDebugPayload(payment.data.debug);
+        console.table(payment.data.debug);
+      }
+
+      window.location.href = payment.data.url;
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to set up card authorization. Please try again.");
       setIsProcessing(false);
     }
   };
 
-  const generatePayFastSubscriptionData = ({
-    subscriptionId,
-    userId,
-    userName,
-    userEmail,
-    amount,
-    planName,
-    trialDays,
-  }: {
-    subscriptionId: string;
-    userId: string;
-    userName: string;
-    userEmail: string;
-    amount: number;
-    planName: string;
-    trialDays: number;
-  }) => {
-    const merchantId = import.meta.env.VITE_PAYFAST_MERCHANT_ID || "10000100";
-    const merchantKey = import.meta.env.VITE_PAYFAST_MERCHANT_KEY || "46f0cd694581a";
-    const mode = import.meta.env.VITE_PAYFAST_MODE || "sandbox";
+  const handleActivateTrialBypass = async () => {
+    setIsProcessing(true);
+    setError(null);
 
-    const baseUrl = window.location.origin;
-    const returnUrl = `${baseUrl}/auth/card-setup-complete?subscription_id=${subscriptionId}`;
-    const cancelUrl = `${baseUrl}/auth/signup?card_setup=cancelled`;
-    const notifyUrl = `${baseUrl}/.netlify/functions/payfast-webhook`;
+    try {
+      const subscription = await createSubscription();
 
-    // Split name into first and last
-    const nameParts = userName.trim().split(" ");
-    const firstName = nameParts[0] || userName;
-    const lastName = nameParts.slice(1).join(" ") || firstName;
+      const response = await apiRequest<{ data: Subscription }>(`/subscriptions/${subscription.id}/activate-bypass`, {
+        method: "POST",
+      });
 
-    return {
-      merchant_id: merchantId,
-      merchant_key: merchantKey,
-      return_url: returnUrl,
-      cancel_url: cancelUrl,
-      notify_url: notifyUrl,
-      name_first: firstName,
-      name_last: lastName,
-      email_address: userEmail,
-      m_payment_id: `TRIAL-${subscriptionId}`,
-      amount: amount.toFixed(2),
-      item_name: `${planName} - 14-Day Trial`,
-      item_description: `Trial subscription - Card will be charged R${amount.toFixed(2)} after ${trialDays} days`,
-      subscription_type: "1", // Subscription
-      billing_date: new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000).toISOString().split("T")[0], // Charge after trial
-      recurring_amount: amount.toFixed(2),
-      frequency: "3", // Monthly
-      cycles: "0", // Indefinite
-      custom_str1: subscriptionId, // Store subscription ID
-      custom_str2: userId, // Store user ID
-      custom_int1: 2, // Flag: 2 = trial subscription
-      email_confirmation: 1,
-      confirmation_address: userEmail,
-    };
+      clearSelectedPlanCheckout();
+      setSubscriptionBridgeSnapshot({
+        isLoading: false,
+        subscription: response.data,
+      });
+
+      navigate("/dashboard");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to activate your trial. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const submitToPayFast = (data: any) => {
-    const payfastUrl =
-      import.meta.env.VITE_PAYFAST_MODE === "live"
-        ? "https://www.payfast.co.za/eng/process"
-        : "https://sandbox.payfast.co.za/eng/process";
+  const handleInspectPayload = async () => {
+    setIsProcessing(true);
+    setError(null);
 
-    // Create a form and submit it
-    const form = document.createElement("form");
-    form.method = "POST";
-    form.action = payfastUrl;
+    try {
+      const subscription = await createSubscription();
 
-    Object.keys(data).forEach((key) => {
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = key;
-      input.value = data[key];
-      form.appendChild(input);
-    });
+      const debugResponse = await apiRequest<{
+        data: {
+          debug: Record<string, string | boolean>;
+          url: string;
+        };
+      }>(`/subscriptions/${subscription.id}/payfast-debug`);
 
-    document.body.appendChild(form);
-    form.submit();
+      setDebugPayload(debugResponse.data.debug);
+      setDebugUrl(debugResponse.data.url);
+      console.table(debugResponse.data.debug);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to inspect PayFast payload.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleSkipForNow = () => {
-    // User can skip but will need to add card later
     navigate("/dashboard");
   };
 
@@ -198,8 +140,8 @@ export const CardCollectionStep = ({ userId, userEmail, userName }: CardCollecti
                 <CheckCircle2 className="w-8 h-8 text-green-600" />
               </div>
             </div>
-            <CardTitle>Setup Complete!</CardTitle>
-            <CardDescription>Redirecting you to your dashboard...</CardDescription>
+            <CardTitle>Redirecting to PayFast</CardTitle>
+            <CardDescription>We are opening secure card setup for your {plan.name} plan.</CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -214,12 +156,13 @@ export const CardCollectionStep = ({ userId, userEmail, userName }: CardCollecti
             <div className="flex items-center gap-2 justify-center mb-2">
               <CreditCard className="w-6 h-6 text-primary" />
             </div>
-            <CardTitle className="text-2xl font-bold text-center">Set Up Your Trial</CardTitle>
-            <CardDescription className="text-center">Start your 14-day free trial with full access</CardDescription>
+            <CardTitle className="text-2xl font-bold text-center">Start {plan.name}</CardTitle>
+            <CardDescription className="text-center">
+              {trialDays > 0 ? `Start your ${trialDays}-day free trial with card authorisation` : "Set up recurring billing"}
+            </CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-6">
-            {/* Error Alert */}
             {error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -228,68 +171,111 @@ export const CardCollectionStep = ({ userId, userEmail, userName }: CardCollecti
               </Alert>
             )}
 
-            {/* Trial Details */}
             <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-4 border border-primary/20">
-              <h3 className="font-semibold text-lg mb-3">Your 14-Day Free Trial Includes:</h3>
+              <h3 className="font-semibold text-lg mb-3">{plan.name} includes:</h3>
               <ul className="space-y-2 text-sm">
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                  <span>Up to 5 invoices per month</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                  <span>1 client account</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                  <span>Basic invoice templates</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                  <span>Email support</span>
-                </li>
+                {plan.features.map((feature) => (
+                  <li key={feature} className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <span>{feature}</span>
+                  </li>
+                ))}
               </ul>
             </div>
 
-            {/* Pricing Information */}
             <div className="bg-muted/50 rounded-lg p-4 border">
               <div className="flex items-start gap-3">
                 <Shield className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                 <div className="space-y-1">
-                  <p className="font-semibold text-sm">After Your Trial</p>
-                  <p className="text-sm text-muted-foreground">
-                    Your card will be charged <strong className="text-foreground">R{TRIAL_PRICE.toFixed(2)}</strong>{" "}
-                    after {TRIAL_DAYS} days.
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Cancel anytime before the trial ends to avoid charges.
-                  </p>
+                  <p className="font-semibold text-sm">Billing Summary</p>
+                  {trialDays > 0 ? (
+                    <>
+                      <p className="text-sm text-muted-foreground">
+                        No charge today. Your card is authorised now and billed{" "}
+                        <strong className="text-foreground">
+                          {plan.currency === "ZAR" ? "R" : `${plan.currency} `}
+                          {amount.toFixed(2)}
+                        </strong>{" "}
+                        after {trialDays} days if you do not cancel.
+                      </p>
+                      {plan.auto_renew && (
+                        <p className="text-xs text-muted-foreground mt-2">This trial auto-renews through PayFast after the trial period.</p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Your card will be used for recurring billing of{" "}
+                      <strong className="text-foreground">
+                        {plan.currency === "ZAR" ? "R" : `${plan.currency} `}
+                        {amount.toFixed(2)}
+                      </strong>{" "}
+                      per {plan.billing_cycle}.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Security Notice */}
+            {allowTrialBypass && trialDays > 0 ? (
+              <Alert>
+                <AlertTitle>Temporary trial bypass enabled</AlertTitle>
+                <AlertDescription>
+                  You can activate this trial without card setup while the PayFast issue is being resolved. The normal
+                  PayFast flow remains available below.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
             <div className="flex items-start gap-3 text-xs text-muted-foreground">
               <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              <p>
-                Your payment information is securely processed by PayFast. We never store your card details on our
-                servers.
-              </p>
+              <p>Your payment information is securely processed by PayFast. We never store your card details on our servers.</p>
             </div>
+
+            {showPayFastDebug && debugPayload ? (
+              <div className="rounded-lg border bg-muted/40 p-4 text-xs">
+                <p className="font-semibold text-foreground mb-2">PayFast debug payload</p>
+                <div className="grid gap-1 text-muted-foreground">
+                  {Object.entries(debugPayload).map(([key, value]) => (
+                    <div key={key} className="flex items-start justify-between gap-3">
+                      <span className="font-mono text-[11px] text-foreground">{key}</span>
+                      <span className="text-right break-all">{String(value)}</span>
+                    </div>
+                  ))}
+                </div>
+                {debugUrl ? (
+                  <div className="mt-3 break-all border-t pt-3">
+                    <p className="font-semibold text-foreground mb-1">Checkout URL</p>
+                    <p className="text-muted-foreground">{debugUrl}</p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </CardContent>
 
           <CardFooter className="flex flex-col gap-3">
+            {allowTrialBypass && trialDays > 0 ? (
+              <Button onClick={handleActivateTrialBypass} disabled={isProcessing} size="lg" className="w-full">
+                {isProcessing ? "Activating trial..." : "Activate Trial"}
+              </Button>
+            ) : null}
+
             <Button onClick={handleSetupCard} disabled={isProcessing} size="lg" className="w-full">
-              {isProcessing ? "Redirecting to PayFast..." : "Set Up Trial & Add Card"}
+              {isProcessing ? "Redirecting to PayFast..." : trialDays > 0 ? "Start Trial With Card" : "Continue to PayFast"}
             </Button>
 
+            {showPayFastDebug ? (
+              <Button onClick={handleInspectPayload} variant="outline" size="sm" className="w-full" disabled={isProcessing}>
+                Inspect PayFast Payload
+              </Button>
+            ) : null}
+
             <Button onClick={handleSkipForNow} variant="ghost" size="sm" className="w-full" disabled={isProcessing}>
-              Skip for now (add card later)
+              Skip for now
             </Button>
 
             <p className="text-xs text-center text-muted-foreground">
-              By clicking "Set Up Trial", you agree to our Terms of Service and authorize us to charge your card after
-              the trial period.
+              By continuing, you authorise PayFast to set up recurring billing
+              {trialDays > 0 ? ` after your ${trialDays}-day trial` : ""}.
             </p>
           </CardFooter>
         </Card>

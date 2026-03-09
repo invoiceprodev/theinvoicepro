@@ -14,7 +14,7 @@ Run `db/migrations/BUSINESS_SETTINGS_MIGRATION.sql` in Supabase SQL Editor.
 
 **How to run:**
 
-1. Go to: https://supabase.com/dashboard/project/pfhbexbmarxelehrdcuz/sql/new
+1. Go to: `https://supabase.com/dashboard/project/<your-supabase-project-id>/sql/new`
 2. Paste the SQL from `db/migrations/BUSINESS_SETTINGS_MIGRATION.sql`
 3. Click "Run"
 
@@ -25,15 +25,15 @@ See `db/setup/STORAGE_BUCKET_SETUP.md` for full instructions.
 **Quick Setup:**
 
 1. Go to Supabase Dashboard → Storage → Buckets
-2. Create bucket named `business-logos` (Public: Yes, Size limit: 2MB)
-3. Run the storage policies from `db/setup/STORAGE_BUCKET_SETUP.md`
+2. Create bucket named `company-branding` (Public: Yes, Size limit: 2MB)
+3. No direct client upload policies are required if you are uploading through the API service-role path
 
 ## Usage
 
 1. Navigate to `/settings` in the dashboard
 2. Fill in company name, email, phone, address
 3. Select default currency
-4. Upload business logo (PNG, JPG, SVG, max 5MB)
+4. Upload business logo (PNG, JPG, WEBP, or SVG, max 2MB)
 5. Click "Save Settings"
 
 ## Database Schema Changes
@@ -51,9 +51,9 @@ profiles table additions:
 ## Storage Structure
 
 ```
-business-logos/
-  └── logos/
-      └── {user_id}-{timestamp}.{ext}
+company-branding/
+  └── companies/
+      └── {profile_id}/logo
 ```
 
 ## Troubleshooting

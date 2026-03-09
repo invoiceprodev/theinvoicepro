@@ -2,14 +2,14 @@
 
 ## Quick Start
 
-### 1. Configure EmailJS
+### 1. Configure Resend + API
 
-See root `EMAILJS_SETUP.md` for full setup. Add to `.env`:
+Add to your API `.env`:
 
 ```env
-VITE_EMAILJS_PUBLIC_KEY=your_public_key
-VITE_EMAILJS_SERVICE_ID=your_service_id
-VITE_EMAILJS_TEMPLATE_ID=your_template_id
+RESEND_API_KEY=your-resend-api-key
+RESEND_FROM_EMAIL=noreply@theinvoicepro.co.za
+VITE_API_URL=http://127.0.0.1:3000
 ```
 
 ### 2. Use the Hook (Recommended)
@@ -77,16 +77,16 @@ await sendInvoiceEmail({
 
 | File                                    | Purpose                 |
 | --------------------------------------- | ----------------------- |
-| `src/lib/emailjs.ts`                    | EmailJS configuration   |
-| `src/lib/pdf-generator.ts`              | PDF generation (jsPDF)  |
-| `src/services/invoice-email.service.ts` | Email service functions |
-| `src/hooks/use-send-invoice-email.ts`   | React hook              |
+| `src/lib/pdf-generator.ts`              | PDF generation (jsPDF) |
+| `src/services/invoice-email.service.ts` | API-backed invoice email service |
+| `src/hooks/use-send-invoice-email.ts`   | React hook |
+| `api/src/resend.ts`                     | Resend email delivery |
 
 ## Troubleshooting
 
 | Issue                             | Fix                                                             |
 | --------------------------------- | --------------------------------------------------------------- |
-| "Email service is not configured" | Check `.env` has all 3 EmailJS variables; restart dev server    |
-| "Failed to send email"            | Check EmailJS dashboard for service status; verify template IDs |
-| PDF not generating                | Ensure `invoice.items` and `invoice.client` are populated       |
-| Emails go to spam                 | Use professional sender email; consider EmailJS paid plan       |
+| "Email service is not configured" | Check API env has `RESEND_API_KEY` and `RESEND_FROM_EMAIL`; restart the API |
+| "Failed to send email"            | Check API logs and Resend dashboard for delivery errors |
+| PDF not generating                | Ensure `invoice.items` and `invoice.client` are populated |
+| Emails go to spam                 | Verify your sender domain in Resend and configure SPF/DKIM |

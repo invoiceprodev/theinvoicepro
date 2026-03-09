@@ -1,207 +1,304 @@
-import { type HttpError, useSelect } from "@refinedev/core";
+import React, { useEffect, useMemo, useState } from "react";
+import { type BaseRecord, type HttpError, useBack, useCreate, useInvalidate, useList } from "@refinedev/core";
 import { useForm } from "@refinedev/react-hook-form";
+import { useForm as useReactHookForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useFieldArray } from "react-hook-form";
-import { useState, useEffect } from "react";
+import { Plus, Trash2, Send, FileText, UserPlus } from "lucide-react";
+import { toast } from "sonner";
+import { useSearchParams } from "react-router";
+
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CreateView, CreateViewHeader } from "@/components/refine-ui/views/create-view";
-import { LoadingOverlay } from "@/components/refine-ui/layout/loading-overlay";
-import { useNavigate } from "react-router";
-import { Trash2, Plus } from "lucide-react";
-import type { Invoice, Client } from "@/types";
-import { formatCurrency } from "@/lib/utils";
-import { supabaseClient } from "@/lib/supabase";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { CreateView } from "@/components/refine-ui/views/create-view";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { usePlanEntitlements } from "@/hooks/use-plan-entitlements";
+import { CURRENCIES, getCurrencySymbol, type Client, type Currency } from "@/types";
+import { apiRequest } from "@/lib/api-client";
 
-// Schema for line items
 const lineItemSchema = z.object({
-  description: z.string().min(1, { message: "Description is required." }),
-  quantity: z.coerce.number().min(0.01, { message: "Quantity must be at least 0.01" }),
-  unit_price: z.coerce.number().min(0, { message: "Unit price must be positive" }),
+  description: z.string().min(1, "Description is required"),
+  quantity: z.coerce.number().min(1, "Quantity must be at least 1"),
+  unitPrice: z.coerce.number().min(0, "Unit price must be positive"),
 });
 
 const invoiceFormSchema = z.object({
-  invoice_number: z.string().min(1, { message: "Invoice number is required." }),
-  client_id: z.string().min(1, { message: "Please select a client." }),
-  invoice_date: z.string().min(1, { message: "Invoice date is required." }),
-  due_date: z.string().min(1, { message: "Due date is required." }),
-  tax_percentage: z.coerce.number().min(0).max(100, { message: "Tax must be between 0 and 100" }),
+  clientId: z.string().min(1, "Client is required"),
+  invoiceNumber: z.string().min(1, "Invoice number is required"),
+  invoiceDate: z.string().min(1, "Invoice date is required"),
+  dueDate: z.string().min(1, "Due date is required"),
+  status: z.enum(["Draft", "Sent", "Paid", "Overdue"]),
+  currency: z.enum(["ZAR", "USD", "EUR"]),
+  discountType: z.enum(["percentage", "fixed"]),
+  discount: z.coerce.number().min(0, "Discount must be 0 or greater"),
   notes: z.string().optional(),
-  items: z.array(lineItemSchema).min(1, { message: "At least one line item is required." }),
+  lineItems: z.array(lineItemSchema).min(1, "At least one line item is required"),
+});
+
+const clientQuickCreateSchema = z.object({
+  name: z.string().min(1, "Client name is required"),
+  email: z.string().min(1, "Email is required").email("Please enter a valid email address"),
+  company: z.string().optional(),
+  phone: z.string().optional(),
 });
 
 type InvoiceFormValues = z.infer<typeof invoiceFormSchema>;
+type ClientQuickCreateValues = z.infer<typeof clientQuickCreateSchema>;
 
-export default function CreateInvoicePage() {
-  const navigate = useNavigate();
-  const [subtotal, setSubtotal] = useState(0);
-  const [taxAmount, setTaxAmount] = useState(0);
-  const [total, setTotal] = useState(0);
+type LineItemRow = {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+};
 
-  // Debug: Check authentication status
-  useEffect(() => {
-    const checkAuth = async () => {
-      const demoUser = localStorage.getItem("demo-user");
-      console.log("[AUTH DEBUG] Demo user:", demoUser);
+export const InvoiceCreatePage: React.FC = () => {
+  const back = useBack();
+  const invalidate = useInvalidate();
+  const [searchParams] = useSearchParams();
 
-      const {
-        data: { session },
-        error,
-      } = await supabaseClient.auth.getSession();
-      console.log("[AUTH DEBUG] Supabase session:", session);
-      console.log("[AUTH DEBUG] Session error:", error);
+  const [lineItems, setLineItems] = useState<LineItemRow[]>([{ description: "", quantity: 1, unitPrice: 0 }]);
+  const [attachPdf, setAttachPdf] = useState(false);
+  const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
+  const [isNumberLoading, setIsNumberLoading] = useState(false);
+  const { entitlements, usage, canCreateClient, canCreateInvoice, canUseQuotes } = usePlanEntitlements();
+  const isQuoteFlow = searchParams.get("type") === "quote";
 
-      if (!session) {
-        console.error("[AUTH DEBUG] No Supabase session - this will cause RLS to block queries!");
-      }
-    };
-    checkAuth();
-  }, []);
+  const { result: clientsResult, query: clientsQuery } = useList<Client>({
+    resource: "clients",
+  });
+  const { mutateAsync: createClient, mutation: createClientMutation } = useCreate<BaseRecord>();
+  const isCreatingClient = createClientMutation?.isPending || false;
+
+  const clientOptions = useMemo(
+    () =>
+      (clientsResult?.data || []).map((client) => ({
+        label: client.company ? `${client.name} (${client.company})` : client.name,
+        value: client.id,
+      })),
+    [clientsResult?.data],
+  );
 
   const {
     refineCore: { onFinish, formLoading },
     ...form
-  } = useForm<Invoice, HttpError, InvoiceFormValues>({
+  } = useForm<any, HttpError, InvoiceFormValues>({
     resolver: zodResolver(invoiceFormSchema),
     defaultValues: {
-      invoice_number: `INV-${Date.now()}`,
-      client_id: "",
-      invoice_date: new Date().toISOString().split("T")[0],
-      due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], // 30 days from now
-      tax_percentage: 0,
+      clientId: searchParams.get("clientId") || "",
+      invoiceNumber: "",
+      invoiceDate: new Date().toISOString().split("T")[0],
+      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      status: "Draft",
+      currency: "ZAR",
+      discountType: "percentage",
+      discount: 0,
       notes: "",
-      items: [
-        {
-          description: "",
-          quantity: 1,
-          unit_price: 0,
-        },
-      ],
+      lineItems: [{ description: "", quantity: 1, unitPrice: 0 }],
     },
     refineCoreProps: {
       resource: "invoices",
       action: "create",
-      redirect: false,
-      onMutationSuccess: () => {
-        navigate("/invoices");
-      },
+      redirect: "list",
     },
   });
 
-  // Fetch clients for dropdown
-  const { options: clientOptions } = useSelect({
-    resource: "clients",
-    optionLabel: "name",
-    optionValue: "id",
-  });
-
-  // Debug: Log query state changes
   useEffect(() => {
-    console.log("[DEBUG] Client options:", clientOptions);
-  }, [clientOptions]);
+    let cancelled = false;
 
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "items",
-  });
+    async function loadNextDocumentNumber() {
+      try {
+        setIsNumberLoading(true);
+        const response = await apiRequest<{ data: { number: string } }>(
+          `/documents/next-number?type=${encodeURIComponent(isQuoteFlow ? "quote" : "invoice")}`,
+        );
+        if (!cancelled) {
+          form.setValue("invoiceNumber", response.data.number, { shouldDirty: false });
+        }
+      } catch (error) {
+        const fallbackPrefix = isQuoteFlow ? "QUO-" : "INV-";
+        if (!cancelled) {
+          form.setValue("invoiceNumber", `${fallbackPrefix}0001`, { shouldDirty: false });
+        }
+        console.error("[InvoiceCreate] failed to load next document number", error);
+      } finally {
+        if (!cancelled) {
+          setIsNumberLoading(false);
+        }
+      }
+    }
 
-  // Watch form values for calculations
-  const watchItems = form.watch("items");
-  const watchTaxPercentage = form.watch("tax_percentage");
+    void loadNextDocumentNumber();
 
-  // Calculate totals whenever items or tax changes
-  useEffect(() => {
-    const calculatedSubtotal = watchItems.reduce((sum, item) => {
-      const quantity = Number(item.quantity) || 0;
-      const unitPrice = Number(item.unit_price) || 0;
-      return sum + quantity * unitPrice;
-    }, 0);
-
-    const taxPercent = Number(watchTaxPercentage) || 0;
-    const calculatedTaxAmount = (calculatedSubtotal * taxPercent) / 100;
-    const calculatedTotal = calculatedSubtotal + calculatedTaxAmount;
-
-    setSubtotal(calculatedSubtotal);
-    setTaxAmount(calculatedTaxAmount);
-    setTotal(calculatedTotal);
-  }, [watchItems, watchTaxPercentage]);
-
-  async function onSubmit(values: InvoiceFormValues) {
-    // Prepare invoice data with calculated totals
-    const invoiceData: any = {
-      invoice_number: values.invoice_number,
-      client_id: values.client_id,
-      invoice_date: values.invoice_date,
-      due_date: values.due_date,
-      subtotal: subtotal,
-      tax_percentage: values.tax_percentage,
-      tax_amount: taxAmount,
-      total: total,
-      notes: values.notes || null,
-      status: "pending" as const,
+    return () => {
+      cancelled = true;
     };
+  }, [form, isQuoteFlow]);
+
+  const selectedCurrency = (form.watch("currency") || "ZAR") as Currency;
+  const symbol = getCurrencySymbol(selectedCurrency);
+  const discountType = form.watch("discountType") || "percentage";
+  const discountValue = Number(form.watch("discount")) || 0;
+
+  const subtotal = lineItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+  const discountAmount =
+    discountType === "percentage" ? (subtotal * discountValue) / 100 : Math.min(discountValue, subtotal);
+  const total = Math.max(0, subtotal - discountAmount);
+
+  const addLineItem = () => {
+    const newItems = [...lineItems, { description: "", quantity: 1, unitPrice: 0 }];
+    setLineItems(newItems);
+    form.setValue("lineItems", newItems);
+  };
+
+  const removeLineItem = (index: number) => {
+    const newItems = lineItems.filter((_, i) => i !== index);
+    setLineItems(newItems);
+    form.setValue("lineItems", newItems);
+  };
+
+  const updateLineItem = (index: number, field: keyof LineItemRow, value: string | number) => {
+    const newItems = lineItems.map((item, i) =>
+      i === index ? { ...item, [field]: field === "description" ? value : Number(value) } : item,
+    );
+    setLineItems(newItems);
+    form.setValue("lineItems", newItems);
+  };
+
+  function onSubmit(values: InvoiceFormValues, overrideStatus?: "Draft" | "Sent") {
+    const computedLineItems = lineItems.map((item) => ({
+      description: item.description,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      total: item.quantity * item.unitPrice,
+    }));
+
+    const sub = computedLineItems.reduce((s, i) => s + i.total, 0);
+    const disc = values.discountType === "percentage" ? (sub * values.discount) / 100 : Math.min(values.discount, sub);
+    const tot = Math.max(0, sub - disc);
+    const status = overrideStatus ?? values.status;
+
+    onFinish({
+      invoiceNumber: values.invoiceNumber,
+      clientId: String(values.clientId),
+      invoiceDate: values.invoiceDate,
+      dueDate: values.dueDate,
+      status,
+      currency: values.currency,
+      discountType: values.discountType,
+      discount: values.discount,
+      notes: values.notes || "",
+      subtotal: sub,
+      total: tot,
+      lineItems: computedLineItems,
+      createdAt: new Date().toISOString(),
+    } as any);
+  }
+
+  const handleSaveAsDraft = () => {
+    form.handleSubmit((values) => onSubmit(values, "Draft"))();
+  };
+
+  const handleSendInvoice = () => {
+    form.handleSubmit((values) => {
+      onSubmit(values, "Sent");
+      toast.success("Invoice sent successfully");
+    })();
+  };
+
+  const clientQuickCreateForm = useReactHookForm<ClientQuickCreateValues>({
+    resolver: zodResolver(clientQuickCreateSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      company: "",
+      phone: "",
+    },
+  });
+
+  const handleQuickCreateClient = clientQuickCreateForm.handleSubmit(async (values) => {
+    if (!canCreateClient) {
+      toast.error("Client limit reached", {
+        description: `Your plan allows ${entitlements.maxSavedClients} saved clients.`,
+      });
+      return;
+    }
 
     try {
-      // Create invoice
-      const response: any = await onFinish(invoiceData);
+      const result = await createClient({
+        resource: "clients",
+        values: {
+          name: values.name,
+          email: values.email,
+          company: values.company || "",
+          phone: values.phone || "",
+          status: "Active",
+          created_at: new Date().toISOString(),
+        },
+      });
 
-      // If invoice was created successfully, create line items
-      if (response?.data) {
-        const invoiceId = response.data.id;
-
-        // Create all line items
-        const itemPromises = values.items.map((item) => {
-          const itemTotal = Number(item.quantity) * Number(item.unit_price);
-          return fetch(`${import.meta.env.VITE_API_URL}/rest/v1/invoice_items`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              apikey: import.meta.env.VITE_SUPABASE_API_KEY,
-              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_API_KEY}`,
-            },
-            body: JSON.stringify({
-              invoice_id: invoiceId,
-              description: item.description,
-              quantity: Number(item.quantity),
-              unit_price: Number(item.unit_price),
-              total: itemTotal,
-            }),
-          });
-        });
-
-        await Promise.all(itemPromises);
-
-        // Navigate to invoice list after successful creation
-        navigate("/invoices");
-      }
+      const createdClient = result.data as Client;
+      await invalidate({ resource: "clients", invalidates: ["list"] });
+      await clientsQuery.refetch();
+      form.setValue("clientId", createdClient.id);
+      clientQuickCreateForm.reset();
+      setIsClientDialogOpen(false);
+      toast.success("Client created", {
+        description: `${createdClient.name} has been added and selected for this invoice.`,
+      });
     } catch (error) {
-      console.error("Error creating invoice:", error);
+      const message = error instanceof Error ? error.message : "Failed to create client.";
+      toast.error("Could not create client", { description: message });
     }
-  }
+  });
 
   return (
     <CreateView>
-      <CreateViewHeader title="Create New Invoice" />
-      <LoadingOverlay loading={formLoading}>
+      <div className="px-4 py-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold">{isQuoteFlow ? "Create Quote" : "Create Invoice"}</h1>
+          <p className="text-sm text-muted-foreground">
+            {isQuoteFlow ? "Prepare a quote for your client" : "Fill in the details to create a new invoice"}
+          </p>
+        </div>
+
+        {isQuoteFlow && !canUseQuotes && (
+          <Alert className="mb-6" variant="destructive">
+            <AlertTitle>Quotes unavailable on current plan</AlertTitle>
+            <AlertDescription>Upgrade to Pro or Enterprise to create quotes.</AlertDescription>
+          </Alert>
+        )}
+
+        {!isQuoteFlow && !canCreateInvoice && (
+          <Alert className="mb-6" variant="destructive">
+            <AlertTitle>Monthly invoice limit reached</AlertTitle>
+            <AlertDescription>
+              Your plan allows {entitlements.maxInvoicesPerMonth} invoices per month. You have already created {usage.invoicesThisMonth} this month.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-4 max-w-4xl">
-            {/* Invoice Details Section */}
+          <form className="space-y-8">
+            {/* Invoice Details */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Invoice Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <h2 className="text-base font-semibold">Invoice Details</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
-                  name="invoice_number"
+                  name="invoiceNumber"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Invoice Number *</FormLabel>
                       <FormControl>
                         <Input placeholder="INV-001" {...field} />
                       </FormControl>
+                      {isNumberLoading ? <p className="text-xs text-muted-foreground">Generating next number...</p> : null}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -209,24 +306,37 @@ export default function CreateInvoicePage() {
 
                 <FormField
                   control={form.control}
-                  name="client_id"
+                  name="clientId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Client *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a client" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {clientOptions?.map((option: any) => (
-                            <SelectItem key={option.value} value={option.value as string}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center justify-between gap-3">
+                        <FormLabel>Client *</FormLabel>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsClientDialogOpen(true)}
+                          disabled={!canCreateClient}>
+                          <UserPlus className="h-4 w-4 mr-1" />
+                          Add Client
+                        </Button>
+                      </div>
+                      <div className="flex gap-2">
+                        <Select onValueChange={field.onChange} value={String(field.value)}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a client" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {clientOptions.map((option) => (
+                              <SelectItem key={option.value} value={String(option.value)}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -234,7 +344,7 @@ export default function CreateInvoicePage() {
 
                 <FormField
                   control={form.control}
-                  name="invoice_date"
+                  name="invoiceDate"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Invoice Date *</FormLabel>
@@ -248,13 +358,38 @@ export default function CreateInvoicePage() {
 
                 <FormField
                   control={form.control}
-                  name="due_date"
+                  name="dueDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Due Date *</FormLabel>
+                      <FormLabel className="text-base font-semibold">Due Date *</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <Input type="date" {...field} className="border-primary/50 focus-visible:ring-primary" />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="currency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Currency</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select currency" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {CURRENCIES.map((c) => (
+                            <SelectItem key={c.value} value={c.value}>
+                              {c.symbol} — {c.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -262,151 +397,291 @@ export default function CreateInvoicePage() {
               </div>
             </div>
 
-            {/* Line Items Section */}
+            <Separator />
+
+            {/* Line Items */}
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Line Items</h3>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    append({
-                      description: "",
-                      quantity: 1,
-                      unit_price: 0,
-                    })
-                  }>
-                  <Plus className="w-4 h-4 mr-2" />
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-semibold">Line Items</h2>
+                <Button type="button" variant="outline" size="sm" onClick={addLineItem}>
+                  <Plus className="h-4 w-4 mr-1" />
                   Add Item
                 </Button>
               </div>
 
+              {/* Header row */}
+              <div className="hidden md:grid grid-cols-12 gap-2 text-xs font-medium text-muted-foreground px-1">
+                <div className="col-span-5">Description</div>
+                <div className="col-span-2 text-right">Qty</div>
+                <div className="col-span-2 text-right">Unit Price ({symbol})</div>
+                <div className="col-span-2 text-right">Total ({symbol})</div>
+                <div className="col-span-1" />
+              </div>
+
               <div className="space-y-3">
-                {fields.map((field, index) => (
-                  <div key={field.id} className="flex gap-2 items-start border p-3 rounded-md">
-                    <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-2">
-                      <div className="md:col-span-5">
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.description`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormControl>
-                                <Input placeholder="Description" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
+                {lineItems.map((item, index) => {
+                  const lineTotal = item.quantity * item.unitPrice;
+                  return (
+                    <div key={index} className="grid grid-cols-12 gap-2 items-center">
+                      <div className="col-span-12 md:col-span-5">
+                        <Input
+                          placeholder="Description"
+                          value={item.description}
+                          onChange={(e) => updateLineItem(index, "description", e.target.value)}
                         />
                       </div>
-                      <div className="md:col-span-3">
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.quantity`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormControl>
-                                <Input type="number" step="0.01" placeholder="Qty" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
+                      <div className="col-span-4 md:col-span-2">
+                        <Input
+                          type="number"
+                          min="1"
+                          placeholder="Qty"
+                          value={item.quantity}
+                          onChange={(e) => updateLineItem(index, "quantity", e.target.value)}
+                          className="text-right"
                         />
                       </div>
-                      <div className="md:col-span-4">
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.unit_price`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormControl>
-                                <Input type="number" step="0.01" placeholder="Unit Price" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
+                      <div className="col-span-4 md:col-span-2">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={item.unitPrice}
+                          onChange={(e) => updateLineItem(index, "unitPrice", e.target.value)}
+                          className="text-right"
                         />
+                      </div>
+                      <div className="col-span-3 md:col-span-2 text-right text-sm font-medium px-2">
+                        {symbol}
+                        {lineTotal.toFixed(2)}
+                      </div>
+                      <div className="col-span-1 flex justify-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeLineItem(index)}
+                          disabled={lineItems.length === 1}
+                          className="text-destructive hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium w-20 text-right">
-                        {formatCurrency(
-                          (Number(form.watch(`items.${index}.quantity`)) || 0) *
-                            (Number(form.watch(`items.${index}.unit_price`)) || 0),
+                  );
+                })}
+              </div>
+
+              {/* Discount Row */}
+              <div className="flex justify-end pt-2">
+                <div className="w-full max-w-sm space-y-3">
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>Subtotal</span>
+                    <span>
+                      {symbol}
+                      {subtotal.toFixed(2)}
+                    </span>
+                  </div>
+
+                  {/* Discount field */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground shrink-0">Discount</span>
+                    <div className="flex items-center gap-1 ml-auto">
+                      <FormField
+                        control={form.control}
+                        name="discountType"
+                        render={({ field }) => (
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <SelectTrigger className="w-24 h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="percentage">% Pct</SelectItem>
+                              <SelectItem value="fixed">{symbol} Fixed</SelectItem>
+                            </SelectContent>
+                          </Select>
                         )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="discount"
+                        render={({ field }) => (
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="0"
+                            className="w-24 h-8 text-right text-sm"
+                            {...field}
+                          />
+                        )}
+                      />
+                      <span className="text-sm text-muted-foreground w-20 text-right">
+                        -{symbol}
+                        {discountAmount.toFixed(2)}
                       </span>
-                      {fields.length > 1 && (
-                        <Button type="button" variant="ghost" size="sm" onClick={() => remove(index)}>
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
-                      )}
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
 
-            {/* Totals Section */}
-            <div className="space-y-4 border-t pt-4">
-              <div className="flex flex-col items-end gap-2 max-w-sm ml-auto">
-                <div className="flex justify-between w-full">
-                  <span className="text-sm">Subtotal:</span>
-                  <span className="font-medium">{formatCurrency(subtotal)}</span>
-                </div>
-
-                <div className="flex items-center gap-2 w-full">
-                  <FormField
-                    control={form.control}
-                    name="tax_percentage"
-                    render={({ field }) => (
-                      <FormItem className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <FormLabel className="text-sm whitespace-nowrap">Tax (%):</FormLabel>
-                          <FormControl>
-                            <Input type="number" step="0.01" min="0" max="100" className="w-20" {...field} />
-                          </FormControl>
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <span className="font-medium w-24 text-right">{formatCurrency(taxAmount)}</span>
-                </div>
-
-                <div className="flex justify-between w-full text-lg font-bold border-t pt-2">
-                  <span>Total:</span>
-                  <span>{formatCurrency(total)}</span>
+                  <div className="flex justify-between font-semibold text-base pt-2 border-t">
+                    <span>Total</span>
+                    <span>
+                      {symbol}
+                      {total.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Notes Section */}
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Additional notes or terms..." className="resize-none" rows={3} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <Separator />
 
-            <div className="flex justify-end space-x-2">
-              <Button type="button" variant="outline" onClick={() => navigate("/invoices")} disabled={formLoading}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={formLoading}>
-                {formLoading ? "Creating..." : "Create Invoice"}
-              </Button>
+            {/* Notes */}
+            <div className="space-y-4">
+              <h2 className="text-base font-semibold">Notes</h2>
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <textarea
+                        placeholder="Add any notes or payment terms..."
+                        className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-4 pt-4">
+              {/* Attach PDF toggle */}
+              <div className="flex flex-col gap-1.5 items-start sm:items-end">
+                <div className="flex items-center gap-2">
+                  <Switch id="attach-pdf" checked={attachPdf} onCheckedChange={setAttachPdf} />
+                  <Label htmlFor="attach-pdf" className="text-sm cursor-pointer">
+                    Attach PDF to email
+                  </Label>
+                </div>
+                {attachPdf && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <FileText className="h-3 w-3" />A PDF copy will be attached when sending
+                  </p>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => back()} disabled={formLoading}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleSaveAsDraft}
+                  disabled={formLoading || !canCreateInvoice || (isQuoteFlow && !canUseQuotes)}>
+                  {formLoading ? "Saving..." : "Save as Draft"}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleSendInvoice}
+                  disabled={formLoading || !canCreateInvoice || (isQuoteFlow && !canUseQuotes)}>
+                  <Send className="h-4 w-4 mr-2" />
+                  {formLoading ? "Sending..." : isQuoteFlow ? "Send Quote" : "Send Invoice"}
+                </Button>
+              </div>
             </div>
           </form>
         </Form>
-      </LoadingOverlay>
+      </div>
+
+      <Dialog open={isClientDialogOpen} onOpenChange={setIsClientDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Client</DialogTitle>
+            <DialogDescription>Create a new client without leaving the invoice form.</DialogDescription>
+          </DialogHeader>
+
+          <Form {...clientQuickCreateForm}>
+            <form className="space-y-4" onSubmit={handleQuickCreateClient}>
+              <FormField
+                control={clientQuickCreateForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Jane Smith" {...field} disabled={isCreatingClient} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={clientQuickCreateForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="jane@example.com" {...field} disabled={isCreatingClient} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField
+                  control={clientQuickCreateForm.control}
+                  name="company"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Company</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Acme Corp" {...field} disabled={isCreatingClient} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={clientQuickCreateForm.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone</FormLabel>
+                      <FormControl>
+                        <Input placeholder="+27 11 000 0000" {...field} disabled={isCreatingClient} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    clientQuickCreateForm.reset();
+                    setIsClientDialogOpen(false);
+                  }}
+                  disabled={isCreatingClient}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isCreatingClient}>
+                  {isCreatingClient ? "Creating..." : "Create Client"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </CreateView>
   );
-}
+};

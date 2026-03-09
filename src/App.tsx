@@ -10,26 +10,35 @@ import { useNotificationProvider } from "@/components/refine-ui/notification/use
 import { RefineAiErrorComponent } from "@/components/catch-all";
 import { ThemeProvider } from "@/components/refine-ui/theme/theme-provider";
 import { AuthProvider } from "@/contexts/auth-context";
+import { AppAuth0Provider } from "@/components/auth0-provider";
 import { ProtectedRoute } from "@/components/protected-route";
 import { LayoutDashboard, FileText, Users, CreditCard, Home, ShieldCheck, Settings, Layers } from "lucide-react";
 
 // Customer app pages
 import { LandingPage } from "@/pages/landing/index";
-import { DashboardHome } from "@/pages/dashboard/index";
+import { DashboardPage } from "@/pages/dashboard/index";
 import { InvoiceListPage } from "@/pages/dashboard/invoices/list";
-import CreateInvoicePage from "@/pages/dashboard/invoices/create";
-import InvoiceShowPage from "@/pages/dashboard/invoices/show";
-import EditInvoicePage from "@/pages/dashboard/invoices/edit";
+import { InvoiceCreatePage } from "@/pages/dashboard/invoices/create";
+import { InvoiceShowPage } from "@/pages/dashboard/invoices/show";
+import { InvoiceEditPage } from "@/pages/dashboard/invoices/edit";
 import { ClientListPage } from "@/pages/dashboard/clients/list";
-import CreateClientPage from "@/pages/dashboard/clients/create";
-import EditClientPage from "@/pages/dashboard/clients/edit";
-import PlansPage from "@/pages/dashboard/plans/list";
-import SettingsPage from "@/pages/dashboard/settings/index";
+import { ClientCreatePage } from "@/pages/dashboard/clients/create";
+import { ClientEditPage } from "@/pages/dashboard/clients/edit";
+import { PlansPage } from "@/pages/dashboard/plans/index";
+import { ExpenseListPage } from "@/pages/dashboard/expenses/list";
+import { ExpenseCreatePage } from "@/pages/dashboard/expenses/create";
+import { ExpenseEditPage } from "@/pages/dashboard/expenses/edit";
+import { ExpenseShowPage } from "@/pages/dashboard/expenses/show";
+import { CompliancePage } from "@/pages/dashboard/compliance/index";
+import { SettingsPage } from "@/pages/dashboard/settings/index";
 import { LoginPage } from "@/pages/auth/login";
 import { RegisterPage } from "./pages/auth/register";
+import { VerifyEmailPage } from "@/pages/auth/verify-email";
 import { CardSetupPage } from "@/pages/auth/card-setup";
 import CardSetupSuccess from "./pages/auth/card-setup-success";
-import OnboardingPage from "@/pages/dashboard/onboarding/index";
+import { AuthCallbackPage, PublicOnlyRoute } from "@/pages/auth/callback";
+import { PricingPage } from "@/pages/services/pricing";
+import { SignupPage } from "@/pages/services/signup";
 
 // Admin app pages
 import { AdminDashboard } from "@/pages/admin/index";
@@ -38,6 +47,7 @@ import CreatePlanPage from "@/pages/admin/plans/create";
 import EditPlanPage from "@/pages/admin/plans/edit";
 import SubscriptionListPage from "@/pages/admin/subscriptions/list";
 import { AdminLoginPage } from "@/pages/admin/login";
+import { AdminRegisterPage } from "@/pages/admin/register";
 import { TenantListPage } from "@/pages/admin/tenants/list";
 import TenantShowPage from "@/pages/admin/tenants/show";
 import AdminSettingsPage from "@/pages/admin/settings/index";
@@ -45,7 +55,7 @@ import AdminSettingsPage from "@/pages/admin/settings/index";
 // ─── Admin App ────────────────────────────────────────────────────────────────
 function AdminApp() {
   return (
-    <ThemeProvider>
+    <ThemeProvider forcedTheme="light">
       <AuthProvider>
         <Refine
           routerProvider={routerProvider}
@@ -107,11 +117,28 @@ function AdminApp() {
             },
           ]}>
           <Routes>
-            {/* Admin root redirect */}
+            {/* Admin root redirects */}
+            <Route path="/" element={<Navigate to="/admin/login" replace />} />
             <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
 
             {/* Admin Public Route */}
-            <Route path="/admin/login" element={<AdminLoginPage />} />
+            <Route
+              path="/admin/login"
+              element={
+                <PublicOnlyRoute>
+                  <AdminLoginPage />
+                </PublicOnlyRoute>
+              }
+            />
+            <Route
+              path="/admin/register"
+              element={
+                <PublicOnlyRoute>
+                  <AdminRegisterPage />
+                </PublicOnlyRoute>
+              }
+            />
+            <Route path="/admin/callback" element={<AuthCallbackPage />} />
 
             {/* Admin Protected Routes */}
             <Route
@@ -144,7 +171,7 @@ function AdminApp() {
 // ─── Customer App ─────────────────────────────────────────────────────────────
 function CustomerApp() {
   return (
-    <ThemeProvider>
+    <ThemeProvider forcedTheme="light">
       <AuthProvider>
         <Refine
           routerProvider={routerProvider}
@@ -198,6 +225,25 @@ function CustomerApp() {
               },
             },
             {
+              name: "expenses",
+              list: "/expenses",
+              create: "/expenses/create",
+              show: "/expenses/:id",
+              edit: "/expenses/:id/edit",
+              meta: {
+                label: "Expenses",
+                icon: <CreditCard />,
+              },
+            },
+            {
+              name: "compliance",
+              list: "/compliance",
+              meta: {
+                label: "Compliance",
+                icon: <Home />,
+              },
+            },
+            {
               name: "settings",
               list: "/settings",
               meta: {
@@ -205,22 +251,49 @@ function CustomerApp() {
                 icon: <Settings />,
               },
             },
-            {
-              name: "onboarding",
-              list: "/onboarding",
-              meta: {
-                label: "Onboarding",
-                hide: true,
-              },
-            },
           ]}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
+            <Route path="/services/pricing" element={<PricingPage />} />
+            <Route path="/services/signup" element={<SignupPage />} />
 
             {/* Auth Routes */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+            <Route
+              path="/login"
+              element={
+                <PublicOnlyRoute>
+                  <LoginPage />
+                </PublicOnlyRoute>
+              }
+            />
+            <Route
+              path="/register"
+              element={
+                <PublicOnlyRoute>
+                  <RegisterPage />
+                </PublicOnlyRoute>
+              }
+            />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route
+              path="/signup"
+              element={
+                <PublicOnlyRoute>
+                  <SignupPage />
+                </PublicOnlyRoute>
+              }
+            />
+            <Route
+              path="/auth/signup"
+              element={
+                <PublicOnlyRoute>
+                  <SignupPage />
+                </PublicOnlyRoute>
+              }
+            />
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/auth/card-setup" element={<CardSetupPage />} />
+            <Route path="/auth/card-setup/success" element={<CardSetupSuccess />} />
             <Route path="/card-setup/success" element={<CardSetupSuccess />} />
 
             {/* Dashboard Routes */}
@@ -232,17 +305,21 @@ function CustomerApp() {
                   </Layout>
                 </ProtectedRoute>
               }>
-              <Route path="/dashboard" element={<DashboardHome />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/invoices" element={<InvoiceListPage />} />
-              <Route path="/invoices/create" element={<CreateInvoicePage />} />
+              <Route path="/invoices/create" element={<InvoiceCreatePage />} />
               <Route path="/invoices/:id" element={<InvoiceShowPage />} />
-              <Route path="/invoices/:id/edit" element={<EditInvoicePage />} />
+              <Route path="/invoices/:id/edit" element={<InvoiceEditPage />} />
               <Route path="/clients" element={<ClientListPage />} />
-              <Route path="/clients/create" element={<CreateClientPage />} />
-              <Route path="/clients/:id/edit" element={<EditClientPage />} />
+              <Route path="/clients/create" element={<ClientCreatePage />} />
+              <Route path="/clients/:id/edit" element={<ClientEditPage />} />
               <Route path="/plans" element={<PlansPage />} />
+              <Route path="/expenses" element={<ExpenseListPage />} />
+              <Route path="/expenses/create" element={<ExpenseCreatePage />} />
+              <Route path="/expenses/:id" element={<ExpenseShowPage />} />
+              <Route path="/expenses/:id/edit" element={<ExpenseEditPage />} />
+              <Route path="/compliance" element={<CompliancePage />} />
               <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/onboarding" element={<OnboardingPage />} />
             </Route>
 
             <Route path="*" element={<RefineAiErrorComponent />} />
@@ -257,8 +334,10 @@ function CustomerApp() {
 // ─── Path-based Router ────────────────────────────────────────────────────────
 function AppRouter() {
   const location = useLocation();
-  const isAdmin = location.pathname.startsWith("/admin");
-  return isAdmin ? <AdminApp /> : <CustomerApp />;
+  const hostname = typeof window !== "undefined" ? window.location.hostname : "";
+  const isAdminDomain = hostname === "admin.theinvoicepro.co.za";
+  const isAdmin = isAdminDomain || location.pathname.startsWith("/admin");
+  return <AppAuth0Provider appKind={isAdmin ? "admin" : "customer"}>{isAdmin ? <AdminApp /> : <CustomerApp />}</AppAuth0Provider>;
 }
 
 // ─── Root App ─────────────────────────────────────────────────────────────────

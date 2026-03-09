@@ -1,4 +1,4 @@
-import { sendEmail, isEmailJSConfigured } from "@/lib/emailjs";
+import { apiRequest, hasApiBaseUrl } from "@/lib/api-client";
 import { generateInvoicePDF } from "@/lib/pdf-generator";
 import type { Invoice, Profile } from "@/types";
 
@@ -8,6 +8,7 @@ export interface SendInvoiceEmailParams {
   recipientName?: string; // Optional, defaults to client name
   businessProfile?: Profile;
   includeAttachment?: boolean; // Whether to include PDF attachment
+  includePlatformBranding?: boolean;
 }
 
 /**
@@ -19,10 +20,10 @@ export const sendInvoiceEmail = async ({
   recipientName,
   businessProfile,
   includeAttachment = true,
+  includePlatformBranding = true,
 }: SendInvoiceEmailParams): Promise<void> => {
-  // Check if EmailJS is configured
-  if (!isEmailJSConfigured()) {
-    throw new Error("Email service is not configured. Please configure EmailJS in your environment variables.");
+  if (!hasApiBaseUrl()) {
+    throw new Error("Email service is not configured. Please configure VITE_API_URL for the local API.");
   }
 
   // Validate invoice has client
@@ -41,30 +42,29 @@ export const sendInvoiceEmail = async ({
   // Generate PDF if attachment is requested
   let pdfBase64 = "";
   if (includeAttachment) {
-    pdfBase64 = await generateInvoicePDF(invoice, businessProfile);
+    pdfBase64 = await generateInvoicePDF(invoice, businessProfile, {
+      includePlatformBranding,
+    });
   }
 
-  // Prepare email template parameters
-  const templateParams = {
-    to_email: toEmail,
-    to_name: toName,
-    invoice_number: invoice.invoice_number,
-    invoice_total: `${Number(invoice.total).toFixed(2)}`,
-    invoice_date: new Date(invoice.invoice_date).toLocaleDateString(),
-    due_date: new Date(invoice.due_date).toLocaleDateString(),
-    invoice_status: invoice.status.toUpperCase(),
-    business_name: businessProfile?.company_name || "Your Company",
-    business_email: businessProfile?.business_email || "",
-    pdf_data: pdfBase64,
-    // Additional fields for customization
-    client_company: invoice.client.company || "",
-    subtotal: `${Number(invoice.subtotal).toFixed(2)}`,
-    tax_amount: `${Number(invoice.tax_amount).toFixed(2)}`,
-    notes: invoice.notes || "",
-  };
-
   try {
-    await sendEmail(templateParams);
+    await apiRequest<{ ok: true; id: string }>("/emails/invoice", {
+      method: "POST",
+      body: JSON.stringify({
+        to: toEmail,
+        toName,
+        invoiceNumber: invoice.invoice_number,
+        invoiceTotal: `${Number(invoice.total).toFixed(2)}`,
+        invoiceDate: new Date(invoice.invoice_date).toLocaleDateString(),
+        dueDate: new Date(invoice.due_date).toLocaleDateString(),
+        invoiceStatus: String(invoice.status).toUpperCase(),
+        businessName: businessProfile?.company_name || "Your Company",
+        businessEmail: businessProfile?.business_email || "",
+        notes: invoice.notes || "",
+        includePlatformBranding,
+        pdfBase64,
+      }),
+    });
   } catch (error) {
     console.error("Failed to send invoice email:", error);
     throw new Error("Failed to send invoice email. Please try again.");
@@ -75,7 +75,7 @@ export const sendInvoiceEmail = async ({
  * Check if email service is ready
  */
 export const isEmailServiceReady = (): boolean => {
-  return isEmailJSConfigured();
+  return hasApiBaseUrl();
 };
 
 /**
@@ -85,18 +85,18 @@ export const getEmailServiceStatus = (): {
   configured: boolean;
   message: string;
 } => {
-  const configured = isEmailJSConfigured();
+  const configured = hasApiBaseUrl();
 
   if (configured) {
     return {
       configured: true,
-      message: "Email service is configured and ready to use.",
+      message: "Email service is configured and ready to use through the API.",
     };
   }
 
   return {
     configured: false,
     message:
-      "Email service is not configured. Please add EmailJS credentials to your .env file. See .env.example for required variables.",
+      "Email service is not configured. Please add VITE_API_URL to your .env file and run the local API.",
   };
 };

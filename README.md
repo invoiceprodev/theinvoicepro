@@ -21,6 +21,9 @@ Production target:
 - admin frontend on `Vercel`
 - API on `Railway`
 
+Deployment guide:
+- [`DEPLOYMENT.md`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/DEPLOYMENT.md)
+
 ## What Works Now
 
 - Auth0 customer signup, email verification, login

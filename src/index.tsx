@@ -3,10 +3,6 @@ import { createRoot } from "react-dom/client";
 
 import App from "./App";
 import "./App.css";
-import { initEmailJS } from "./lib/emailjs";
-
-// Initialize EmailJS
-initEmailJS();
 
 const rootElement = document.getElementById("root");
 

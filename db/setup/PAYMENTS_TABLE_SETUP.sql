@@ -2,8 +2,8 @@
 -- PAYMENTS TABLE SETUP
 -- =============================================
 -- Execute this script in Supabase SQL Editor to create payments table
--- Organization ID: dflsfsnzbhtcvucazyhl
--- Project ID: pfhbexbmarxelehrdcuz
+-- Organization ID: <your-supabase-org-id>
+-- Project ID: <your-supabase-project-id>
 
 CREATE TABLE IF NOT EXISTS payments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

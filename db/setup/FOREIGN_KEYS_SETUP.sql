@@ -2,8 +2,8 @@
 -- FOREIGN KEY RELATIONSHIPS & CONSTRAINTS
 -- =============================================
 -- Execute this script in Supabase SQL Editor to add foreign key relationships
--- Organization ID: dflsfsnzbhtcvucazyhl
--- Project ID: pfhbexbmarxelehrdcuz
+-- Organization ID: <your-supabase-org-id>
+-- Project ID: <your-supabase-project-id>
 
 -- 1. profiles.id → auth.users(id)
 -- CASCADE DELETE: When auth user is deleted, profile is deleted

@@ -6,13 +6,14 @@ PayFast is the primary payment gateway for TheInvoicePro — handling invoice pa
 
 ## Environment Variables
 
-Add to your `.env` and Netlify environment settings:
+Add to your `.env` and backend environment settings:
 
 ```env
 VITE_PAYFAST_MERCHANT_ID=your_merchant_id
 VITE_PAYFAST_MERCHANT_KEY=your_merchant_key
 VITE_PAYFAST_PASSPHRASE=your_passphrase_here
-VITE_PAYFAST_SANDBOX=true   # Set to false in production
+VITE_PAYFAST_MODE=sandbox
+PAYFAST_NOTIFY_URL=https://api.theinvoicepro.co.za/payfast/webhook
 ```
 
 ## Getting PayFast Credentials
@@ -48,11 +49,11 @@ User signs up → PayFast card authorization (R0) → Token stored
 
 | File                                           | Purpose                     |
 | ---------------------------------------------- | --------------------------- |
-| `src/services/payfast.service.ts`              | PayFast API service methods |
-| `src/services/payfast-webhook.service.ts`      | Webhook processing logic    |
-| `netlify/functions/payfast-webhook.ts`         | Netlify Function endpoint   |
-| `db/setup/PAYMENTS_TABLE_SETUP.sql`            | Payments table SQL          |
-| `db/migrations/PAYFAST_WEBHOOK_LOGS_TABLE.sql` | Webhook logs table SQL      |
+| `src/services/payfast.service.ts`              | Legacy client helper methods |
+| `api/src/payfast.ts`                           | Server-side checkout signing |
+| `api/src/server.ts`                            | PayFast webhook + checkout endpoints |
+| `db/setup/PAYMENTS_TABLE_SETUP.sql`            | Payments table SQL |
+| `db/migrations/PAYFAST_WEBHOOK_LOGS_TABLE.sql` | Webhook logs table SQL |
 
 ## Webhook Setup
 
@@ -61,7 +62,7 @@ See `db/docs/PAYFAST_WEBHOOK_SETUP.md` for full webhook configuration.
 **Production webhook URL:**
 
 ```
-https://your-app.netlify.app/.netlify/functions/payfast-webhook
+https://api.theinvoicepro.co.za/payfast/webhook
 ```
 
 ## Subscription API

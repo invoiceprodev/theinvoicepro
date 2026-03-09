@@ -12,12 +12,9 @@
 ## Environment Variables
 
 ```env
-VITE_EMAILJS_PUBLIC_KEY=your_public_key
-VITE_EMAILJS_SERVICE_ID=your_service_id
-VITE_EMAILJS_TRIAL_WELCOME_TEMPLATE_ID=template_trial_welcome
-VITE_EMAILJS_TRIAL_REMINDER_TEMPLATE_ID=template_trial_reminder
-VITE_EMAILJS_SUBSCRIPTION_ACTIVATED_TEMPLATE_ID=template_subscription_activated
-VITE_EMAILJS_PAYMENT_FAILED_TEMPLATE_ID=template_payment_failed
+RESEND_API_KEY=your-resend-api-key
+RESEND_FROM_EMAIL=noreply@theinvoicepro.co.za
+VITE_API_URL=http://127.0.0.1:3000
 ```
 
 ## Usage
@@ -45,7 +42,7 @@ await sendPaymentFailedEmail(subscription, plan, profile);
 
 ## Automated Processing
 
-The daily cron (`netlify/functions/trial-conversion-cron.ts`) handles:
+The daily cron / backend scheduler handles:
 
 1. Sending 3-day reminder emails
 2. Processing trial conversions and sending result emails
@@ -55,11 +52,11 @@ The daily cron (`netlify/functions/trial-conversion-cron.ts`) handles:
 All email functions:
 
 - Return `true/false` (never throw)
-- Log warnings if EmailJS not configured
+- Log warnings if the API email service is not configured
 - Do not block the trial conversion process on failure
 
 ## Related Files
 
 - Email service: `src/templates/trial-emails.ts`
-- EmailJS setup: `EMAILJS_SETUP.md` (project root)
-- Cron job: `netlify/functions/trial-conversion-cron.ts`
+- Email delivery: `api/src/resend.ts`
+- Cron endpoint: `api/src/server.ts`

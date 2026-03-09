@@ -4,11 +4,9 @@ import { UserAvatar } from "@/components/refine-ui/layout/user-avatar";
 import { cn } from "@/lib/utils";
 
 type User = {
-  id: number;
-  firstName: string;
-  lastName: string;
-  fullName: string;
-  email: string;
+  id: string;
+  name: string;
+  email?: string;
   avatar?: string;
 };
 
@@ -27,7 +25,7 @@ export function UserInfo() {
     );
   }
 
-  const { firstName, lastName, email } = user;
+  const { name, email } = user;
 
   return (
     <div className={cn("flex", "items-center", "gap-x-2")}>
@@ -41,10 +39,8 @@ export function UserInfo() {
           "text-left",
         )}
       >
-        <span className={cn("text-sm", "font-medium", "text-muted-foreground")}>
-          {firstName} {lastName}
-        </span>
-        <span className={cn("text-xs", "text-muted-foreground")}>{email}</span>
+        <span className={cn("text-sm", "font-medium", "text-muted-foreground")}>{name}</span>
+        <span className={cn("text-xs", "text-muted-foreground")}>{email || "No email"}</span>
       </div>
     </div>
   );

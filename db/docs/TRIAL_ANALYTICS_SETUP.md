@@ -57,5 +57,5 @@ FROM trial_conversions;
 ## Related Files
 
 - Migration: `db/migrations/TRIAL_ANALYTICS_MIGRATION.sql`
-- Conversion Service: `src/services/trial-conversion.service.ts`
+- Conversion processing: API subscription conversion workflow
 - RLS Policies: `db/supabase/RLS_POLICIES.md`

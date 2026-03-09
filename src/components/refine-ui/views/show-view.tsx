@@ -35,6 +35,7 @@ type ShowViewHeaderProps = PropsWithChildren<{
 export const ShowViewHeader = ({
   resource: resourceFromProps,
   title: titleFromProps,
+  children,
   wrapperClassName,
   headerClassName,
 }: ShowViewHeaderProps) => {
@@ -82,6 +83,7 @@ export const ShowViewHeader = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {children}
           <RefreshButton
             variant="outline"
             recordItemId={recordItemId}

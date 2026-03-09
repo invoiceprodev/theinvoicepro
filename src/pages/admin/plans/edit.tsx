@@ -10,6 +10,21 @@ import { Switch } from "@/components/ui/switch";
 import { Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
+type PlanFormValues = {
+  name: string;
+  description: string;
+  price: number | string;
+  currency: string;
+  billing_cycle: "monthly" | "yearly";
+  features?: string[];
+  is_active: boolean;
+  is_popular: boolean;
+  isPopular?: boolean;
+  trial_days: number | string;
+  requires_card: boolean;
+  auto_renew: boolean;
+};
+
 export default function PlanEditPage() {
   const navigate = useNavigate();
   const [features, setFeatures] = useState<string[]>([""]);
@@ -21,16 +36,30 @@ export default function PlanEditPage() {
     setValue,
     watch,
     formState: { errors },
-  } = useForm({
+  } = useForm<PlanFormValues>({
     refineCoreProps: {
       resource: "tiers",
       action: "edit",
       redirect: "list",
     },
+    defaultValues: {
+      currency: "ZAR",
+      billing_cycle: "monthly",
+      is_active: true,
+      is_popular: false,
+      trial_days: 0,
+      requires_card: false,
+      auto_renew: false,
+      description: "",
+    },
   });
 
   const billingCycle = watch("billing_cycle") || "monthly";
   const isActive = watch("is_active") ?? true;
+  const isPopular = watch("is_popular") ?? false;
+  const trialDays = Number(watch("trial_days") || 0);
+  const requiresCard = watch("requires_card") ?? false;
+  const autoRenew = watch("auto_renew") ?? false;
 
   // Populate features from the fetched data
   useEffect(() => {
@@ -39,8 +68,16 @@ export default function PlanEditPage() {
       if (plan.features && Array.isArray(plan.features) && plan.features.length > 0) {
         setFeatures(plan.features);
       }
+      setValue("description", plan.description || "");
+      setValue("billing_cycle", plan.billing_cycle || "monthly");
+      setValue("currency", plan.currency || "ZAR");
+      setValue("is_active", !!plan.is_active);
+      setValue("is_popular", !!plan.is_popular || !!plan.isPopular);
+      setValue("trial_days", Number(plan.trial_days || 0));
+      setValue("requires_card", !!plan.requires_card);
+      setValue("auto_renew", !!plan.auto_renew);
     }
-  }, [query?.data?.data]);
+  }, [query?.data?.data, setValue]);
 
   const onSubmit = (data: any) => {
     const cleanedFeatures = features.filter((f) => f.trim() !== "");
@@ -48,6 +85,10 @@ export default function PlanEditPage() {
       ...data,
       features: cleanedFeatures,
       price: parseFloat(data.price),
+      trial_days: Number(data.trial_days || 0),
+      is_popular: !!data.is_popular,
+      requires_card: !!data.requires_card,
+      auto_renew: !!data.auto_renew,
     });
   };
 
@@ -95,6 +136,11 @@ export default function PlanEditPage() {
           </div>
 
           <div className="grid gap-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea id="description" {...register("description")} placeholder="Short description shown on pricing cards" />
+          </div>
+
+          <div className="grid gap-2">
             <Label htmlFor="billing_cycle">Billing Cycle *</Label>
             <Select value={billingCycle} onValueChange={(value) => setValue("billing_cycle", value)}>
               <SelectTrigger>
@@ -105,6 +151,17 @@ export default function PlanEditPage() {
                 <SelectItem value="yearly">Yearly</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="trial_days">Trial Days</Label>
+              <Input id="trial_days" type="number" min="0" {...register("trial_days")} placeholder="0" />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="currency">Currency</Label>
+              <Input id="currency" {...register("currency")} placeholder="ZAR" defaultValue="ZAR" />
+            </div>
           </div>
 
           <div className="grid gap-2">
@@ -131,9 +188,35 @@ export default function PlanEditPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Switch id="is_active" checked={isActive} onCheckedChange={(checked) => setValue("is_active", checked)} />
-            <Label htmlFor="is_active">Active Plan</Label>
+          <div className="grid gap-4 rounded-lg border p-4">
+            <div className="flex items-center gap-2">
+              <Switch id="is_active" checked={isActive} onCheckedChange={(checked) => setValue("is_active", checked)} />
+              <Label htmlFor="is_active">Active Plan</Label>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch id="is_popular" checked={isPopular} onCheckedChange={(checked) => setValue("is_popular", checked)} />
+              <Label htmlFor="is_popular">Mark as popular</Label>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch
+                id="requires_card"
+                checked={requiresCard}
+                onCheckedChange={(checked) => setValue("requires_card", checked)}
+              />
+              <Label htmlFor="requires_card">Require card on signup</Label>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch
+                id="auto_renew"
+                checked={autoRenew}
+                onCheckedChange={(checked) => setValue("auto_renew", checked)}
+                disabled={trialDays <= 0}
+              />
+              <Label htmlFor="auto_renew">Auto-renew after trial</Label>
+            </div>
           </div>
         </div>
 

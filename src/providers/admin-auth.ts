@@ -1,80 +1,136 @@
 import type { AuthProvider } from "@refinedev/core";
-import { supabase } from "@/lib/supabase";
+import { getAuth0BridgeSnapshot } from "@/lib/auth0-bridge";
+import { getAppIdentityFromUser, getAppRoleFromUser } from "@/lib/auth0-identity";
+import { getProfileBridgeSnapshot } from "@/lib/profile-bridge";
+import { setPendingAuthHandoff } from "@/lib/auth0-handoff";
+import { signupWithAuth0Database } from "@/lib/auth0-db";
 
-const DEMO_EMAIL = "admin@theinvoicepro.co.za";
-const DEMO_PASSWORD = "Admin@123";
-const DEMO_FLAG = "admin_demo_mode";
+async function beginAdminAuthFlow(email?: string) {
+  const current = getAuth0BridgeSnapshot();
+  if (!current.loginWithRedirect) {
+    return {
+      success: false,
+      error: {
+        name: "Auth0NotConfigured",
+        message: "Auth0 is not configured or has not finished loading.",
+      },
+    };
+  }
+
+  setPendingAuthHandoff({
+    mode: "admin-login",
+    email,
+    returnTo: "/admin/dashboard",
+  });
+
+  await current.loginWithRedirect({
+    appState: { returnTo: "/admin/dashboard" },
+    authorizationParams: {
+      login_hint: email || undefined,
+    },
+  });
+
+  return { success: true };
+}
 
 export const adminAuthProvider: AuthProvider = {
   login: async ({ email, password }) => {
-    // Demo credentials shortcut
-    if (email === DEMO_EMAIL && password === DEMO_PASSWORD) {
-      localStorage.setItem(DEMO_FLAG, "true");
-      return { success: true, redirectTo: "/admin/dashboard" };
+    void password;
+    return beginAdminAuthFlow(email);
+  },
+
+  register: async ({ email, name, password }) => {
+    if (!email || !name || !password) {
+      return {
+        success: false,
+        error: {
+          name: "ValidationError",
+          message: "Name, email, and password are required to create an admin account.",
+        },
+      };
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      return { success: false, error: { name: "LoginError", message: error.message } };
+    try {
+      await signupWithAuth0Database({
+        appKind: "admin",
+        email,
+        name,
+        username: email,
+        password,
+      });
+
+      return {
+        success: true,
+        redirectTo: `/verify-email?email=${encodeURIComponent(email)}&next=admin`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error as Error,
+      };
     }
-    if (data.user) {
-      return { success: true, redirectTo: "/admin/dashboard" };
-    }
-    return { success: false, error: { name: "LoginError", message: "Login failed" } };
   },
 
   logout: async () => {
-    localStorage.removeItem(DEMO_FLAG);
-    await supabase.auth.signOut();
+    const current = getAuth0BridgeSnapshot();
+    current.logout?.({
+      logoutParams: {
+        returnTo: `${window.location.origin}/admin/login`,
+      },
+    });
+
     return { success: true, redirectTo: "/admin/login" };
   },
 
   check: async () => {
-    if (localStorage.getItem(DEMO_FLAG) === "true") {
+    const current = getAuth0BridgeSnapshot();
+    const role = getAppRoleFromUser(current.user);
+
+    if (current.isLoading) {
+      return { authenticated: false };
+    }
+
+    if (current.requiresEmailVerification) {
+      const email = encodeURIComponent(current.verificationEmail || "");
+      return {
+        authenticated: false,
+        redirectTo: email ? `/verify-email?email=${email}&next=admin` : "/verify-email?next=admin",
+      };
+    }
+
+    if (current.isAuthenticated && role === "admin") {
       return { authenticated: true };
     }
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session) {
-      return { authenticated: true };
-    }
+
     return { authenticated: false, redirectTo: "/admin/login", logout: true };
   },
 
   getPermissions: async () => {
-    if (localStorage.getItem(DEMO_FLAG) === "true") return "admin";
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (user) {
-      const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-      return profile?.role || "user";
-    }
-    return null;
+    const profileSnapshot = getProfileBridgeSnapshot();
+    if (profileSnapshot.profile?.role) return profileSnapshot.profile.role;
+    const current = getAuth0BridgeSnapshot();
+    return getAppRoleFromUser(current.user);
   },
 
   getIdentity: async () => {
-    if (localStorage.getItem(DEMO_FLAG) === "true") {
-      return { id: "demo-admin", name: "Demo Admin", email: DEMO_EMAIL, role: "admin" };
-    }
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (user) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("id, full_name, role")
-        .eq("id", user.id)
-        .single();
+    const profileSnapshot = getProfileBridgeSnapshot();
+    if (profileSnapshot.profile) {
+      const current = getAuth0BridgeSnapshot();
       return {
-        id: user.id,
-        name: profile?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Admin",
-        email: user.email,
-        role: profile?.role || "user",
+        id: profileSnapshot.profile.id,
+        name:
+          profileSnapshot.profile.full_name ||
+          current.user?.name ||
+          current.user?.nickname ||
+          current.user?.email ||
+          "Admin",
+        email: current.user?.email,
+        role: profileSnapshot.profile.role,
       };
     }
-    return null;
+
+    const current = getAuth0BridgeSnapshot();
+    return getAppIdentityFromUser(current.user);
   },
 
   onError: async (error) => {

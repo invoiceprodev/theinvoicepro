@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { apiRequest } from "@/lib/api-client";
+import { clearSelectedPlanCheckout } from "@/lib/plan-selection";
+import { setSubscriptionBridgeSnapshot } from "@/lib/subscription-bridge";
+import type { Subscription } from "@/types";
 
 export default function CardSetupSuccess() {
   const [searchParams] = useSearchParams();
@@ -11,51 +14,51 @@ export default function CardSetupSuccess() {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("Processing your card setup...");
 
+  const trialDays = Number(searchParams.get("trial_days") || 0);
+  const amount = Number(searchParams.get("amount") || 0);
+  const planName = searchParams.get("plan_name") || "selected";
+
   useEffect(() => {
     const processCardSetup = async () => {
       try {
-        const userId = searchParams.get("user_id");
         const subscriptionId = searchParams.get("subscription_id");
-        const payfastToken = searchParams.get("token"); // PayFast subscription token
+        const payfastToken = searchParams.get("token") || searchParams.get("pf_payment_id");
 
-        if (!userId || !subscriptionId) {
+        if (!subscriptionId) {
           setStatus("error");
           setMessage("Invalid card setup data. Please try again.");
           return;
         }
 
-        // Update subscription with PayFast token
-        const { error } = await supabase
-          .from("subscriptions")
-          .update({
-            payfast_token: payfastToken || null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", subscriptionId);
+        await apiRequest(`/subscriptions/${subscriptionId}/payfast-token`, {
+          method: "POST",
+          body: JSON.stringify({
+            payfastToken: payfastToken || null,
+          }),
+        });
 
-        if (error) {
-          console.error("Error updating subscription:", error);
-          setStatus("error");
-          setMessage("Failed to save card details. Please contact support.");
-          return;
-        }
+        const currentSubscription = await apiRequest<{ data: Subscription | null }>("/subscription/current");
 
+        clearSelectedPlanCheckout();
+        setSubscriptionBridgeSnapshot({
+          isLoading: false,
+          subscription: currentSubscription.data,
+        });
         setStatus("success");
-        setMessage("Your card has been successfully added!");
+        setMessage("Your card has been successfully added and your subscription trial is active.");
 
-        // Redirect to dashboard after 2 seconds
         setTimeout(() => {
           navigate("/dashboard");
         }, 2000);
       } catch (error) {
         console.error("Error processing card setup:", error);
         setStatus("error");
-        setMessage("An error occurred. Please try again.");
+        setMessage("An error occurred while saving your card setup. Please try again.");
       }
     };
 
-    processCardSetup();
-  }, [searchParams, navigate]);
+    void processCardSetup();
+  }, [navigate, searchParams]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -97,8 +100,13 @@ export default function CardSetupSuccess() {
               <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-700">
                 <p className="font-semibold">What happens next?</p>
                 <ul className="mt-2 space-y-1">
-                  <li>• Your 14-day free trial starts now</li>
-                  <li>• You'll be charged R170.00 after the trial</li>
+                  <li>• Your {planName} subscription trial starts now</li>
+                  {trialDays > 0 && <li>• No charge now. Your first charge is after {trialDays} days</li>}
+                  {amount > 0 && (
+                    <li>
+                      • Renewal amount: R{amount.toFixed(2)}
+                    </li>
+                  )}
                   <li>• Cancel anytime before the trial ends</li>
                 </ul>
               </div>
@@ -108,8 +116,8 @@ export default function CardSetupSuccess() {
           )}
 
           {status === "error" && (
-            <Button onClick={() => navigate("/auth/signup")} className="w-full">
-              Return to Sign Up
+            <Button onClick={() => navigate("/dashboard/plans")} className="w-full">
+              Return to Plans
             </Button>
           )}
         </CardContent>

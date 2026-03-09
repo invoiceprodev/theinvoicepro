@@ -1,328 +1,166 @@
 import type { AuthProvider } from "@refinedev/core";
-import { supabase } from "@/lib/supabase";
+import { getAuth0BridgeSnapshot } from "@/lib/auth0-bridge";
+import { getAppIdentityFromUser, getAppRoleFromUser } from "@/lib/auth0-identity";
+import { getProfileBridgeSnapshot } from "@/lib/profile-bridge";
+import { setPendingAuthHandoff } from "@/lib/auth0-handoff";
+import { signupWithAuth0Database } from "@/lib/auth0-db";
+import { getSelectedPlanCheckout } from "@/lib/plan-selection";
 
-const CUSTOMER_DEMO_EMAIL = "demo@theinvoicepro.co.za";
-const CUSTOMER_DEMO_PASSWORD = "Demo@123";
-const CUSTOMER_DEMO_FLAG = "customer_demo_mode";
-
-// Helper function to parse Supabase auth errors
-const parseAuthError = (error: any) => {
-  const message = error.message || "";
-
-  // Email not confirmed
-  if (message.includes("Email not confirmed") || message.includes("email_not_confirmed")) {
+async function beginCustomerAuthFlow(
+  mode: "login" | "signup",
+  email?: string,
+  fullName?: string,
+  returnTo = "/dashboard",
+) {
+  const current = getAuth0BridgeSnapshot();
+  if (!current.loginWithRedirect) {
     return {
-      name: "EmailNotConfirmed",
-      message: "Please confirm your email address before logging in. Check your inbox for the confirmation link.",
+      success: false,
+      error: {
+        name: "Auth0NotConfigured",
+        message: "Auth0 is not configured or has not finished loading.",
+      },
     };
   }
 
-  // Invalid credentials
-  if (message.includes("Invalid login credentials") || message.includes("invalid_credentials")) {
-    return {
-      name: "InvalidCredentials",
-      message: "Invalid email or password. Please check your credentials and try again.",
-    };
-  }
+  setPendingAuthHandoff({
+    mode,
+    email,
+    fullName,
+    returnTo,
+  });
 
-  // User already exists
-  if (message.includes("User already registered") || message.includes("already_registered")) {
-    return {
-      name: "UserExists",
-      message: "An account with this email already exists. Please login instead.",
-    };
-  }
+  await current.loginWithRedirect({
+    appState: { returnTo },
+    authorizationParams: {
+      login_hint: email || undefined,
+      screen_hint: mode === "signup" ? "signup" : undefined,
+    },
+  });
 
-  // Too many requests
-  if (message.includes("too many requests") || message.includes("rate_limit")) {
-    return {
-      name: "RateLimitError",
-      message: "Too many attempts. Please wait a few minutes and try again.",
-    };
-  }
-
-  // Default error
-  return {
-    name: "AuthError",
-    message: message || "An authentication error occurred. Please try again.",
-  };
-};
+  return { success: true };
+}
 
 export const authProvider: AuthProvider = {
   login: async ({ email, password }) => {
-    try {
-      console.log("[Auth] Attempting login for:", email);
-
-      // Demo credentials shortcut — bypass Supabase
-      if (email === CUSTOMER_DEMO_EMAIL && password === CUSTOMER_DEMO_PASSWORD) {
-        localStorage.setItem(CUSTOMER_DEMO_FLAG, "true");
-        return {
-          success: true,
-          redirectTo: "/dashboard",
-        };
-      }
-
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        console.error("[Auth] Login error:", error);
-        const parsedError = parseAuthError(error);
-        return {
-          success: false,
-          error: parsedError,
-        };
-      }
-
-      if (data.user) {
-        console.log("[Auth] Login successful for user:", data.user.id);
-        return {
-          success: true,
-          redirectTo: "/dashboard",
-        };
-      }
-
-      console.error("[Auth] Login failed: No user data returned");
-      return {
-        success: false,
-        error: {
-          name: "LoginError",
-          message: "Login failed",
-        },
-      };
-    } catch (error: any) {
-      console.error("[Auth] Unexpected login error:", error);
-      const parsedError = parseAuthError(error);
-      return {
-        success: false,
-        error: parsedError,
-      };
-    }
+    void password;
+    return beginCustomerAuthFlow("login", email, undefined, getSelectedPlanCheckout() ? "/auth/card-setup" : "/dashboard");
   },
 
-  register: async ({ email, password, name }) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name,
-            full_name: name,
-          },
-        },
-      });
-
-      if (error) {
-        const parsedError = parseAuthError(error);
-        return {
-          success: false,
-          error: parsedError,
-        };
-      }
-
-      if (data.user) {
-        // Check if email confirmation is required
-        if (data.session) {
-          // User is logged in immediately (email confirmation disabled)
-          // Redirect to card collection step for trial setup
-          return {
-            success: true,
-            redirectTo: `/auth/card-setup?user_id=${data.user.id}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(name)}`,
-          };
-        } else {
-          // Email confirmation required
-          return {
-            success: true,
-            redirectTo: "/login",
-            successNotification: {
-              message: "Registration successful! Please check your email to verify your account.",
-              type: "success",
-            },
-          };
-        }
-      }
-
+  register: async ({ email, name, password }) => {
+    if (!email || !name || !password) {
       return {
         success: false,
         error: {
-          name: "RegisterError",
-          message: "Registration failed",
+          name: "ValidationError",
+          message: "Name, email, and password are required to create an account.",
         },
       };
-    } catch (error: any) {
-      const parsedError = parseAuthError(error);
+    }
+
+    try {
+      await signupWithAuth0Database({
+        appKind: "customer",
+        email,
+        name,
+        username: email,
+        password,
+      });
+
+      return {
+        success: true,
+        redirectTo: `/verify-email?${new URLSearchParams({
+          email,
+          ...(getSelectedPlanCheckout()?.id ? { plan: getSelectedPlanCheckout()!.id } : {}),
+        }).toString()}`,
+      };
+    } catch (error) {
       return {
         success: false,
-        error: parsedError,
+        error: error as Error,
       };
     }
   },
 
   logout: async () => {
-    try {
-      // Clear demo flag if set
-      if (localStorage.getItem(CUSTOMER_DEMO_FLAG)) {
-        localStorage.removeItem(CUSTOMER_DEMO_FLAG);
-        return {
-          success: true,
-          redirectTo: "/login",
-        };
-      }
+    const current = getAuth0BridgeSnapshot();
+    current.logout?.({
+      logoutParams: {
+        returnTo: window.location.origin,
+      },
+    });
 
-      const { error } = await supabase.auth.signOut();
-
-      if (error) {
-        return {
-          success: false,
-          error: {
-            name: "LogoutError",
-            message: error.message || "Logout failed",
-          },
-        };
-      }
-
-      return {
-        success: true,
-        redirectTo: "/login",
-      };
-    } catch (error: any) {
-      return {
-        success: false,
-        error: {
-          name: "LogoutError",
-          message: error.message || "An unexpected error occurred",
-        },
-      };
-    }
+    return {
+      success: true,
+      redirectTo: "/login",
+    };
   },
 
   check: async () => {
-    try {
-      // Allow demo mode session
-      if (localStorage.getItem(CUSTOMER_DEMO_FLAG) === "true") {
-        return { authenticated: true };
-      }
+    const current = getAuth0BridgeSnapshot();
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    if (current.isLoading) {
+      return { authenticated: false };
+    }
 
-      if (session) {
-        return {
-          authenticated: true,
-        };
-      }
-
+    if (current.requiresEmailVerification) {
+      const email = encodeURIComponent(current.verificationEmail || "");
       return {
         authenticated: false,
-        redirectTo: "/login",
-        logout: true,
-      };
-    } catch (error: any) {
-      console.error("[Auth] Check error:", error);
-      return {
-        authenticated: false,
-        redirectTo: "/login",
-        logout: true,
-        error: {
-          name: "AuthCheckError",
-          message: error.message || "Authentication check failed",
-        },
+        redirectTo: email ? `/verify-email?email=${email}` : "/verify-email",
       };
     }
+
+    if (current.isAuthenticated) {
+      return { authenticated: true };
+    }
+
+    return {
+      authenticated: false,
+      redirectTo: "/login",
+      logout: true,
+    };
   },
 
   getPermissions: async () => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (user) {
-        // Fetch user role from profiles table
-        const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-
-        return profile?.role || "user";
-      }
-
-      return null;
-    } catch (error) {
-      console.error("[Auth] Error getting permissions:", error);
-      return null;
+    const profileSnapshot = getProfileBridgeSnapshot();
+    if (profileSnapshot.profile?.role) {
+      return profileSnapshot.profile.role;
     }
+
+    const current = getAuth0BridgeSnapshot();
+    return getAppRoleFromUser(current.user);
   },
 
   getIdentity: async () => {
-    try {
-      // Return demo identity
-      if (localStorage.getItem(CUSTOMER_DEMO_FLAG) === "true") {
-        return {
-          id: "demo-user",
-          name: "Demo Business",
-          email: CUSTOMER_DEMO_EMAIL,
-          role: "user",
-        };
-      }
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (user) {
-        // Fetch full profile information
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("id, full_name, role")
-          .eq("id", user.id)
-          .single();
-
-        return {
-          id: user.id,
-          name: profile?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "User",
-          email: user.email,
-          role: profile?.role || "user",
-        };
-      }
-
-      return null;
-    } catch (error) {
-      console.error("[Auth] Error getting identity:", error);
-      return null;
+    const profileSnapshot = getProfileBridgeSnapshot();
+    if (profileSnapshot.profile) {
+      const current = getAuth0BridgeSnapshot();
+      return {
+        id: profileSnapshot.profile.id,
+        name:
+          profileSnapshot.profile.full_name ||
+          current.user?.name ||
+          current.user?.nickname ||
+          current.user?.email ||
+          "User",
+        email: current.user?.email,
+        role: profileSnapshot.profile.role,
+      };
     }
+
+    const current = getAuth0BridgeSnapshot();
+    return getAppIdentityFromUser(current.user);
   },
 
   onError: async (error) => {
-    console.error("Auth error:", error);
     return { error };
   },
 };
 
-// Utility function to resend confirmation email (can be called from components)
-export const resendConfirmationEmail = async (email: string) => {
-  try {
-    const { error } = await supabase.auth.resend({
-      type: "signup",
-      email,
-    });
-
-    if (error) {
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
-
-    return {
-      success: true,
-      message: "Confirmation email sent! Please check your inbox.",
-    };
-  } catch (error: any) {
-    return {
-      success: false,
-      error: error.message || "Failed to resend confirmation email",
-    };
-  }
+export const resendConfirmationEmail = async () => {
+  return {
+    success: false,
+    error: "Email confirmation is handled by Auth0. Enable Auth0 email verification for the app and use its verification email flow.",
+  };
 };

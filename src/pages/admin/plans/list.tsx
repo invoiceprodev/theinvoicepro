@@ -125,10 +125,16 @@ export default function PlanListPage() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{plan.name}</span>
-                        {plan.isPopular && (
+                        {(plan.is_popular || plan.isPopular) && (
                           <Badge className="text-xs bg-primary/10 text-primary border-primary/20">Popular</Badge>
                         )}
+                        {(plan.trial_days || 0) > 0 && (
+                          <Badge variant="secondary" className="text-xs">
+                            {plan.trial_days}-day trial
+                          </Badge>
+                        )}
                       </div>
+                      {plan.description && <p className="mt-1 text-xs text-muted-foreground">{plan.description}</p>}
                     </TableCell>
 
                     {/* Price */}
@@ -152,6 +158,13 @@ export default function PlanListPage() {
                           {features.slice(0, 2).join(", ")}
                           {features.length > 2 ? ` +${features.length - 2} more` : ""}
                         </span>
+                        {(plan.requires_card || plan.auto_renew) && (
+                          <span className="text-xs text-muted-foreground">
+                            {plan.requires_card ? "Card required" : ""}
+                            {plan.requires_card && plan.auto_renew ? " • " : ""}
+                            {plan.auto_renew ? "Auto-renew enabled" : ""}
+                          </span>
+                        )}
                       </div>
                     </TableCell>
 

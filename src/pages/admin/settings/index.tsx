@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Settings, User, Bell, AlertTriangle, Download, Trash2, Shield, Lock } from "lucide-react";
+import { Settings, User, Bell, AlertTriangle, Download, Shield, Lock } from "lucide-react";
 
 type Identity = {
   id: string;
@@ -18,13 +18,9 @@ type Identity = {
   role?: string;
 };
 
-const DEMO_FLAG = "admin_demo_mode";
-
 export default function AdminSettingsPage() {
   const { data: identity } = useGetIdentity<Identity>();
   const { open } = useNotification();
-
-  const isDemoMode = localStorage.getItem(DEMO_FLAG) === "true";
 
   // ── Platform Settings State ──────────────────────────────────────────────
   const [platformSettings, setPlatformSettings] = useState({
@@ -108,14 +104,6 @@ export default function AdminSettingsPage() {
       type: "success",
       message: "Export started",
       description: "Platform data export has been downloaded.",
-    });
-  };
-
-  const handleClearDemoData = () => {
-    open?.({
-      type: "success",
-      message: "Demo data cleared",
-      description: "All demo/seed data has been removed from the platform.",
     });
   };
 
@@ -211,11 +199,6 @@ export default function AdminSettingsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-medium text-sm truncate">{identity?.name ?? "—"}</span>
-                    {isDemoMode && (
-                      <Badge variant="secondary" className="text-xs shrink-0">
-                        Demo
-                      </Badge>
-                    )}
                     {identity?.role === "admin" && (
                       <Badge className="text-xs shrink-0 bg-purple-600 hover:bg-purple-700">Admin</Badge>
                     )}
@@ -233,49 +216,42 @@ export default function AdminSettingsPage() {
                   <h3 className="font-medium text-sm">Change Password</h3>
                 </div>
 
-                {isDemoMode ? (
-                  <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20 p-3 text-sm text-amber-800 dark:text-amber-400">
-                    <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                    <span>Password changes are disabled in demo mode.</span>
+                <div className="mt-3 space-y-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="currentPassword">Current Password</Label>
+                    <Input
+                      id="currentPassword"
+                      type="password"
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => setPasswordForm((f) => ({ ...f, currentPassword: e.target.value }))}
+                      placeholder="••••••••"
+                    />
                   </div>
-                ) : (
-                  <div className="mt-3 space-y-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="currentPassword">Current Password</Label>
-                      <Input
-                        id="currentPassword"
-                        type="password"
-                        value={passwordForm.currentPassword}
-                        onChange={(e) => setPasswordForm((f) => ({ ...f, currentPassword: e.target.value }))}
-                        placeholder="••••••••"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="newPassword">New Password</Label>
-                      <Input
-                        id="newPassword"
-                        type="password"
-                        value={passwordForm.newPassword}
-                        onChange={(e) => setPasswordForm((f) => ({ ...f, newPassword: e.target.value }))}
-                        placeholder="••••••••"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                      <Input
-                        id="confirmPassword"
-                        type="password"
-                        value={passwordForm.confirmPassword}
-                        onChange={(e) => setPasswordForm((f) => ({ ...f, confirmPassword: e.target.value }))}
-                        placeholder="••••••••"
-                      />
-                    </div>
-                    {passwordError && <p className="text-sm text-destructive">{passwordError}</p>}
-                    <Button onClick={handleSavePassword} variant="outline">
-                      Update Password
-                    </Button>
+                  <div className="grid gap-2">
+                    <Label htmlFor="newPassword">New Password</Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      value={passwordForm.newPassword}
+                      onChange={(e) => setPasswordForm((f) => ({ ...f, newPassword: e.target.value }))}
+                      placeholder="••••••••"
+                    />
                   </div>
-                )}
+                  <div className="grid gap-2">
+                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => setPasswordForm((f) => ({ ...f, confirmPassword: e.target.value }))}
+                      placeholder="••••••••"
+                    />
+                  </div>
+                  {passwordError && <p className="text-sm text-destructive">{passwordError}</p>}
+                  <Button onClick={handleSavePassword} variant="outline">
+                    Update Password
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -368,41 +344,6 @@ export default function AdminSettingsPage() {
               <CardDescription>Irreversible or sensitive platform actions. Use with caution.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Clear Demo Data */}
-              <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                    <span className="font-medium text-sm">Clear Demo Data</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Remove all seed/demo records from the platform database.
-                  </p>
-                </div>
-                {isDemoMode ? (
-                  <Button
-                    variant="outline"
-                    className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
-                    onClick={handleClearDemoData}>
-                    Clear Demo Data
-                  </Button>
-                ) : (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="shrink-0">
-                        <Button
-                          variant="outline"
-                          className="border-destructive text-destructive pointer-events-none opacity-50"
-                          disabled>
-                          Clear Demo Data
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent side="left">Only available when demo mode is active.</TooltipContent>
-                  </Tooltip>
-                )}
-              </div>
-
               {/* Export All Data */}
               <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
                 <div className="space-y-0.5">

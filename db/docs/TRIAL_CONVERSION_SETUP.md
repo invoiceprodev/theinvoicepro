@@ -4,8 +4,8 @@ See `db/docs/TRIAL_AUTO_SUBSCRIPTION_README.md` for the quick reference.
 
 ## Architecture
 
-1. **Trial Conversion Service** (`src/services/trial-conversion.service.ts`) — Core logic
-2. **Netlify Cron Function** (`netlify/functions/trial-conversion-cron.ts`) — Scheduled execution
+1. **API Cron/Worker Endpoint** — Scheduled execution handled by the backend deployment
+2. **Subscription + email processing in the API** — Conversion logic and notifications
 
 ## Conversion Flow
 
@@ -14,7 +14,7 @@ See `db/docs/TRIAL_AUTO_SUBSCRIPTION_README.md` for the quick reference.
 3. Update subscription: `status='active'`, plan → Starter, set renewal date (+30 days)
 4. Log in `subscription_history`
 
-## Environment Variables (Netlify)
+## Environment Variables (API)
 
 ```bash
 VITE_API_URL=https://your-project.supabase.co
@@ -22,20 +22,13 @@ VITE_SUPABASE_API_KEY=your-service-role-key  # NOT anon key
 CRON_SECRET=your-random-secret-token
 ```
 
-## Netlify Configuration (`netlify.toml`)
-
-```toml
-[[plugins]]
-  package = "@netlify/plugin-scheduled-functions"
-  [plugins.inputs.trial-conversion-cron]
-    schedule = "0 2 * * *"  # Daily at 2 AM UTC
-```
+Schedule this endpoint from your backend platform or external cron service.
 
 ## Testing
 
 ```bash
 # Manual trigger
-curl -X POST https://your-site.netlify.app/.netlify/functions/trial-conversion-cron \
+curl -X POST https://api.theinvoicepro.co.za/trial-conversion-cron \
   -H "Authorization: Bearer YOUR_CRON_SECRET"
 ```
 
@@ -53,7 +46,7 @@ WHERE id = 'your-test-subscription-id';
 | -------------------- | ----------------------------------------------------------------------------------------- |
 | No trials processed  | `SELECT * FROM subscriptions WHERE status='trial'`                                        |
 | Payment fails        | Verify Starter plan exists: `SELECT * FROM plans WHERE name='Starter' AND is_active=true` |
-| Function not running | Check Netlify build logs and Functions tab                                                |
+| Function not running | Check Railway logs or your scheduler configuration                                         |
 
 ## Related Docs
 
