@@ -188,11 +188,6 @@ VITE_CUSTOMER_AUTH0_CONNECTION=Username-Password-Authentication
 
 VITE_AUTH0_ROLE_CLAIM=https://theinvoicepro.co.za/roles
 VITE_AUTH_MODE=auth0
-
-VITE_PAYFAST_MERCHANT_ID=...
-VITE_PAYFAST_MERCHANT_KEY=...
-VITE_PAYFAST_PASSPHRASE=...
-VITE_PAYFAST_MODE=live
 ```
 
 ## 6. Vercel Admin Frontend
@@ -224,11 +219,6 @@ VITE_ADMIN_AUTH0_CONNECTION=Username-Password-Authentication
 
 VITE_AUTH0_ROLE_CLAIM=https://theinvoicepro.co.za/roles
 VITE_AUTH_MODE=auth0
-
-VITE_PAYFAST_MERCHANT_ID=...
-VITE_PAYFAST_MERCHANT_KEY=...
-VITE_PAYFAST_PASSPHRASE=...
-VITE_PAYFAST_MODE=live
 ```
 
 ## 7. DNS

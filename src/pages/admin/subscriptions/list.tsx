@@ -17,7 +17,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { Settings, CreditCard } from "lucide-react";
 import { useMemo } from "react";
-import { useCreate, useList, useNotification, useUpdate } from "@refinedev/core";
+import { useList, useNotification, useUpdate } from "@refinedev/core";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,7 +36,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { openSubscriptionPayment, isPayFastConfigured, getPayFastStatus } from "@/services/payfast.service";
+import { apiRequest } from "@/lib/api-client";
 
 const columnHelper = createColumnHelper<Subscription>();
 
@@ -72,7 +72,6 @@ export default function SubscriptionListPage() {
 
   const { mutate: updateSubscription } = useUpdate();
   const { open: openNotification } = useNotification();
-  const { mutate: createPayment } = useCreate();
 
   const { result: plansResult } = useList<Plan>({
     resource: "plans",
@@ -150,75 +149,35 @@ export default function SubscriptionListPage() {
   };
 
   const handlePayNow = async (subscription: Subscription, plan: Plan, profile: Profile) => {
-    if (!isPayFastConfigured()) {
-      const status = getPayFastStatus();
-      openNotification?.({
-        type: "error",
-        message: "PayFast Not Configured",
-        description: status.message,
-      });
-      return;
-    }
-
     setPayingSubscriptionId(subscription.id);
 
     try {
-      // Create pending payment record
-      createPayment(
-        {
-          resource: "payments",
-          values: {
-            subscription_id: subscription.id,
-            user_id: subscription.user_id,
-            amount: plan.price,
-            currency: plan.currency,
-            payment_method: "payfast",
-            status: "pending",
-            created_at: new Date().toISOString(),
-          },
-        },
-        {
-          onSuccess: (data) => {
-            // Open PayFast payment in new window
-            const paymentWindow = openSubscriptionPayment({
-              subscription,
-              plan,
-              profile,
-            });
+      const response = await apiRequest<{ data: { url: string } }>(`/subscriptions/${subscription.id}/payfast-checkout`, {
+        method: "POST",
+      });
 
-            if (paymentWindow) {
-              openNotification?.({
-                type: "success",
-                message: "Payment Initiated",
-                description: "PayFast checkout opened in new window.",
-              });
-            } else {
-              openNotification?.({
-                type: "error",
-                message: "Popup Blocked",
-                description: "Please allow popups to complete payment.",
-              });
-            }
-          },
-          onError: (error) => {
-            openNotification?.({
-              type: "error",
-              message: "Payment Failed",
-              description: error.message || "Failed to create payment record",
-            });
-          },
-          onSettled: () => {
-            setPayingSubscriptionId(null);
-          },
-        },
-      );
+      const paymentWindow = window.open(response.data.url, "_blank", "width=800,height=600,scrollbars=yes");
+
+      if (paymentWindow) {
+        openNotification?.({
+          type: "success",
+          message: "Payment Initiated",
+          description: `PayFast checkout opened for ${profile.full_name || profile.business_email || plan.name}.`,
+        });
+      } else {
+        openNotification?.({
+          type: "error",
+          message: "Popup Blocked",
+          description: "Please allow popups to complete payment.",
+        });
+      }
     } catch (error) {
-      console.error("Error initiating payment:", error);
       openNotification?.({
         type: "error",
         message: "Payment Error",
-        description: "An unexpected error occurred",
+        description: error instanceof Error ? error.message : "Failed to open PayFast checkout.",
       });
+    } finally {
       setPayingSubscriptionId(null);
     }
   };

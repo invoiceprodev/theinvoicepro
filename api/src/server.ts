@@ -2,7 +2,7 @@ import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { apiConfig } from "./config.js";
 import { verifyAccessToken, type AuthenticatedUser } from "./auth.js";
-import { buildTrialSubscriptionCheckout } from "./payfast.js";
+import { buildTrialSubscriptionCheckout, verifyPayFastSignature } from "./payfast.js";
 import {
   isResendConfigured,
   sendExpenseReceiptEmail,
@@ -411,6 +411,15 @@ app.post("/payfast/webhook", async (req: Request, res: Response) => {
   const paymentId = payload.pf_payment_id || payload.token || null;
 
   try {
+    if (!verifyPayFastSignature(payload)) {
+      console.warn("[PayFast webhook] rejected invalid signature", {
+        m_payment_id: payload.m_payment_id,
+        subscription_id: subscriptionId,
+      });
+      res.status(400).send("Invalid signature");
+      return;
+    }
+
     console.log("[PayFast webhook] received", {
       m_payment_id: payload.m_payment_id,
       pf_payment_id: payload.pf_payment_id,
@@ -1523,6 +1532,11 @@ app.post("/subscription/change-plan", async (req: AuthedRequest, res: Response) 
       return;
     }
 
+    if (Boolean(plan.requires_card) && !subscription.payfast_token) {
+      res.status(409).json({ error: "Card setup is required before switching to this plan" });
+      return;
+    }
+
     const today = new Date();
     const renewalDate = new Date(today);
     if (plan.billing_cycle === "yearly") {
@@ -2316,7 +2330,7 @@ app.post("/subscriptions/:id/payfast-checkout", async (req: AuthedRequest, res: 
   const user = req.user!;
 
   try {
-    const profile = await getProfileForUser(user);
+    const requesterProfile = await getProfileForUser(user);
     const isAdmin = isAdminUser(user);
 
     let subscriptionQuery = adminSupabase
@@ -2325,7 +2339,7 @@ app.post("/subscriptions/:id/payfast-checkout", async (req: AuthedRequest, res: 
       .eq("id", req.params.id);
 
     if (!isAdmin) {
-      subscriptionQuery = subscriptionQuery.eq("user_id", profile.id);
+      subscriptionQuery = subscriptionQuery.eq("user_id", requesterProfile.id);
     }
 
     const { data: subscription, error: subscriptionError } = await subscriptionQuery.single();
@@ -2349,10 +2363,23 @@ app.post("/subscriptions/:id/payfast-checkout", async (req: AuthedRequest, res: 
       return;
     }
 
+    const { data: ownerProfile, error: ownerProfileError } = await adminSupabase
+      .from("profiles")
+      .select("*")
+      .eq("id", subscription.user_id)
+      .single();
+
+    if (ownerProfileError || !ownerProfile?.id) {
+      res.status(ownerProfileError?.code === "PGRST116" ? 404 : 500).json({
+        error: ownerProfileError?.message || "Subscription owner profile not found",
+      });
+      return;
+    }
+
     const checkout = buildTrialSubscriptionCheckout({
-      userId: profile.id,
-      userEmail: profile.business_email || user.email || "",
-      userName: profile.full_name || user.name || user.nickname || user.email || "Customer",
+      userId: ownerProfile.id,
+      userEmail: ownerProfile.business_email || "",
+      userName: ownerProfile.full_name || "Customer",
       amount: Number(plan.price || 0),
       subscriptionId: subscription.id,
       planName: String(plan.name || "InvoicePro"),
@@ -2376,7 +2403,7 @@ app.get("/subscriptions/:id/payfast-debug", async (req: AuthedRequest, res: Resp
   const user = req.user!;
 
   try {
-    const profile = await getProfileForUser(user);
+    const requesterProfile = await getProfileForUser(user);
     const isAdmin = isAdminUser(user);
 
     let subscriptionQuery = adminSupabase
@@ -2385,7 +2412,7 @@ app.get("/subscriptions/:id/payfast-debug", async (req: AuthedRequest, res: Resp
       .eq("id", req.params.id);
 
     if (!isAdmin) {
-      subscriptionQuery = subscriptionQuery.eq("user_id", profile.id);
+      subscriptionQuery = subscriptionQuery.eq("user_id", requesterProfile.id);
     }
 
     const { data: subscription, error: subscriptionError } = await subscriptionQuery.single();
@@ -2409,10 +2436,23 @@ app.get("/subscriptions/:id/payfast-debug", async (req: AuthedRequest, res: Resp
       return;
     }
 
+    const { data: ownerProfile, error: ownerProfileError } = await adminSupabase
+      .from("profiles")
+      .select("*")
+      .eq("id", subscription.user_id)
+      .single();
+
+    if (ownerProfileError || !ownerProfile?.id) {
+      res.status(ownerProfileError?.code === "PGRST116" ? 404 : 500).json({
+        error: ownerProfileError?.message || "Subscription owner profile not found",
+      });
+      return;
+    }
+
     const checkout = buildTrialSubscriptionCheckout({
-      userId: profile.id,
-      userEmail: profile.business_email || user.email || "",
-      userName: profile.full_name || user.name || user.nickname || user.email || "Customer",
+      userId: ownerProfile.id,
+      userEmail: ownerProfile.business_email || "",
+      userName: ownerProfile.full_name || "Customer",
       amount: Number(plan.price || 0),
       subscriptionId: subscription.id,
       planName: String(plan.name || "InvoicePro"),

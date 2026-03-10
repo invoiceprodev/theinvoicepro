@@ -57,8 +57,7 @@ https://xxxx-xx-xxx.ngrok.io/payfast/webhook
 ## Security
 
 - **Signature verification:** MD5(`sorted_params + passphrase`) === `received_signature`
-- **IP verification (optional):** Set `VITE_PAYFAST_VERIFY_IP=true`
-  - Valid IPs: `197.97.145.144`, `41.74.179.194`
+- **Credential scope:** Keep `PAYFAST_MERCHANT_KEY` and `PAYFAST_PASSPHRASE` on the API only
 
 ## Webhook Logs
 
@@ -74,7 +73,7 @@ Run `db/migrations/PAYFAST_WEBHOOK_LOGS_TABLE.sql` to enable persistent webhook 
 
 | Issue                | Solution                                                   |
 | -------------------- | ---------------------------------------------------------- |
-| Signature fails      | Verify `VITE_PAYFAST_PASSPHRASE` matches PayFast dashboard |
+| Signature fails      | Verify `PAYFAST_PASSPHRASE` matches PayFast dashboard |
 | Invoice not updated  | Check `custom_str1` contains valid invoice ID              |
 | Webhook not received | Ensure ngrok is running and URL is saved in PayFast        |
 

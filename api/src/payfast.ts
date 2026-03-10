@@ -32,6 +32,16 @@ function buildSignature(data: Record<string, string | number>) {
   return createHash("md5").update(signatureString).digest("hex");
 }
 
+export function verifyPayFastSignature(payload: Record<string, string | number>) {
+  const receivedSignature = String(payload.signature || "").trim().toLowerCase();
+  if (!receivedSignature) {
+    return false;
+  }
+
+  const expectedSignature = buildSignature(payload).toLowerCase();
+  return expectedSignature === receivedSignature;
+}
+
 function getTrialEndDate(trialDays: number) {
   const trialEndDate = new Date();
   trialEndDate.setDate(trialEndDate.getDate() + trialDays);

@@ -6,15 +6,17 @@ PayFast is the primary payment gateway for TheInvoicePro — handling invoice pa
 
 ## Environment Variables
 
-Add to your `.env` and backend environment settings:
+Add these to your API `.env` and Railway environment settings:
 
 ```env
-VITE_PAYFAST_MERCHANT_ID=your_merchant_id
-VITE_PAYFAST_MERCHANT_KEY=your_merchant_key
-VITE_PAYFAST_PASSPHRASE=your_passphrase_here
-VITE_PAYFAST_MODE=sandbox
+PAYFAST_MERCHANT_ID=your_merchant_id
+PAYFAST_MERCHANT_KEY=your_merchant_key
+PAYFAST_PASSPHRASE=your_passphrase_here
+PAYFAST_MODE=sandbox
 PAYFAST_NOTIFY_URL=https://api.theinvoicepro.co.za/payfast/webhook
 ```
+
+Do not expose PayFast merchant credentials in frontend `VITE_*` variables.
 
 ## Getting PayFast Credentials
 
@@ -41,15 +43,14 @@ User clicks "Pay Now" → Redirect to PayFast → Payment complete
 ### Subscription / Trial Card Collection
 
 ```
-User signs up → PayFast card authorization (R0) → Token stored
-→ 14 days later → Auto-charge R170.00 → Subscription activated
+User selects a card-required plan → PayFast card authorization
+→ Token stored on the subscription → Recurring billing starts on renewal
 ```
 
 ## Key Files
 
 | File                                           | Purpose                     |
 | ---------------------------------------------- | --------------------------- |
-| `src/services/payfast.service.ts`              | Legacy client helper methods |
 | `api/src/payfast.ts`                           | Server-side checkout signing |
 | `api/src/server.ts`                            | PayFast webhook + checkout endpoints |
 | `db/setup/PAYMENTS_TABLE_SETUP.sql`            | Payments table SQL |

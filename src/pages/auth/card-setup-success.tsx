@@ -6,7 +6,7 @@ import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { apiRequest } from "@/lib/api-client";
 import { clearSelectedPlanCheckout } from "@/lib/plan-selection";
 import { setSubscriptionBridgeSnapshot } from "@/lib/subscription-bridge";
-import type { Subscription } from "@/types";
+import { getCurrentSubscriptionState, type Subscription } from "@/types";
 
 export default function CardSetupSuccess() {
   const [searchParams] = useSearchParams();
@@ -38,6 +38,18 @@ export default function CardSetupSuccess() {
         });
 
         const currentSubscription = await apiRequest<{ data: Subscription | null }>("/subscription/current");
+
+        if (!currentSubscription.data?.id || currentSubscription.data.id !== subscriptionId) {
+          setStatus("error");
+          setMessage("Card setup completed, but the subscription could not be confirmed yet. Please refresh and try again.");
+          return;
+        }
+
+        if (getCurrentSubscriptionState(currentSubscription.data) === "trial_pending") {
+          setStatus("error");
+          setMessage("Your billing setup is not confirmed yet. Please wait a moment and try again.");
+          return;
+        }
 
         clearSelectedPlanCheckout();
         setSubscriptionBridgeSnapshot({
