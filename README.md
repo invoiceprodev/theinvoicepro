@@ -21,6 +21,11 @@ Production target:
 - admin frontend on `Vercel`
 - API on `Railway`
 
+Current live deployment:
+- customer frontend: `https://theinvoicepro.co.za`
+- admin frontend: `https://admin.theinvoicepro.co.za`
+- API: `https://api.theinvoicepro.co.za`
+
 Deployment guide:
 - [`DEPLOYMENT.md`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/DEPLOYMENT.md)
 
@@ -28,13 +33,16 @@ Deployment guide:
 
 - Auth0 customer signup, email verification, login
 - Auth0 admin login and registration flow
+- host-aware admin routing on the admin subdomain
 - Auth0 user to Supabase `profiles` mapping through the API
 - customer dashboard CRUD for clients, invoices, expenses
+- admin pricing, tenants, and subscriptions pages using live API-backed data
 - invoice email send with PDF attachment through Resend
 - expense receipt email with PDF attachment through Resend
 - company branding in settings, persisted to profile and Supabase Storage
 - plan-aware signup flow
 - subscription state in dashboard plans page
+- Railway production API health at `https://api.theinvoicepro.co.za/health`
 
 ## Known Caveats
 
@@ -190,8 +198,13 @@ Admin app URLs:
 - callback: `http://127.0.0.1:5173/admin/callback`
 - logout: `http://127.0.0.1:5173/admin/login`
 
+Admin production URLs:
+- callback: `https://admin.theinvoicepro.co.za/callback`
+- logout: `https://admin.theinvoicepro.co.za/login`
+
 Notes:
 - verification email is enforced for customer signup
+- verification email is enforced for admin signup/login as well
 - the text shown on Auth0-hosted login comes from your Auth0 app and tenant branding
 
 ## Trial Flow
@@ -249,7 +262,6 @@ db/
 
 ## Recommended Next Production Work
 
-- finish PayFast recurring billing against a real recurring-capable merchant setup
-- move callback/webhook testing onto the deployed API domain
-- complete PayFast production webhook validation on the deployed API domain
-# theinvoicepro
+- complete PayFast recurring billing against a recurring-capable merchant setup
+- validate PayFast webhook handling on the live Railway API domain
+- verify card-required trial start and paid-plan checkout end-to-end in production-like mode

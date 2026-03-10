@@ -48,7 +48,6 @@ Have these ready before creating anything:
   - database connection name
 - Auth0 API:
   - audience: `https://api.theinvoicepro.co.za`
-  - client secret for backend use
 - Resend:
   - API key
   - verified sender domain
@@ -106,8 +105,8 @@ Customer application allowed URLs:
 
 Admin application allowed URLs:
 
-- callback: `https://admin.theinvoicepro.co.za/admin/callback`
-- logout: `https://admin.theinvoicepro.co.za/admin/login`
+- callback: `https://admin.theinvoicepro.co.za/callback`
+- logout: `https://admin.theinvoicepro.co.za/login`
 - web origin: `https://admin.theinvoicepro.co.za`
 
 API:
@@ -127,6 +126,9 @@ Create one Railway service for the API.
 Root/start expectations:
 
 - start command: `npm run api:start`
+- health check path: `/health`
+- custom domain target port: `3000`
+- do not require a checked-in `.env` file in production
 
 Set these environment variables in Railway:
 
@@ -217,7 +219,7 @@ VITE_SUPABASE_ANON_KEY=...
 VITE_ADMIN_AUTH0_DOMAIN=...
 VITE_ADMIN_AUTH0_CLIENT_ID=...
 VITE_ADMIN_AUTH0_AUDIENCE=https://api.theinvoicepro.co.za
-VITE_ADMIN_AUTH0_REDIRECT_URI=https://admin.theinvoicepro.co.za/admin/callback
+VITE_ADMIN_AUTH0_REDIRECT_URI=https://admin.theinvoicepro.co.za/callback
 VITE_ADMIN_AUTH0_CONNECTION=Username-Password-Authentication
 
 VITE_AUTH0_ROLE_CLAIM=https://theinvoicepro.co.za/roles
@@ -262,8 +264,8 @@ Verify in order:
 7. invoice email sends through Resend
 8. logo upload works through Supabase Storage
 9. plans page reflects live plans
-10. trial bypass is disabled in production
+10. admin subdomain routes resolve at `/login`, `/register`, `/callback`, `/dashboard`
 
 ## 10. Current Deployment Caveat
 
-The frontend codebase is still one app with route-separated customer and admin surfaces. If you deploy customer and admin as two separate Vercel projects from the same repo, keep the environment values distinct and validate routing carefully after each deploy.
+The frontend codebase is still one app with route-separated customer and admin surfaces. Customer and admin are deployed as two Vercel projects from the same repo, so keep the environment values distinct and validate host-aware routing after each deploy.

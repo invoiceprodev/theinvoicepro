@@ -16,14 +16,22 @@ Migrate the current app to the target production architecture:
 
 ## Current State Summary
 
-The current codebase is still transitional.
+The target deployment architecture is now live.
 
-- Frontend uses Refine, React, Vite, and direct Supabase access
-- Auth is still Supabase Auth based
-- Some server logic still assumes frontend/serverless execution patterns
-- Email flow is being migrated to API-side delivery through Resend
-- No dedicated Railway API is established yet
-- Customer and admin experiences are still coupled inside one frontend app
+- Customer frontend is live on `Vercel`
+- Admin frontend is live on `Vercel`
+- Railway API is live and healthy at `https://api.theinvoicepro.co.za/health`
+- Auth is now Auth0-based for customer and admin flows
+- Resend delivery is API-owned
+- Admin pricing, tenants, and subscriptions are API-backed
+- Customer and admin still share one frontend codebase, but deploy as separate hostnames with host-aware routing
+- Next major production focus is `PayFast`
+
+## Immediate Next Focus
+
+- Validate end-to-end PayFast checkout and recurring setup against a recurring-capable merchant account
+- Confirm live webhook handling on `https://api.theinvoicepro.co.za/payfast/webhook`
+- Re-test card-required trial start and paid-plan change flows after PayFast hardening
 
 ## Traceability Rules
 

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Auth0Provider, useAuth0 } from "@auth0/auth0-react";
 import { getAuth0Config, isAuth0Configured, type AuthAppKind } from "@/lib/auth0-config";
 import { setAuth0BridgeSnapshot } from "@/lib/auth0-bridge";
@@ -11,16 +11,60 @@ import type { Profile, Subscription } from "@/types";
 import { shouldBypassEmailVerification } from "@/lib/customer-email-bypass";
 
 function Auth0BridgeSync({ appKind }: { appKind: AuthAppKind }) {
-  const { isLoading, isAuthenticated, user, error, loginWithRedirect, logout, getAccessTokenSilently } = useAuth0();
+  const { isLoading, isAuthenticated, user, error, loginWithRedirect, logout, getAccessTokenSilently, getIdTokenClaims } = useAuth0();
+  const [resolvedEmailVerified, setResolvedEmailVerified] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function resolveEmailVerification() {
+      if (!isAuthenticated || !user?.email) {
+        setResolvedEmailVerified(null);
+        return;
+      }
+
+      if (isAuth0EmailVerified(user)) {
+        setResolvedEmailVerified(true);
+        return;
+      }
+
+      setResolvedEmailVerified(null);
+
+      try {
+        await getAccessTokenSilently({ cacheMode: "off" });
+        const claims = await getIdTokenClaims();
+        const emailVerified = claims?.email_verified === true;
+        if (!cancelled) {
+          setResolvedEmailVerified(emailVerified);
+        }
+      } catch {
+        if (!cancelled) {
+          setResolvedEmailVerified(false);
+        }
+      }
+    }
+
+    void resolveEmailVerification();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getAccessTokenSilently, getIdTokenClaims, isAuthenticated, user]);
+
+  const waitingOnEmailVerificationRefresh = useMemo(
+    () => isAuthenticated && !!user?.email && !isAuth0EmailVerified(user) && resolvedEmailVerified === null,
+    [isAuthenticated, resolvedEmailVerified, user],
+  );
+
   const requiresEmailVerification =
     isAuthenticated &&
     !!user?.email &&
-    !isAuth0EmailVerified(user) &&
+    resolvedEmailVerified === false &&
     !shouldBypassEmailVerification(appKind);
 
   useEffect(() => {
     setAuth0BridgeSnapshot({
-      isLoading,
+      isLoading: isLoading || waitingOnEmailVerificationRefresh,
       isAuthenticated,
       user,
       error: error ? new Error(error.message) : undefined,
@@ -30,7 +74,18 @@ function Auth0BridgeSync({ appKind }: { appKind: AuthAppKind }) {
       logout,
       getAccessTokenSilently,
     });
-  }, [appKind, error, getAccessTokenSilently, isAuthenticated, isLoading, loginWithRedirect, logout, requiresEmailVerification, user]);
+  }, [
+    appKind,
+    error,
+    getAccessTokenSilently,
+    isAuthenticated,
+    isLoading,
+    loginWithRedirect,
+    logout,
+    requiresEmailVerification,
+    user,
+    waitingOnEmailVerificationRefresh,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
