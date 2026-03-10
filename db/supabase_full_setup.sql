@@ -359,6 +359,25 @@ CREATE TABLE IF NOT EXISTS subscription_history (
 
 COMMENT ON TABLE subscription_history IS 'Audit trail of all subscription changes (plan upgrades, downgrades, status updates)';
 
+-- ── team_members ────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS team_members (
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_profile_id UUID        NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  member_profile_id UUID       REFERENCES profiles(id) ON DELETE SET NULL,
+  email            TEXT        NOT NULL,
+  full_name        TEXT,
+  role             TEXT        NOT NULL DEFAULT 'member'
+                               CHECK (role IN ('admin', 'member')),
+  status           TEXT        NOT NULL DEFAULT 'invited'
+                               CHECK (status IN ('invited', 'active')),
+  invited_at       TIMESTAMPTZ DEFAULT NOW(),
+  created_at       TIMESTAMPTZ DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (owner_profile_id, email)
+);
+
+COMMENT ON TABLE team_members IS 'Customer-managed workspace members and invite records';
+
 
 -- ================== FOREIGN KEY CONSTRAINTS =================
 -- profiles.id must reference auth.users(id)
@@ -461,6 +480,9 @@ CREATE INDEX IF NOT EXISTS idx_webhook_logs_processing_status ON webhook_logs(pr
 CREATE INDEX IF NOT EXISTS idx_sub_history_subscription_id ON subscription_history(subscription_id);
 CREATE INDEX IF NOT EXISTS idx_sub_history_user_id         ON subscription_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_sub_history_changed_at      ON subscription_history(changed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_team_members_owner_profile_id ON team_members(owner_profile_id);
+CREATE INDEX IF NOT EXISTS idx_team_members_member_profile_id ON team_members(member_profile_id);
+CREATE INDEX IF NOT EXISTS idx_team_members_owner_status ON team_members(owner_profile_id, status);
 
 
 -- ================ ROW LEVEL SECURITY — ENABLE ===============
@@ -476,6 +498,7 @@ ALTER TABLE payments           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE trial_conversions  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE webhook_logs       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subscription_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE team_members       ENABLE ROW LEVEL SECURITY;
 
 
 -- ================ ROW LEVEL SECURITY — POLICIES =============
@@ -800,6 +823,39 @@ CREATE POLICY "Admins can view all subscription history"
   ON subscription_history FOR SELECT
   USING (is_admin());
 
+-- ── team_members ───────────────────────────────────────────
+DROP POLICY IF EXISTS "Users can view own team members"     ON team_members;
+DROP POLICY IF EXISTS "Users can insert own team members"   ON team_members;
+DROP POLICY IF EXISTS "Users can update own team members"   ON team_members;
+DROP POLICY IF EXISTS "Users can delete own team members"   ON team_members;
+DROP POLICY IF EXISTS "Admins can view all team members"    ON team_members;
+DROP POLICY IF EXISTS "Admins can manage all team members"  ON team_members;
+
+CREATE POLICY "Users can view own team members"
+  ON team_members FOR SELECT
+  USING (owner_profile_id = auth.uid());
+
+CREATE POLICY "Users can insert own team members"
+  ON team_members FOR INSERT
+  WITH CHECK (owner_profile_id = auth.uid());
+
+CREATE POLICY "Users can update own team members"
+  ON team_members FOR UPDATE
+  USING (owner_profile_id = auth.uid());
+
+CREATE POLICY "Users can delete own team members"
+  ON team_members FOR DELETE
+  USING (owner_profile_id = auth.uid());
+
+CREATE POLICY "Admins can view all team members"
+  ON team_members FOR SELECT
+  USING (is_admin());
+
+CREATE POLICY "Admins can manage all team members"
+  ON team_members FOR ALL
+  USING (is_admin())
+  WITH CHECK (is_admin());
+
 
 -- ====================== TRIGGERS ============================
 
@@ -812,6 +868,7 @@ DROP TRIGGER IF EXISTS update_expenses_updated_at       ON expenses;
 DROP TRIGGER IF EXISTS update_subscriptions_updated_at  ON subscriptions;
 DROP TRIGGER IF EXISTS update_payments_updated_at       ON payments;
 DROP TRIGGER IF EXISTS update_trial_conversions_updated_at ON trial_conversions;
+DROP TRIGGER IF EXISTS update_team_members_updated_at   ON team_members;
 
 CREATE TRIGGER update_profiles_updated_at
   BEFORE UPDATE ON profiles
@@ -843,6 +900,10 @@ CREATE TRIGGER update_payments_updated_at
 
 CREATE TRIGGER update_trial_conversions_updated_at
   BEFORE UPDATE ON trial_conversions
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_team_members_updated_at
+  BEFORE UPDATE ON team_members
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Auto-create profile on new auth user

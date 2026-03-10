@@ -15,6 +15,9 @@ import {
   FileText,
   FileSpreadsheet,
   CalendarRange,
+  UserPlus,
+  Users,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,9 +34,10 @@ import { sendAuth0PasswordResetEmail } from "@/lib/auth0-db";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useSubscriptionState } from "@/hooks/use-subscription-state";
 import { getPlanEntitlements } from "@/lib/plan-entitlements";
+import { usePlanEntitlements } from "@/hooks/use-plan-entitlements";
 import { apiRequest } from "@/lib/api-client";
 import { getProfileBridgeSnapshot, setProfileBridgeSnapshot, subscribeProfileBridge } from "@/lib/profile-bridge";
-import type { Profile } from "@/types";
+import type { Profile, TeamMember, TeamMemberRole } from "@/types";
 
 type Tab = "company" | "tax" | "reports" | "general";
 
@@ -780,11 +784,60 @@ const defaultGeneralSettings: GeneralSettings = {
   defaultTerms: "",
 };
 
+type TeamInviteForm = {
+  fullName: string;
+  email: string;
+  role: TeamMemberRole;
+};
+
+const defaultTeamInviteForm: TeamInviteForm = {
+  fullName: "",
+  email: "",
+  role: "member",
+};
+
 function GeneralTab() {
   const { user } = useAuth();
+  const { usage, entitlements, canAddTeamMember } = usePlanEntitlements();
   const [settings, setSettings] = useState<GeneralSettings>(defaultGeneralSettings);
   const [saved, setSaved] = useState(false);
   const [passwordResetPending, setPasswordResetPending] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [teamLoading, setTeamLoading] = useState(true);
+  const [inviteForm, setInviteForm] = useState<TeamInviteForm>(defaultTeamInviteForm);
+  const [invitePending, setInvitePending] = useState(false);
+  const [updatingMemberId, setUpdatingMemberId] = useState<string | null>(null);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTeamMembers() {
+      try {
+        setTeamLoading(true);
+        const response = await apiRequest<{ data: TeamMember[] }>("/settings/users");
+        if (!cancelled) {
+          setTeamMembers(response.data || []);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          toast.error("Failed to load team members", {
+            description: error instanceof Error ? error.message : "Unable to load team members.",
+          });
+        }
+      } finally {
+        if (!cancelled) {
+          setTeamLoading(false);
+        }
+      }
+    }
+
+    void loadTeamMembers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleChange = (field: keyof GeneralSettings) => (value: string) =>
     setSettings((prev) => ({ ...prev, [field]: value }));
@@ -826,6 +879,82 @@ function GeneralTab() {
       });
     } finally {
       setPasswordResetPending(false);
+    }
+  };
+
+  const handleInviteFieldChange =
+    (field: keyof TeamInviteForm) => (value: string) =>
+      setInviteForm((prev) => ({ ...prev, [field]: value }));
+
+  const handleInviteInputChange =
+    (field: keyof TeamInviteForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
+      setInviteForm((prev) => ({ ...prev, [field]: e.target.value }));
+
+  const handleInviteUser = async () => {
+    if (!inviteForm.email.trim()) {
+      toast.error("Team member email is required");
+      return;
+    }
+
+    try {
+      setInvitePending(true);
+      const response = await apiRequest<{ data: TeamMember }>("/settings/users", {
+        method: "POST",
+        body: JSON.stringify(inviteForm),
+      });
+      setTeamMembers((prev) => [...prev.filter((member) => member.id !== response.data.id), response.data]);
+      setInviteForm(defaultTeamInviteForm);
+      toast.success("Team member added", {
+        description:
+          response.data.status === "active"
+            ? "The user was linked to an existing account."
+            : "The invitation was created and will count toward your plan limit.",
+      });
+    } catch (error) {
+      toast.error("Failed to add team member", {
+        description: error instanceof Error ? error.message : "Unable to add team member.",
+      });
+    } finally {
+      setInvitePending(false);
+    }
+  };
+
+  const handleUpdateRole = async (memberId: string, role: TeamMemberRole) => {
+    try {
+      setUpdatingMemberId(memberId);
+      const response = await apiRequest<{ data: TeamMember }>(`/settings/users/${memberId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ role }),
+      });
+      setTeamMembers((prev) => prev.map((member) => (member.id === memberId ? response.data : member)));
+      toast.success("Team member updated", {
+        description: "The team member role has been updated.",
+      });
+    } catch (error) {
+      toast.error("Failed to update role", {
+        description: error instanceof Error ? error.message : "Unable to update team member.",
+      });
+    } finally {
+      setUpdatingMemberId(null);
+    }
+  };
+
+  const handleRemoveMember = async (memberId: string) => {
+    try {
+      setRemovingMemberId(memberId);
+      await apiRequest<void>(`/settings/users/${memberId}`, {
+        method: "DELETE",
+      });
+      setTeamMembers((prev) => prev.filter((member) => member.id !== memberId));
+      toast.success("Team member removed", {
+        description: "The user was removed from your workspace.",
+      });
+    } catch (error) {
+      toast.error("Failed to remove team member", {
+        description: error instanceof Error ? error.message : "Unable to remove team member.",
+      });
+    } finally {
+      setRemovingMemberId(null);
     }
   };
 
@@ -889,6 +1018,133 @@ function GeneralTab() {
             <Button variant="outline" onClick={handlePasswordReset} disabled={passwordResetPending || !user?.email}>
               {passwordResetPending ? "Sending link..." : "Change Password"}
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Team Access</CardTitle>
+          <CardDescription>Add users who should be part of your workspace.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium">Seats used</p>
+              <p className="text-sm text-muted-foreground">
+                {entitlements.maxTeamMembers == null
+                  ? `${usage.teamMembers} active workspace seats`
+                  : `${usage.teamMembers} of ${entitlements.maxTeamMembers} workspace seats used`}
+              </p>
+            </div>
+            <Badge variant="secondary">Owner counts as one seat</Badge>
+          </div>
+
+          {!canAddTeamMember && entitlements.maxTeamMembers != null && (
+            <Alert>
+              <AlertTitle>Team member limit reached</AlertTitle>
+              <AlertDescription>
+                Your current plan supports up to {entitlements.maxTeamMembers} team members. Upgrade your plan to add
+                more users.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="grid gap-4 rounded-lg border p-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="team-full-name">Full Name</Label>
+                <Input
+                  id="team-full-name"
+                  placeholder="Jane Smith"
+                  value={inviteForm.fullName}
+                  onChange={handleInviteInputChange("fullName")}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="team-email">Email</Label>
+                <Input
+                  id="team-email"
+                  type="email"
+                  placeholder="jane@example.com"
+                  value={inviteForm.email}
+                  onChange={handleInviteInputChange("email")}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="team-role">Role</Label>
+                <Select value={inviteForm.role} onValueChange={handleInviteFieldChange("role")}>
+                  <SelectTrigger id="team-role">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="member">Member</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={handleInviteUser} disabled={invitePending || !canAddTeamMember}>
+                <UserPlus className="mr-2 h-4 w-4" />
+                {invitePending ? "Adding user..." : "Add User"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm font-medium">Current team</p>
+            </div>
+
+            {teamLoading ? (
+              <p className="text-sm text-muted-foreground">Loading team members…</p>
+            ) : teamMembers.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No additional users have been added yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {teamMembers.map((member) => (
+                  <div
+                    key={member.id}
+                    className="flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate text-sm font-medium">
+                          {member.full_name || member.member_profile?.full_name || member.email}
+                        </p>
+                        <Badge variant={member.status === "active" ? "default" : "secondary"}>
+                          {member.status === "active" ? "Active" : "Invited"}
+                        </Badge>
+                      </div>
+                      <p className="truncate text-sm text-muted-foreground">{member.email}</p>
+                    </div>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <Select
+                        value={member.role}
+                        onValueChange={(value) => void handleUpdateRole(member.id, value as TeamMemberRole)}
+                        disabled={updatingMemberId === member.id}>
+                        <SelectTrigger className="w-full sm:w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="member">Member</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => void handleRemoveMember(member.id)}
+                        disabled={removingMemberId === member.id}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        {removingMemberId === member.id ? "Removing..." : "Remove"}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
