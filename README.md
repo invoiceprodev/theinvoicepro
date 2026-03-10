@@ -133,8 +133,50 @@ npm run dev
 - `npm run dev:customer` runs the frontend + API stack for customer work
 - `npm run api:dev` runs the API in watch mode
 - `npm run api:start` runs the API once
+- `npm run preview` runs the frontend production preview locally
 - `npm run dev:all` runs frontend + API together
 - `npm run build` runs TypeScript and production build
+- `npm run vercel:login` logs into Vercel CLI
+- `npm run railway:login` logs into Railway CLI
+- `npm run env:sync:vercel:customer` pushes production customer frontend envs from `.env`
+- `npm run env:sync:vercel:admin` pushes production admin frontend envs from `.env`
+- `npm run env:sync:railway` pushes production API envs from `.env`
+
+## Deployment Env Sync
+
+Use the CLIs for environment consistency instead of editing deployment vars by hand.
+
+Required one-time setup:
+
+```bash
+npm run vercel:login
+npm run railway:login
+```
+
+Required shell vars before syncing:
+
+```bash
+export VERCEL_ORG_ID=...
+export VERCEL_CUSTOMER_PROJECT_ID=...
+export VERCEL_ADMIN_PROJECT_ID=...
+export RAILWAY_SERVICE=...
+# optional if you use a non-default Railway environment
+export RAILWAY_ENVIRONMENT=production
+```
+
+Then sync:
+
+```bash
+npm run env:sync:vercel:customer
+npm run env:sync:vercel:admin
+npm run env:sync:railway
+```
+
+Notes:
+- the sync script reads local `.env`
+- customer/admin Vercel values are transformed to production URLs automatically
+- Railway/API values use server-side plain env names, not `VITE_*`
+- do not use the local debug flags in deployed environments
 
 ## Auth0 Setup
 

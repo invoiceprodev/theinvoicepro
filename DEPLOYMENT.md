@@ -8,6 +8,28 @@ Target production surfaces:
 
 Use [`.env.example`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/.env.example) as the canonical variable map.
 
+CLI-first env sync:
+
+- `npm run env:sync:vercel:customer`
+- `npm run env:sync:vercel:admin`
+- `npm run env:sync:railway`
+
+Required before syncing:
+
+```bash
+npm run vercel:login
+npm run railway:login
+
+export VERCEL_ORG_ID=...
+export VERCEL_CUSTOMER_PROJECT_ID=...
+export VERCEL_ADMIN_PROJECT_ID=...
+export RAILWAY_SERVICE=...
+# optional if your Railway environment is not the default one
+export RAILWAY_ENVIRONMENT=production
+```
+
+The sync script reads `.env`, selects the correct keys for each target, and applies production URL overrides automatically.
+
 ## 1. Prepare Values
 
 Have these ready before creating anything:
@@ -114,19 +136,20 @@ CUSTOMER_APP_URL=https://theinvoicepro.co.za
 ADMIN_APP_URL=https://admin.theinvoicepro.co.za
 
 AUTH0_DOMAIN=...
-AUTH0_CLIENT_ID=...
-AUTH0_CLIENT_SECRET=...
 AUTH0_AUDIENCE=https://api.theinvoicepro.co.za
 
-VITE_SUPABASE_URL=https://your-project-id.supabase.co
+SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=...
 SUPABASE_BRANDING_BUCKET=company-branding
 
 RESEND_API_KEY=...
 RESEND_FROM_EMAIL=noreply@theinvoicepro.co.za
 
+PAYFAST_MERCHANT_ID=...
+PAYFAST_MERCHANT_KEY=...
+PAYFAST_PASSPHRASE=...
+PAYFAST_MODE=live
 PAYFAST_NOTIFY_URL=https://api.theinvoicepro.co.za/payfast/webhook
-TRIAL_BYPASS_ENABLED=false
 ```
 
 After deploy, confirm:
@@ -151,7 +174,6 @@ Set these environment variables:
 ```env
 VITE_APP_URL=https://theinvoicepro.co.za
 VITE_API_URL=https://api.theinvoicepro.co.za
-VITE_API_BASE_URL=https://api.theinvoicepro.co.za
 
 VITE_SUPABASE_URL=https://your-project-id.supabase.co
 VITE_SUPABASE_ANON_KEY=...
@@ -162,11 +184,6 @@ VITE_CUSTOMER_AUTH0_AUDIENCE=https://api.theinvoicepro.co.za
 VITE_CUSTOMER_AUTH0_REDIRECT_URI=https://theinvoicepro.co.za/auth/callback
 VITE_CUSTOMER_AUTH0_CONNECTION=Username-Password-Authentication
 
-VITE_AUTH0_DOMAIN=...
-VITE_AUTH0_CLIENT_ID=...
-VITE_AUTH0_AUDIENCE=https://api.theinvoicepro.co.za
-VITE_AUTH0_REDIRECT_URI=https://theinvoicepro.co.za/auth/callback
-VITE_AUTH0_ADMIN_REDIRECT_URI=https://admin.theinvoicepro.co.za/admin/callback
 VITE_AUTH0_ROLE_CLAIM=https://theinvoicepro.co.za/roles
 VITE_AUTH_MODE=auth0
 
@@ -174,10 +191,6 @@ VITE_PAYFAST_MERCHANT_ID=...
 VITE_PAYFAST_MERCHANT_KEY=...
 VITE_PAYFAST_PASSPHRASE=...
 VITE_PAYFAST_MODE=live
-VITE_PAYFAST_API_URL=https://api.payfast.co.za
-VITE_PAYFAST_SANDBOX_API_URL=https://api.sandbox.payfast.co.za
-
-VITE_TRIAL_BYPASS_ENABLED=false
 ```
 
 ## 6. Vercel Admin Frontend
@@ -197,7 +210,6 @@ Set these environment variables:
 ```env
 VITE_APP_URL=https://admin.theinvoicepro.co.za
 VITE_API_URL=https://api.theinvoicepro.co.za
-VITE_API_BASE_URL=https://api.theinvoicepro.co.za
 
 VITE_SUPABASE_URL=https://your-project-id.supabase.co
 VITE_SUPABASE_ANON_KEY=...
@@ -208,11 +220,6 @@ VITE_ADMIN_AUTH0_AUDIENCE=https://api.theinvoicepro.co.za
 VITE_ADMIN_AUTH0_REDIRECT_URI=https://admin.theinvoicepro.co.za/admin/callback
 VITE_ADMIN_AUTH0_CONNECTION=Username-Password-Authentication
 
-VITE_AUTH0_DOMAIN=...
-VITE_AUTH0_CLIENT_ID=...
-VITE_AUTH0_AUDIENCE=https://api.theinvoicepro.co.za
-VITE_AUTH0_REDIRECT_URI=https://theinvoicepro.co.za/auth/callback
-VITE_AUTH0_ADMIN_REDIRECT_URI=https://admin.theinvoicepro.co.za/admin/callback
 VITE_AUTH0_ROLE_CLAIM=https://theinvoicepro.co.za/roles
 VITE_AUTH_MODE=auth0
 
@@ -220,10 +227,6 @@ VITE_PAYFAST_MERCHANT_ID=...
 VITE_PAYFAST_MERCHANT_KEY=...
 VITE_PAYFAST_PASSPHRASE=...
 VITE_PAYFAST_MODE=live
-VITE_PAYFAST_API_URL=https://api.payfast.co.za
-VITE_PAYFAST_SANDBOX_API_URL=https://api.sandbox.payfast.co.za
-
-VITE_TRIAL_BYPASS_ENABLED=false
 ```
 
 ## 7. DNS
