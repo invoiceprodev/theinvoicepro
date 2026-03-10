@@ -67,6 +67,7 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
         };
       }>(`/subscriptions/${subscription.id}/payfast-checkout`, {
         method: "POST",
+        body: JSON.stringify({ planId: plan.id }),
       });
 
       if (showPayFastDebug) {
@@ -117,7 +118,9 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
           debug: Record<string, string | boolean>;
           url: string;
         };
-      }>(`/subscriptions/${subscription.id}/payfast-debug`);
+      }>(`/subscriptions/${subscription.id}/payfast-debug`, {
+        method: "GET",
+      });
 
       setDebugPayload(debugResponse.data.debug);
       setDebugUrl(debugResponse.data.url);

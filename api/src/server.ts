@@ -2250,16 +2250,38 @@ app.post("/subscriptions/trial-setup", async (req: AuthedRequest, res: Response)
 
 app.post("/subscriptions/:id/payfast-token", async (req: AuthedRequest, res: Response) => {
   const user = req.user!;
-  const body = (req.body || {}) as { payfastToken?: string | null };
+  const body = (req.body || {}) as { payfastToken?: string | null; planId?: string | null };
 
   try {
     const profile = await getProfileForUser(user);
     const isAdmin = isAdminUser(user);
 
-    let query = adminSupabase.from("subscriptions").update({
+    let updatePayload: Record<string, unknown> = {
       payfast_token: body.payfastToken || null,
       updated_at: new Date().toISOString(),
-    }).eq("id", req.params.id);
+    };
+
+    if (body.planId) {
+      const { data: targetPlan, error: targetPlanError } = await adminSupabase
+        .from("plans")
+        .select("*")
+        .eq("id", body.planId)
+        .eq("is_active", true)
+        .single();
+
+      if (targetPlanError || !targetPlan?.id) {
+        res.status(404).json({ error: targetPlanError?.message || "Selected plan not found" });
+        return;
+      }
+
+      updatePayload = {
+        ...updatePayload,
+        plan_id: targetPlan.id,
+        auto_renew: Boolean(targetPlan.auto_renew),
+      };
+    }
+
+    let query = adminSupabase.from("subscriptions").update(updatePayload).eq("id", req.params.id);
 
     if (!isAdmin) {
       query = query.eq("user_id", profile.id);
@@ -2328,6 +2350,7 @@ app.post("/subscriptions/:id/activate-bypass", async (req: AuthedRequest, res: R
 
 app.post("/subscriptions/:id/payfast-checkout", async (req: AuthedRequest, res: Response) => {
   const user = req.user!;
+  const body = (req.body || {}) as { planId?: string };
 
   try {
     const requesterProfile = await getProfileForUser(user);
@@ -2350,11 +2373,13 @@ app.post("/subscriptions/:id/payfast-checkout", async (req: AuthedRequest, res: 
       return;
     }
 
-    const { data: plan, error: planError } = await adminSupabase
+    let planQuery = adminSupabase
       .from("plans")
       .select("*")
-      .eq("id", subscription.plan_id)
+      .eq("id", body.planId || subscription.plan_id)
       .single();
+
+    const { data: plan, error: planError } = await planQuery;
 
     if (planError || !plan?.id) {
       res.status(planError?.code === "PGRST116" ? 404 : 500).json({

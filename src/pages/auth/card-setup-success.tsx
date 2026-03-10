@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { apiRequest } from "@/lib/api-client";
-import { clearSelectedPlanCheckout } from "@/lib/plan-selection";
+import { clearSelectedPlanCheckout, getSelectedPlanCheckout } from "@/lib/plan-selection";
 import { setSubscriptionBridgeSnapshot } from "@/lib/subscription-bridge";
 import { getCurrentSubscriptionState, type Subscription } from "@/types";
 
@@ -23,6 +23,7 @@ export default function CardSetupSuccess() {
       try {
         const subscriptionId = searchParams.get("subscription_id");
         const payfastToken = searchParams.get("token") || searchParams.get("pf_payment_id");
+        const selectedPlan = getSelectedPlanCheckout();
 
         if (!subscriptionId) {
           setStatus("error");
@@ -34,6 +35,7 @@ export default function CardSetupSuccess() {
           method: "POST",
           body: JSON.stringify({
             payfastToken: payfastToken || null,
+            planId: selectedPlan?.id || null,
           }),
         });
 
