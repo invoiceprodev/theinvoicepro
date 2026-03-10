@@ -21,9 +21,11 @@ export function getPlanEntitlements(plan?: Plan | null): PlanEntitlements {
   const features = plan?.features || [];
 
   const maxInvoicesPerMonth =
-    features.some((feature) => /unlimited invoices/i.test(feature))
+    features.some((feature) => /unlimited invoices?(?:\s*\/\s*quotes?)?/i.test(feature))
       ? null
-      : features.map((feature) => parseCount(feature, /(\d+)\s+Invoices?\s*\/\s*Month/i)).find((value) => value != null) ?? null;
+      : features
+          .map((feature) => parseCount(feature, /(\d+)\s+Invoices?(?:\s*\/\s*Quotes?)?\s*\/\s*Month/i))
+          .find((value) => value != null) ?? null;
 
   const maxSavedClients =
     features.some((feature) => /unlimited saved clients/i.test(feature))
@@ -40,7 +42,10 @@ export function getPlanEntitlements(plan?: Plan | null): PlanEntitlements {
     maxSavedClients,
     maxTeamMembers,
     unlimitedSavedItems: features.some((feature) => /unlimited saved items/i.test(feature)),
-    quotesEnabled: features.some((feature) => /quotes/i.test(feature)),
+    quotesEnabled:
+      maxInvoicesPerMonth !== 0 ||
+      features.some((feature) => /quotes/i.test(feature)) ||
+      features.some((feature) => /invoices?(?:\s*\/\s*quotes?)?/i.test(feature)),
     complianceEnabled: features.some((feature) => /expenses\s*&\s*compliance/i.test(feature)),
     recurringStatementsEnabled: features.some((feature) => /recurring statements/i.test(feature)),
     removeBranding: features.some((feature) => /remove branding/i.test(feature)),

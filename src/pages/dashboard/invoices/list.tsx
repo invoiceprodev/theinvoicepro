@@ -3,13 +3,12 @@ import { useTable } from "@refinedev/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMany, useUpdate, useInvalidate } from "@refinedev/core";
 import { format } from "date-fns";
-import { MoreHorizontal, Eye, Pencil, Trash, CheckCircle } from "lucide-react";
+import { MoreHorizontal, Eye, Pencil, CheckCircle } from "lucide-react";
 
 import { DataTable } from "@/components/refine-ui/data-table/data-table";
 import { ListView, ListViewHeader } from "@/components/refine-ui/views/list-view";
 import { ShowButton } from "@/components/refine-ui/buttons/show";
 import { EditButton } from "@/components/refine-ui/buttons/edit";
-import { DeleteButton } from "@/components/refine-ui/buttons/delete";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -179,16 +178,6 @@ export function InvoiceListPage() {
                     Mark as Paid
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem className="p-0" onSelect={(e) => e.preventDefault()}>
-                  <DeleteButton
-                    resource="invoices"
-                    recordItemId={record.id}
-                    variant="ghost"
-                    className="w-full justify-start">
-                    <Trash className="mr-2 h-4 w-4" />
-                    Delete
-                  </DeleteButton>
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           );
@@ -206,7 +195,7 @@ export function InvoiceListPage() {
   return (
     <>
       <ListView>
-        <ListViewHeader title="Invoices" />
+        <ListViewHeader title="Invoices / Quotes" />
         <DataTable table={tableWithColumns} />
       </ListView>
 

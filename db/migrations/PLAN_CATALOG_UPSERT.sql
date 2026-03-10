@@ -72,7 +72,7 @@ VALUES
     'ZAR',
     'monthly',
     '[
-      "150 Invoices / Month",
+      "150 Invoices / Quotes / Month",
       "50 Saved Clients",
       "5 Team Members",
       "Unlimited Saved Items",
@@ -93,11 +93,10 @@ VALUES
     'ZAR',
     'monthly',
     '[
-      "250 Invoices / Month",
+      "250 Invoices / Quotes / Month",
       "100 Saved Clients",
       "5 Team Members",
       "Unlimited Saved Items",
-      "Quotes",
       "Expenses & Compliance tracking",
       "Recurring Statements",
       "Pdf export",
@@ -106,8 +105,8 @@ VALUES
     ]'::jsonb,
     true,
     0,
-    false,
-    false,
+    true,
+    true,
     true
   ),
   (
@@ -117,11 +116,10 @@ VALUES
     'ZAR',
     'monthly',
     '[
-      "Unlimited Invoices / Month",
+      "Unlimited Invoices / Quotes / Month",
       "Unlimited Saved Clients",
       "10 Team Members",
       "Unlimited Saved Items",
-      "Quotes",
       "Expenses & Compliance tracking",
       "Recurring Statements",
       "Pdf export",
@@ -130,8 +128,8 @@ VALUES
     ]'::jsonb,
     false,
     0,
-    false,
-    false,
+    true,
+    true,
     true
   );
 

@@ -270,15 +270,16 @@ export const InvoiceCreatePage: React.FC = () => {
         {isQuoteFlow && !canUseQuotes && (
           <Alert className="mb-6" variant="destructive">
             <AlertTitle>Quotes unavailable on current plan</AlertTitle>
-            <AlertDescription>Upgrade to Pro or Enterprise to create quotes.</AlertDescription>
+            <AlertDescription>Your current plan does not allow quote creation.</AlertDescription>
           </Alert>
         )}
 
-        {!isQuoteFlow && !canCreateInvoice && (
+        {!canCreateInvoice && (
           <Alert className="mb-6" variant="destructive">
-            <AlertTitle>Monthly invoice limit reached</AlertTitle>
+            <AlertTitle>Monthly invoice/quote limit reached</AlertTitle>
             <AlertDescription>
-              Your plan allows {entitlements.maxInvoicesPerMonth} invoices per month. You have already created {usage.invoicesThisMonth} this month.
+              Your plan allows {entitlements.maxInvoicesPerMonth} invoices/quotes per month. You have already created{" "}
+              {usage.invoicesThisMonth} this month.
             </AlertDescription>
           </Alert>
         )}

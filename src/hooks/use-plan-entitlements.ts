@@ -6,11 +6,12 @@ import { useSubscriptionState } from "@/hooks/use-subscription-state";
 interface UsageSnapshot {
   savedClients: number;
   invoicesThisMonth: number;
+  teamMembers: number;
 }
 
 export function usePlanEntitlements() {
   const { loading: subscriptionLoading, subscription, state } = useSubscriptionState();
-  const [usage, setUsage] = useState<UsageSnapshot>({ savedClients: 0, invoicesThisMonth: 0 });
+  const [usage, setUsage] = useState<UsageSnapshot>({ savedClients: 0, invoicesThisMonth: 0, teamMembers: 1 });
   const [usageLoading, setUsageLoading] = useState(false);
 
   useEffect(() => {
@@ -18,7 +19,7 @@ export function usePlanEntitlements() {
 
     async function loadUsage() {
       if (!subscription) {
-        setUsage({ savedClients: 0, invoicesThisMonth: 0 });
+        setUsage({ savedClients: 0, invoicesThisMonth: 0, teamMembers: 1 });
         return;
       }
 
@@ -30,7 +31,7 @@ export function usePlanEntitlements() {
         }
       } catch {
         if (!cancelled) {
-          setUsage({ savedClients: 0, invoicesThisMonth: 0 });
+          setUsage({ savedClients: 0, invoicesThisMonth: 0, teamMembers: 1 });
         }
       } finally {
         if (!cancelled) {
@@ -57,6 +58,7 @@ export function usePlanEntitlements() {
     canCreateClient: entitlements.maxSavedClients == null || usage.savedClients < entitlements.maxSavedClients,
     canCreateInvoice:
       entitlements.maxInvoicesPerMonth == null || usage.invoicesThisMonth < entitlements.maxInvoicesPerMonth,
+    canAddTeamMember: entitlements.maxTeamMembers == null || usage.teamMembers < entitlements.maxTeamMembers,
     canUseQuotes: entitlements.quotesEnabled,
   };
 }
