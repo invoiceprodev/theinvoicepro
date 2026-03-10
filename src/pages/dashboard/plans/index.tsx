@@ -14,7 +14,7 @@ import { apiRequest } from "@/lib/api-client";
 import { clearSelectedPlanCheckout, setSelectedPlanCheckout } from "@/lib/plan-selection";
 import { useSubscriptionState } from "@/hooks/use-subscription-state";
 import { setSubscriptionBridgeSnapshot } from "@/lib/subscription-bridge";
-import { canStartTrialWithoutCard } from "@/lib/trial-bypass";
+import { canStartTrialWithoutCard, planRequiresCard } from "@/lib/trial-bypass";
 
 type DialogState =
   | { open: false }
@@ -36,10 +36,6 @@ function getPlanCta(plan: Plan) {
     return "Start Trial";
   }
   return "Buy Plan";
-}
-
-function planRequiresCard(plan: Plan) {
-  return Boolean(plan.requires_card) || Number(plan.price || 0) > 0;
 }
 
 export function PlansPage() {
@@ -100,7 +96,7 @@ export function PlansPage() {
     window.setTimeout(() => {
       setProcessing(false);
       setDialog({ open: false });
-      if (planRequiresCard(dialog.plan) || (dialog.plan.trial_days || 0) > 0) {
+      if (planRequiresCard(dialog.plan)) {
         navigate("/auth/card-setup");
         return;
       }
@@ -110,7 +106,7 @@ export function PlansPage() {
         message: (dialog.plan.trial_days || 0) > 0 ? `Trial ready for ${dialog.plan.name}` : `${dialog.plan.name} selected`,
         description:
           (dialog.plan.trial_days || 0) > 0
-            ? `Card authorisation will start a ${dialog.plan.trial_days}-day trial and auto-renew through PayFast unless cancelled before the renewal date.`
+            ? `Your ${dialog.plan.trial_days}-day trial is ready and can start without card setup.`
             : `The ${dialog.plan.name} plan has been selected.`,
       });
     }, 800);
@@ -185,23 +181,19 @@ export function PlansPage() {
         body: JSON.stringify({ planId: plan.id }),
       });
 
-      const activated = await apiRequest<{ data: any }>(
-        `/subscriptions/${trialResponse.data.subscription.id}/activate-bypass`,
-        {
-          method: "POST",
-        },
-      );
-
       clearSelectedPlanCheckout();
       setSubscriptionBridgeSnapshot({
         isLoading: false,
-        subscription: activated.data,
+        subscription: {
+          ...trialResponse.data.subscription,
+          plan,
+        },
       });
 
       openNotification?.({
         type: "success",
         message: "Trial started",
-        description: `${plan.name} is active without card setup for local testing.`,
+        description: `${plan.name} is now active without card setup.`,
       });
     } catch (error) {
       openNotification?.({
@@ -219,8 +211,8 @@ export function PlansPage() {
       <div className="mb-10 text-center">
         <h1 className="mb-2 text-3xl font-bold tracking-tight">Subscription Plans</h1>
         <p className="text-base text-muted-foreground">
-          Plans are managed from admin and reflected here automatically. Starter/Trial starts with a 60-day trial and
-          PayFast card authorisation.
+          Plans are managed from admin and reflected here automatically. Starter/Trial starts with a 60-day trial, while
+          Pro and Enterprise continue through PayFast card setup.
         </p>
       </div>
 
@@ -234,7 +226,7 @@ export function PlansPage() {
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             {subscriptionState === "trial_pending" ? (
-              <p>Your subscription record exists, but card setup is still incomplete. Continue setup to activate the trial.</p>
+              <p>Your subscription record exists, but card setup is still incomplete. Complete setup to activate the plan.</p>
             ) : null}
             {subscriptionState === "trial_active" ? (
               <p>
@@ -471,6 +463,14 @@ export function PlansPage() {
                     </p>
                   </div>
                 </>
+              ) : (dialog.plan.trial_days || 0) > 0 ? (
+                <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-900">
+                  <p className="font-semibold">No card required to start this trial</p>
+                  <p className="mt-1">
+                    Your {dialog.plan.trial_days}-day trial will begin immediately. You can add billing details later when
+                    you upgrade to a card-required plan.
+                  </p>
+                </div>
               ) : null}
             </div>
 

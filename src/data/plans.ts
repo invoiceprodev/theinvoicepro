@@ -19,7 +19,7 @@ export const mockPlans: Plan[] = [
       "Custom Emails",
     ],
     trial_days: 60,
-    requires_card: true,
+    requires_card: false,
     auto_renew: true,
     isPopular: false,
     is_popular: false,

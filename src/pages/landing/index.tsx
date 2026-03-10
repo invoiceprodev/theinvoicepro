@@ -245,7 +245,7 @@ export const LandingPage = () => {
             {pricingPlans.map((tier, index) => {
               const isPopular = !!(tier.is_popular || tier.isPopular);
               const trialDays = Number(tier.trial_days || 0);
-              const requiresCard = Boolean(tier.requires_card) || Number(tier.price || 0) > 0;
+              const requiresCard = Boolean(tier.requires_card);
               const cta = trialDays > 0 ? "Start Trial" : "Buy Plan";
 
               return (
@@ -287,7 +287,7 @@ export const LandingPage = () => {
                   {(trialDays > 0 || requiresCard) && (
                     <div className="pt-2">
                       <Badge variant="outline" className="text-xs font-normal border-orange-500 text-orange-600">
-                        {trialDays > 0 ? "Card required via PayFast" : "Card required via PayFast"}
+                        {requiresCard ? "Card required via PayFast" : `${trialDays}-day trial available`}
                       </Badge>
                     </div>
                   )}

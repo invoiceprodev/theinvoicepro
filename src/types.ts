@@ -229,7 +229,8 @@ export function getCurrentSubscriptionState(subscription?: Subscription | null):
   }
 
   if (subscription.status === "trial") {
-    return subscription.payfast_token ? "trial_active" : "trial_pending";
+    const requiresCard = Boolean(subscription.plan?.requires_card);
+    return subscription.payfast_token || !requiresCard ? "trial_active" : "trial_pending";
   }
 
   if (subscription.status === "active") {

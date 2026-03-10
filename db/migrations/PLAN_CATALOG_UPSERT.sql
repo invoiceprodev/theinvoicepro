@@ -82,7 +82,7 @@ VALUES
     ]'::jsonb,
     false,
     60,
-    true,
+    false,
     true,
     true
   ),

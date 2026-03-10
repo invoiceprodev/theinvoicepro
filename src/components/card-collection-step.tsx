@@ -85,14 +85,13 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
     try {
       const subscription = await createSubscription();
 
-      const response = await apiRequest<{ data: Subscription }>(`/subscriptions/${subscription.id}/activate-bypass`, {
-        method: "POST",
-      });
-
       clearSelectedPlanCheckout();
       setSubscriptionBridgeSnapshot({
         isLoading: false,
-        subscription: response.data,
+        subscription: {
+          ...subscription,
+          plan,
+        },
       });
 
       navigate("/dashboard");
@@ -219,10 +218,10 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
 
             {allowTrialBypass && trialDays > 0 ? (
               <Alert>
-                <AlertTitle>Temporary trial bypass enabled</AlertTitle>
+                <AlertTitle>No card required for this trial</AlertTitle>
                 <AlertDescription>
-                  You can activate this trial without card setup while the PayFast issue is being resolved. The normal
-                  PayFast flow remains available below.
+                  Starter/Trial can begin immediately without card setup. The PayFast flow remains available below if you
+                  still want to attach billing details now.
                 </AlertDescription>
               </Alert>
             ) : null}
@@ -256,7 +255,7 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
           <CardFooter className="flex flex-col gap-3">
             {allowTrialBypass && trialDays > 0 ? (
               <Button onClick={handleActivateTrialBypass} disabled={isProcessing} size="lg" className="w-full">
-                {isProcessing ? "Activating trial..." : "Activate Trial"}
+                {isProcessing ? "Starting trial..." : "Start Trial"}
               </Button>
             ) : null}
 
