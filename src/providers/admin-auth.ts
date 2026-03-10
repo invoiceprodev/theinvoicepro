@@ -96,7 +96,7 @@ export const adminAuthProvider: AuthProvider = {
       const email = encodeURIComponent(current.verificationEmail || "");
       return {
         authenticated: false,
-        redirectTo: email ? `/verify-email?email=${email}&next=admin` : "/verify-email?next=admin",
+        redirectTo: email ? `${getAdminRoute("/verify-email")}?email=${email}&next=admin` : `${getAdminRoute("/verify-email")}?next=admin`,
       };
     }
 

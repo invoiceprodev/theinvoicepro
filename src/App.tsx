@@ -147,6 +147,7 @@ function AdminApp({ adminHost }: { adminHost: boolean }) {
                 </PublicOnlyRoute>
               }
             />
+            <Route path={adminRoute("/verify-email")} element={<VerifyEmailPage />} />
             <Route path={adminRoute("/callback")} element={<AuthCallbackPage />} />
 
             {/* Admin Protected Routes */}

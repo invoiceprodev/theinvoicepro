@@ -33,7 +33,7 @@ export function AuthCallbackPage() {
     const params = new URLSearchParams();
     if (verificationEmail) params.set("email", verificationEmail);
     if (isAdminCallback) params.set("next", "admin");
-    return <Navigate to={`/verify-email?${params.toString()}`} replace />;
+    return <Navigate to={`${isAdminCallback ? getAdminRoute("/verify-email") : "/verify-email"}?${params.toString()}`} replace />;
   }
 
   if (!isAuthenticated) {
