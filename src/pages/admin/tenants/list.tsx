@@ -26,6 +26,7 @@ import { toast } from "sonner";
 export function TenantListPage() {
   const navigate = useNavigate();
   const { mutate: updateProfile } = useUpdate();
+  const { mutate: updateSubscription } = useUpdate();
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -37,6 +38,7 @@ export function TenantListPage() {
 
   // Confirmation dialog state
   const [pendingSuspend, setPendingSuspend] = useState<Profile | null>(null);
+  const [pendingCancelPlan, setPendingCancelPlan] = useState<{ profile: Profile; subscription: Subscription } | null>(null);
 
   // Delete dialog state
   const [pendingDelete, setPendingDelete] = useState<Profile | null>(null);
@@ -101,6 +103,37 @@ export function TenantListPage() {
   const handleDeleteOpen = (profile: Profile) => {
     setDeleteConfirmInput("");
     setPendingDelete(profile);
+  };
+
+  const confirmCancelPlan = () => {
+    if (!pendingCancelPlan) return;
+    const { profile, subscription } = pendingCancelPlan;
+
+    updateSubscription(
+      {
+        resource: "subscriptions",
+        id: subscription.id,
+        values: {
+          auto_renew: false,
+          updated_at: new Date().toISOString(),
+        },
+      },
+      {
+        onSuccess: () => {
+          const expiryDate = subscription.renewal_date || subscription.trial_end_date || subscription.end_date;
+          toast.success(
+            expiryDate
+              ? `${profile.full_name || "Tenant"}'s plan will end on ${new Date(expiryDate).toLocaleDateString()}.`
+              : `${profile.full_name || "Tenant"}'s plan has been cancelled at expiry.`,
+          );
+        },
+        onError: () => {
+          toast.error("Failed to cancel plan. Please try again.");
+        },
+      },
+    );
+
+    setPendingCancelPlan(null);
   };
 
   const deleteConfirmValue = pendingDelete?.full_name || pendingDelete?.business_email || "";
@@ -293,6 +326,27 @@ export function TenantListPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Cancel Plan Confirmation Dialog */}
+      <AlertDialog open={!!pendingCancelPlan} onOpenChange={(open) => !open && setPendingCancelPlan(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Plan at Expiry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to cancel{" "}
+              <strong>{pendingCancelPlan?.profile.full_name || pendingCancelPlan?.profile.business_email || "this tenant"}</strong>
+              's plan. Their subscription will remain active until the current trial or billing period ends. No refund
+              will be issued, and auto-renew will be turned off.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Plan Active</AlertDialogCancel>
+            <Button variant="destructive" onClick={confirmCancelPlan}>
+              Cancel Plan
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Header */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center relative gap-2">
@@ -409,6 +463,8 @@ export function TenantListPage() {
                 const isDeleted = effective === "deleted";
                 const sub = subscriptionByUserId[profile.id];
                 const planName = getPlanName(profile.id);
+                const canCancelPlan =
+                  !!sub && (sub.status === "active" || sub.status === "trial") && sub.auto_renew !== false;
 
                 const subStatusVariants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
                   active: "default",
@@ -453,9 +509,16 @@ export function TenantListPage() {
                     {/* Subscription Status */}
                     <TableCell>
                       {sub ? (
-                        <Badge variant={subStatusVariants[sub.status] ?? "outline"}>
-                          {sub.status.charAt(0).toUpperCase() + sub.status.slice(1)}
-                        </Badge>
+                        <div className="flex flex-col gap-1">
+                          <Badge variant={subStatusVariants[sub.status] ?? "outline"}>
+                            {sub.status.charAt(0).toUpperCase() + sub.status.slice(1)}
+                          </Badge>
+                          {sub.auto_renew === false && (sub.status === "active" || sub.status === "trial") ? (
+                            <Badge variant="outline" className="w-fit text-amber-700 border-amber-600">
+                              Ends at expiry
+                            </Badge>
+                          ) : null}
+                        </div>
                       ) : (
                         <Badge variant="outline">No Subscription</Badge>
                       )}
@@ -519,6 +582,15 @@ export function TenantListPage() {
                                 onClick={() => handleSuspend(profile)}>
                                 <ShieldBan className="h-4 w-4 mr-1" />
                                 Suspend
+                              </Button>
+                            )}
+                            {canCancelPlan && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-amber-700 border-amber-600 hover:bg-amber-50"
+                                onClick={() => setPendingCancelPlan({ profile, subscription: sub })}>
+                                Cancel Plan
                               </Button>
                             )}
                             <Button

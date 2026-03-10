@@ -1,6 +1,4 @@
 import { useTable } from "@refinedev/react-table";
-import { useMany } from "@refinedev/core";
-import { flexRender } from "@tanstack/react-table";
 import { createColumnHelper } from "@tanstack/react-table";
 import { useState } from "react";
 import type { Subscription, Plan, Profile } from "@/types";
@@ -18,9 +16,8 @@ import {
 } from "@/components/refine-ui/data-table/data-table-filter";
 import { formatCurrency } from "@/lib/utils";
 import { Settings, CreditCard } from "lucide-react";
-import { useEffect, useMemo } from "react";
-import { useUpdate, useNotification } from "@refinedev/core";
-import { useCreate } from "@refinedev/core";
+import { useMemo } from "react";
+import { useCreate, useList, useNotification, useUpdate } from "@refinedev/core";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,6 +48,14 @@ const statusVariants: Record<string, "default" | "secondary" | "destructive" | "
   expired: "outline",
 };
 
+function formatPlanAmount(plan?: Plan) {
+  if (!plan) return "N/A";
+  if (plan.currency && plan.currency !== "ZAR") {
+    return `${plan.currency} ${Number(plan.price || 0).toFixed(2)}`;
+  }
+  return formatCurrency(Number(plan.price || 0));
+}
+
 export default function SubscriptionListPage() {
   const [selectedSubscription, setSelectedSubscription] = useState<{
     subscription: Subscription;
@@ -69,66 +74,11 @@ export default function SubscriptionListPage() {
   const { open: openNotification } = useNotification();
   const { mutate: createPayment } = useCreate();
 
-  const {
-    reactTable: { setOptions },
-    refineCore: {
-      tableQuery: { data: tableData },
-    },
-  } = useTable<Subscription>({
-    columns: [],
-    refineCoreProps: {
-      resource: "subscriptions",
-    },
-  });
-
-  // Extract unique user_ids and plan_ids for fetching related data
-  const userIds = useMemo(
-    () => tableData?.data?.map((subscription) => subscription.user_id).filter(Boolean) ?? [],
-    [tableData?.data],
-  );
-
-  const planIds = useMemo(
-    () => tableData?.data?.map((subscription) => subscription.plan_id).filter(Boolean) ?? [],
-    [tableData?.data],
-  );
-
-  // Fetch related profiles (users)
-  const {
-    result: profilesResult,
-    query: { isLoading: profilesIsLoading },
-  } = useMany<Profile>({
-    resource: "profiles",
-    ids: userIds,
-    queryOptions: {
-      enabled: userIds.length > 0,
-    },
-  });
-
-  // Fetch related plans
-  const {
-    result: plansResult,
-    query: { isLoading: plansIsLoading },
-  } = useMany<Plan>({
+  const { result: plansResult } = useList<Plan>({
     resource: "plans",
-    ids: planIds,
-    queryOptions: {
-      enabled: planIds.length > 0,
-    },
+    filters: [{ field: "is_active", operator: "eq", value: true }],
+    pagination: { mode: "off" },
   });
-
-  // Update table meta with related data
-  useEffect(() => {
-    setOptions((prev) => ({
-      ...prev,
-      meta: {
-        ...prev.meta,
-        profilesData: profilesResult?.data,
-        plansData: plansResult?.data,
-        profilesIsLoading,
-        plansIsLoading,
-      },
-    }));
-  }, [setOptions, profilesResult?.data, plansResult?.data, profilesIsLoading, plansIsLoading]);
 
   // Get unique plans for filter options
   const planFilterOptions = useMemo(() => {
@@ -156,17 +106,20 @@ export default function SubscriptionListPage() {
         successMessage = "Subscription reactivated successfully";
         break;
       case "extend-trial":
-        if (days && subscription.renewal_date) {
-          const renewalDate = new Date(subscription.renewal_date);
-          renewalDate.setDate(renewalDate.getDate() + days);
+        if (days && subscription.trial_end_date) {
+          const trialEndDate = new Date(subscription.trial_end_date);
+          trialEndDate.setDate(trialEndDate.getDate() + days);
           values = {
-            renewal_date: renewalDate.toISOString().split("T")[0],
+            trial_end_date: trialEndDate.toISOString(),
+            renewal_date: trialEndDate.toISOString().split("T")[0],
             updated_at: new Date().toISOString(),
           };
           successMessage = `Trial extended by ${days} days`;
         }
         break;
     }
+
+    setIsUpdating(true);
 
     updateSubscription(
       {
@@ -176,6 +129,7 @@ export default function SubscriptionListPage() {
       },
       {
         onSuccess: () => {
+          setIsUpdating(false);
           openNotification?.({
             type: "success",
             message: "Success",
@@ -184,6 +138,7 @@ export default function SubscriptionListPage() {
           setConfirmAction(null);
         },
         onError: (error) => {
+          setIsUpdating(false);
           openNotification?.({
             type: "error",
             message: "Action Failed",
@@ -268,9 +223,11 @@ export default function SubscriptionListPage() {
     }
   };
 
-  const columns = [
-    columnHelper.accessor("user_id", {
+  const columns = useMemo(
+    () => [
+      columnHelper.accessor("user_id", {
       id: "client_name",
+      size: 145,
       header: ({ column, table }) => (
         <div className="flex items-center gap-1">
           <span>Client Name</span>
@@ -283,35 +240,21 @@ export default function SubscriptionListPage() {
         </div>
       ),
       cell: (info) => {
-        const userId = info.getValue();
-        const meta = info.table.options.meta as {
-          profilesData?: Profile[];
-          profilesIsLoading?: boolean;
-        };
-
-        if (meta?.profilesIsLoading) return <span className="text-muted-foreground">Loading...</span>;
-
-        const profile = meta?.profilesData?.find((p) => p.id === userId);
+        const profile = info.row.original.profile;
         return <span className="font-medium">{profile?.full_name || "N/A"}</span>;
       },
-    }),
-    columnHelper.accessor("user_id", {
+      }),
+      columnHelper.accessor("user_id", {
       id: "client_email",
+      size: 230,
       header: "Email",
       cell: (info) => {
-        const userId = info.getValue();
-        const meta = info.table.options.meta as {
-          profilesData?: Profile[];
-          profilesIsLoading?: boolean;
-        };
-
-        if (meta?.profilesIsLoading) return <span className="text-muted-foreground">Loading...</span>;
-
-        const profile = meta?.profilesData?.find((p) => p.id === userId);
+        const profile = info.row.original.profile;
         return <span className="text-sm text-muted-foreground">{profile?.business_email || "N/A"}</span>;
       },
-    }),
-    columnHelper.accessor("plan_id", {
+      }),
+      columnHelper.accessor("plan_id", {
+      size: 160,
       header: ({ column }) => (
         <div className="flex items-center gap-1">
           <span>Plan</span>
@@ -319,19 +262,12 @@ export default function SubscriptionListPage() {
         </div>
       ),
       cell: (info) => {
-        const planId = info.getValue();
-        const meta = info.table.options.meta as {
-          plansData?: Plan[];
-          plansIsLoading?: boolean;
-        };
-
-        if (meta?.plansIsLoading) return <span className="text-muted-foreground">Loading...</span>;
-
-        const plan = meta?.plansData?.find((p) => p.id === planId);
+        const plan = info.row.original.plan;
         return <span className="font-medium">{plan?.name || "N/A"}</span>;
       },
-    }),
-    columnHelper.accessor("status", {
+      }),
+      columnHelper.accessor("status", {
+      size: 105,
       header: ({ column }) => (
         <div className="flex items-center gap-1">
           <span>Status</span>
@@ -356,50 +292,37 @@ export default function SubscriptionListPage() {
           </Badge>
         );
       },
-    }),
-    columnHelper.accessor("renewal_date", {
+      }),
+      columnHelper.accessor("renewal_date", {
+      size: 115,
       header: "Renewal Date",
       cell: (info) => {
         const date = info.getValue();
         if (!date) return <span className="text-muted-foreground">N/A</span>;
         return <span>{new Date(date).toLocaleDateString()}</span>;
       },
-    }),
-    columnHelper.accessor("plan_id", {
+      }),
+      columnHelper.accessor("plan_id", {
       id: "amount",
+      size: 95,
       header: "Amount",
       cell: (info) => {
-        const planId = info.getValue();
-        const meta = info.table.options.meta as {
-          plansData?: Plan[];
-          plansIsLoading?: boolean;
-        };
-
-        if (meta?.plansIsLoading) return <span className="text-muted-foreground">Loading...</span>;
-
-        const plan = meta?.plansData?.find((p) => p.id === planId);
+        const plan = info.row.original.plan;
         if (!plan) return <span className="text-muted-foreground">N/A</span>;
-
-        // Convert to ZAR if needed or use plan currency
-        const amount = plan.price;
-        return <span className="font-semibold">{formatCurrency(amount)}</span>;
+        return <span className="font-semibold">{formatPlanAmount(plan)}</span>;
       },
-    }),
-    columnHelper.display({
+      }),
+      columnHelper.display({
       id: "actions",
+      size: 245,
       header: "Actions",
       cell: (info) => {
         const subscription = info.row.original;
-        const meta = info.table.options.meta as {
-          profilesData?: Profile[];
-          plansData?: Plan[];
-        };
-
-        const profile = meta?.profilesData?.find((p) => p.id === subscription.user_id);
-        const plan = meta?.plansData?.find((p) => p.id === subscription.plan_id);
+        const profile = subscription.profile as Profile | undefined;
+        const plan = subscription.plan as Plan | undefined;
 
         if (!profile || !plan) {
-          return <span className="text-muted-foreground text-sm">Loading...</span>;
+          return <span className="text-muted-foreground text-sm">Missing related data</span>;
         }
 
         const isActive = subscription.status === "active";
@@ -409,7 +332,7 @@ export default function SubscriptionListPage() {
         const isPaying = payingSubscriptionId === subscription.id;
 
         return (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <Button
               variant="default"
               size="sm"
@@ -422,6 +345,7 @@ export default function SubscriptionListPage() {
             <Button
               variant="outline"
               size="sm"
+              className="px-2"
               onClick={() =>
                 setSelectedSubscription({
                   subscription,
@@ -435,7 +359,7 @@ export default function SubscriptionListPage() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" disabled={isUpdating}>
+                <Button variant="ghost" size="sm" className="px-2" disabled={isUpdating}>
                   Quick Actions
                 </Button>
               </DropdownMenuTrigger>
@@ -480,10 +404,12 @@ export default function SubscriptionListPage() {
           </div>
         );
       },
-    }),
-  ];
+      }),
+    ],
+    [isUpdating, payingSubscriptionId, planFilterOptions],
+  );
 
-  const table = useTable({
+  const table = useTable<Subscription>({
     columns,
     refineCoreProps: {
       resource: "subscriptions",

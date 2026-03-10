@@ -1,6 +1,15 @@
 import { Navigate, useLocation } from "react-router";
 import { useAuth } from "@/contexts/auth-context";
-import { hasSelectedPlanCheckout } from "@/lib/plan-selection";
+import { getSelectedPlanCheckout, hasSelectedPlanCheckout } from "@/lib/plan-selection";
+import { canAccessAdminPortal } from "@/lib/admin-access";
+import { canStartTrialWithoutCard } from "@/lib/trial-bypass";
+
+function buildAdminLoginRedirect(reason?: string) {
+  const params = new URLSearchParams();
+  if (reason) params.set("error", reason);
+  const query = params.toString();
+  return query ? `/admin/login?${query}` : "/admin/login";
+}
 
 export function AuthCallbackPage() {
   const { user, isAuthenticated, loading, requiresEmailVerification, verificationEmail } = useAuth();
@@ -29,12 +38,13 @@ export function AuthCallbackPage() {
     return <Navigate to={isAdminCallback ? "/admin/login" : "/login"} replace />;
   }
 
-  if (isAdminCallback && user?.role !== "admin") {
-    return <Navigate to="/dashboard" replace />;
+  if (isAdminCallback && !canAccessAdminPortal(user?.role)) {
+    return <Navigate to={buildAdminLoginRedirect("unauthorized")} replace />;
   }
 
   if (!isAdminCallback && hasSelectedPlanCheckout()) {
-    return <Navigate to="/auth/card-setup" replace />;
+    const selectedPlan = getSelectedPlanCheckout();
+    return <Navigate to={canStartTrialWithoutCard(selectedPlan) ? "/plans" : "/auth/card-setup"} replace />;
   }
 
   return <Navigate to={isAdminCallback ? "/admin/dashboard" : "/dashboard"} replace />;
@@ -57,8 +67,12 @@ export function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (isAuthenticated) {
-    if (isAdminRoute && user?.role === "admin") {
+    if (isAdminRoute && canAccessAdminPortal(user?.role)) {
       return <Navigate to="/admin/dashboard" replace />;
+    }
+
+    if (isAdminRoute) {
+      return <Navigate to={buildAdminLoginRedirect("unauthorized")} replace />;
     }
 
     return <Navigate to="/dashboard" replace />;

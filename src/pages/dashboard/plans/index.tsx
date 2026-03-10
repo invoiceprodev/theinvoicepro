@@ -9,12 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Check, CreditCard, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { mockPlans } from "@/data/plans";
 import { getCurrentSubscriptionState, type Plan } from "@/types";
 import { apiRequest } from "@/lib/api-client";
 import { clearSelectedPlanCheckout, setSelectedPlanCheckout } from "@/lib/plan-selection";
 import { useSubscriptionState } from "@/hooks/use-subscription-state";
 import { setSubscriptionBridgeSnapshot } from "@/lib/subscription-bridge";
+import { canStartTrialWithoutCard } from "@/lib/trial-bypass";
 
 type DialogState =
   | { open: false }
@@ -49,7 +49,7 @@ export function PlansPage() {
   const [expiry, setExpiry] = useState("");
   const [cvv, setCvv] = useState("");
   const [processing, setProcessing] = useState(false);
-  const [subscriptionActionLoading, setSubscriptionActionLoading] = useState<"cancel" | "change" | null>(null);
+  const [subscriptionActionLoading, setSubscriptionActionLoading] = useState<"cancel" | "change" | "start" | null>(null);
   const { open: openNotification } = useNotification();
   const { loading: subscriptionLoading, subscription, state: subscriptionState } = useSubscriptionState();
 
@@ -60,10 +60,11 @@ export function PlansPage() {
   });
 
   const plans = useMemo(() => {
-    const hasLivePlans = !!(result?.data && result.data.length > 0);
-    const source = hasLivePlans || query.isLoading ? ((result?.data as Plan[]) || []) : mockPlans;
+    const source = (result?.data as Plan[]) || [];
     return [...source].sort((a, b) => getPlanPriority(a) - getPlanPriority(b) || a.price - b.price);
-  }, [query.isLoading, result?.data]);
+  }, [result?.data]);
+  const plansErrorMessage =
+    query.error instanceof Error ? query.error.message : "Failed to load subscription plans from the live catalog.";
 
   function formatCard(value: string) {
     return value
@@ -130,8 +131,8 @@ export function PlansPage() {
 
       openNotification?.({
         type: "success",
-        message: "Auto-renew cancelled",
-        description: "Your current subscription will not renew automatically.",
+        message: "Plan cancelled",
+        description: "Your access stays active until the current term ends. No refund will be issued.",
       });
     } catch (error) {
       openNotification?.({
@@ -175,13 +176,51 @@ export function PlansPage() {
     }
   }
 
+  async function handleStartTrialWithoutCard(plan: Plan) {
+    setSubscriptionActionLoading("start");
+
+    try {
+      const trialResponse = await apiRequest<{ data: { subscription: any } }>("/subscriptions/trial-setup", {
+        method: "POST",
+        body: JSON.stringify({ planId: plan.id }),
+      });
+
+      const activated = await apiRequest<{ data: any }>(
+        `/subscriptions/${trialResponse.data.subscription.id}/activate-bypass`,
+        {
+          method: "POST",
+        },
+      );
+
+      clearSelectedPlanCheckout();
+      setSubscriptionBridgeSnapshot({
+        isLoading: false,
+        subscription: activated.data,
+      });
+
+      openNotification?.({
+        type: "success",
+        message: "Trial started",
+        description: `${plan.name} is active without card setup for local testing.`,
+      });
+    } catch (error) {
+      openNotification?.({
+        type: "error",
+        message: "Trial start failed",
+        description: error instanceof Error ? error.message : "Failed to start trial.",
+      });
+    } finally {
+      setSubscriptionActionLoading(null);
+    }
+  }
+
   return (
     <div className="container mx-auto max-w-6xl px-4 py-10">
       <div className="mb-10 text-center">
         <h1 className="mb-2 text-3xl font-bold tracking-tight">Subscription Plans</h1>
         <p className="text-base text-muted-foreground">
-          Plans are managed from admin and reflected here automatically. Basic starts with a 60-day trial and PayFast
-          card authorisation.
+          Plans are managed from admin and reflected here automatically. Starter/Trial starts with a 60-day trial and
+          PayFast card authorisation.
         </p>
       </div>
 
@@ -210,9 +249,11 @@ export function PlansPage() {
             {subscriptionState === "cancelled" ? <p>Your subscription has been cancelled.</p> : null}
             {subscriptionState === "expired" ? <p>Your subscription has expired. Choose a plan to resume access.</p> : null}
             {subscription?.auto_renew === false ? (
-              <p className="font-medium text-foreground">Auto-renew is currently off for this subscription.</p>
+              <p className="font-medium text-foreground">
+                Your plan has been cancelled and will end at the end of the current term.
+              </p>
             ) : (
-              <p>Auto-renew is currently enabled.</p>
+              <p>Your plan will keep renewing automatically until you cancel it.</p>
             )}
             {(subscriptionState === "trial_active" || subscriptionState === "active") && subscription?.auto_renew !== false ? (
               <Button
@@ -220,7 +261,7 @@ export function PlansPage() {
                 size="sm"
                 onClick={handleCancelAutoRenew}
                 disabled={subscriptionActionLoading !== null}>
-                {subscriptionActionLoading === "cancel" ? "Updating..." : "Cancel Auto-Renew"}
+                {subscriptionActionLoading === "cancel" ? "Cancelling..." : "Cancel Plan"}
               </Button>
             ) : null}
             {subscriptionState === "trial_pending" ? (
@@ -234,6 +275,22 @@ export function PlansPage() {
 
       {query.isLoading ? (
         <p className="text-center text-sm text-muted-foreground">Loading admin-managed plans...</p>
+      ) : query.isError ? (
+        <Card className="border-destructive/30">
+          <CardContent className="py-8 text-center">
+            <p className="font-medium">Unable to load subscription plans.</p>
+            <p className="mt-2 text-sm text-muted-foreground">{plansErrorMessage}</p>
+          </CardContent>
+        </Card>
+      ) : plans.length === 0 ? (
+        <Card>
+          <CardContent className="py-8 text-center">
+            <p className="font-medium">No active plans available.</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              The live plan catalog is empty right now. Add or activate plans from admin pricing.
+            </p>
+          </CardContent>
+        </Card>
       ) : (
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         {plans.map((plan) => {
@@ -297,10 +354,14 @@ export function PlansPage() {
                   {trialDays > 0 && <li className="text-sm text-muted-foreground">Includes a {trialDays}-day free trial.</li>}
                 </ul>
 
-                <Button
+                  <Button
                   className="w-full"
                   variant={isPopular ? "default" : "outline"}
                   onClick={() => {
+                    if (!subscription && canStartTrialWithoutCard(plan)) {
+                      void handleStartTrialWithoutCard(plan);
+                      return;
+                    }
                     if (subscription && !isCurrentPlan && subscriptionState !== "trial_pending") {
                       void handleChangePlan(plan);
                       return;
@@ -314,7 +375,9 @@ export function PlansPage() {
                       ? subscriptionActionLoading === "change"
                         ? "Updating..."
                         : "Change Plan"
-                      : getPlanCta(plan)}
+                      : subscriptionActionLoading === "start" && canStartTrialWithoutCard(plan)
+                        ? "Starting trial..."
+                        : getPlanCta(plan)}
                 </Button>
               </CardContent>
             </Card>

@@ -11,16 +11,7 @@ import { Breadcrumb } from "@/components/refine-ui/layout/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { Pencil, Trash, Users, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
-import { mockPlans } from "@/data/plans";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-
-// Mock tenant counts by plan name (fallback if Supabase data not available)
-const MOCK_TENANT_COUNTS: Record<string, number> = {
-  Trial: 24,
-  Starter: 58,
-  Pro: 31,
-  Enterprise: 7,
-};
 
 export default function PlanListPage() {
   const { mutate: updatePlan } = useUpdate();
@@ -40,9 +31,7 @@ export default function PlanListPage() {
 
   const subscriptions = subscriptionsQuery.data?.data ?? [];
 
-  // Use Supabase data if available, otherwise fall back to mock plans
-  const plans: Plan[] =
-    plansQuery.data?.data && plansQuery.data.data.length > 0 ? (plansQuery.data.data as Plan[]) : mockPlans;
+  const plans: Plan[] = (plansQuery.data?.data as Plan[]) ?? [];
 
   const isLoading = plansQuery.isLoading;
 
@@ -116,8 +105,7 @@ export default function PlanListPage() {
                 const currency = plan.currency || "ZAR";
                 const features = plan.features || [];
                 const isActive = !!plan.is_active;
-                const realCount = tenantCountByPlanId[plan.id];
-                const tenantCount = realCount !== undefined ? realCount : (MOCK_TENANT_COUNTS[plan.name] ?? 0);
+                const tenantCount = tenantCountByPlanId[plan.id] ?? 0;
 
                 return (
                   <TableRow key={plan.id}>

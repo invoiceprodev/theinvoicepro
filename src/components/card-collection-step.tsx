@@ -8,6 +8,7 @@ import { apiRequest } from "@/lib/api-client";
 import type { Plan, Subscription } from "@/types";
 import { clearSelectedPlanCheckout } from "@/lib/plan-selection";
 import { setSubscriptionBridgeSnapshot } from "@/lib/subscription-bridge";
+import { canStartTrialWithoutCard } from "@/lib/trial-bypass";
 
 interface CardCollectionStepProps {
   userId: string;
@@ -24,7 +25,7 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
   const [debugPayload, setDebugPayload] = useState<Record<string, string | boolean> | null>(null);
   const [debugUrl, setDebugUrl] = useState<string | null>(null);
   const showPayFastDebug = import.meta.env.DEV;
-  const allowTrialBypass = import.meta.env.VITE_TRIAL_BYPASS_ENABLED === "true";
+  const allowTrialBypass = canStartTrialWithoutCard(plan);
 
   const trialDays = Number(plan.trial_days || 0);
   const amount = Number(plan.price || 0);

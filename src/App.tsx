@@ -314,6 +314,7 @@ function CustomerApp() {
               <Route path="/clients/create" element={<ClientCreatePage />} />
               <Route path="/clients/:id/edit" element={<ClientEditPage />} />
               <Route path="/plans" element={<PlansPage />} />
+              <Route path="/dashboard/plans" element={<PlansPage />} />
               <Route path="/expenses" element={<ExpenseListPage />} />
               <Route path="/expenses/create" element={<ExpenseCreatePage />} />
               <Route path="/expenses/:id" element={<ExpenseShowPage />} />

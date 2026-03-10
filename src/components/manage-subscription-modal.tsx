@@ -74,6 +74,14 @@ function getActionBadgeVariant(actionType: string): "default" | "secondary" | "d
   }
 }
 
+function formatPlanAmount(plan?: Plan | null) {
+  if (!plan) return "N/A";
+  if (plan.currency && plan.currency !== "ZAR") {
+    return `${plan.currency} ${Number(plan.price || 0).toFixed(2)}`;
+  }
+  return formatCurrency(Number(plan.price || 0));
+}
+
 export function ManageSubscriptionModal({
   subscription,
   currentPlan,
@@ -220,11 +228,12 @@ export function ManageSubscriptionModal({
         successMessage = "Subscription reactivated successfully";
         break;
       case "extend-trial":
-        if (days && subscription.renewal_date) {
-          const renewalDate = new Date(subscription.renewal_date);
-          renewalDate.setDate(renewalDate.getDate() + days);
+        if (days && subscription.trial_end_date) {
+          const trialEndDate = new Date(subscription.trial_end_date);
+          trialEndDate.setDate(trialEndDate.getDate() + days);
           values = {
-            renewal_date: renewalDate.toISOString().split("T")[0],
+            trial_end_date: trialEndDate.toISOString(),
+            renewal_date: trialEndDate.toISOString().split("T")[0],
             updated_at: new Date().toISOString(),
           };
           successMessage = `Trial extended by ${days} days`;
@@ -363,7 +372,7 @@ export function ManageSubscriptionModal({
                         <Badge>Current</Badge>
                       </div>
                       <CardDescription>
-                        {formatCurrency(currentPlan.price)} / {currentPlan.billing_cycle}
+                        {formatPlanAmount(currentPlan)} / {currentPlan.billing_cycle}
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -395,7 +404,7 @@ export function ManageSubscriptionModal({
                             <CardHeader className="pb-3">
                               <CardTitle className="text-lg">{plan.name}</CardTitle>
                               <CardDescription>
-                                {formatCurrency(plan.price)} / {plan.billing_cycle}
+                                {formatPlanAmount(plan)} / {plan.billing_cycle}
                               </CardDescription>
                             </CardHeader>
                             <CardContent className="pb-3">
@@ -483,7 +492,7 @@ export function ManageSubscriptionModal({
                                   <span className="font-semibold">{item.new_plan?.name || "New plan"}</span>
                                   {item.old_plan && item.new_plan && (
                                     <span className="text-muted-foreground ml-2">
-                                      ({formatCurrency(item.old_plan.price)} → {formatCurrency(item.new_plan.price)})
+                                      ({formatPlanAmount(item.old_plan)} → {formatPlanAmount(item.new_plan)})
                                     </span>
                                   )}
                                 </div>
@@ -550,7 +559,11 @@ export function ManageSubscriptionModal({
                                     <Badge variant={statusVariant[payment.status] || "outline"}>
                                       {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
                                     </Badge>
-                                    <span className="text-sm font-semibold">{formatCurrency(payment.amount)}</span>
+                                    <span className="text-sm font-semibold">
+                                      {payment.currency && payment.currency !== "ZAR"
+                                        ? `${payment.currency} ${Number(payment.amount || 0).toFixed(2)}`
+                                        : formatCurrency(Number(payment.amount || 0))}
+                                    </span>
                                   </div>
                                   <span className="text-xs text-muted-foreground">
                                     {new Date(payment.created_at).toLocaleDateString(undefined, {
@@ -609,7 +622,7 @@ export function ManageSubscriptionModal({
                     <CardHeader className="pb-2">
                       <CardTitle className="text-base">{currentPlan.name}</CardTitle>
                       <CardDescription className="text-sm">
-                        {formatCurrency(currentPlan.price)} / {currentPlan.billing_cycle}
+                        {formatPlanAmount(currentPlan)} / {currentPlan.billing_cycle}
                       </CardDescription>
                     </CardHeader>
                   </Card>
@@ -621,7 +634,7 @@ export function ManageSubscriptionModal({
                     <CardHeader className="pb-2">
                       <CardTitle className="text-base">{selectedPlan?.name}</CardTitle>
                       <CardDescription className="text-sm">
-                        {formatCurrency(selectedPlan?.price ?? 0)} / {selectedPlan?.billing_cycle}
+                        {formatPlanAmount(selectedPlan)} / {selectedPlan?.billing_cycle}
                       </CardDescription>
                     </CardHeader>
                   </Card>

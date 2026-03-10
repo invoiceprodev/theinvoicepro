@@ -1,43 +1,29 @@
-import { useList, useUpdate } from "@refinedev/core";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Subscription } from "@/types";
-import { useAuth } from "@/contexts/auth-context";
+import { getCurrencySymbol } from "@/types";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { AlertCircle, CreditCard, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useNavigate } from "react-router";
+import { useSubscriptionState } from "@/hooks/use-subscription-state";
+import { apiRequest } from "@/lib/api-client";
+import { setSubscriptionBridgeSnapshot } from "@/lib/subscription-bridge";
 
 export const TrialCountdownWidget = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
-
-  // Fetch user's subscription
-  const { result: subscriptionResult, query: subscriptionQuery } = useList<Subscription>({
-    resource: "subscriptions",
-    filters: [
-      { field: "user_id", operator: "eq", value: user?.id },
-      { field: "status", operator: "eq", value: "trial" },
-    ],
-    pagination: { pageSize: 1 },
-    meta: {
-      select: "*, plan:plans(*)",
-    },
-  });
-
-  const { mutate: updateSubscription, mutation } = useUpdate();
-
-  const subscription = subscriptionResult?.data?.[0];
+  const { loading, subscription } = useSubscriptionState();
+  const [isCancelling, setIsCancelling] = useState(false);
 
   // Don't show widget if not loading and no trial subscription
-  if (!subscriptionQuery.isLoading && !subscription) {
+  if (!loading && subscription?.status !== "trial") {
     return null;
   }
 
   // Show loading state
-  if (subscriptionQuery.isLoading) {
+  if (loading || !subscription) {
     return null;
   }
 
@@ -51,26 +37,28 @@ export const TrialCountdownWidget = () => {
   const progressPercentage = (daysElapsed / totalTrialDays) * 100;
 
   // Handle cancel trial
-  const handleCancelTrial = () => {
+  const amount = Number(subscription.plan?.price || 0);
+  const currencySymbol = getCurrencySymbol(subscription.plan?.currency);
+
+  const handleCancelTrial = async () => {
     if (!subscription?.id) return;
 
-    updateSubscription(
-      {
-        resource: "subscriptions",
-        id: subscription.id,
-        values: {
-          auto_renew: false,
-        },
-      },
-      {
-        onSuccess: () => {
-          console.log("Trial auto-renewal cancelled successfully");
-        },
-        onError: (error) => {
-          console.error("Failed to cancel trial:", error);
-        },
-      },
-    );
+    setIsCancelling(true);
+
+    try {
+      const response = await apiRequest<{ data: typeof subscription }>("/subscription/cancel-auto-renew", {
+        method: "POST",
+      });
+
+      setSubscriptionBridgeSnapshot({
+        isLoading: false,
+        subscription: response.data,
+      });
+    } catch (error) {
+      console.error("Failed to cancel trial:", error);
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
   // Handle upgrade now
@@ -116,7 +104,11 @@ export const TrialCountdownWidget = () => {
           <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
             <AlertCircle className="h-4 w-4 text-amber-600" />
             <AlertDescription className="text-sm text-amber-800 dark:text-amber-400">
-              <strong>Your card will be charged R170.00</strong> on{" "}
+              <strong>
+                Your card will be charged {currencySymbol}
+                {amount.toFixed(2)}
+              </strong>{" "}
+              on{" "}
               {trialEndDate ? format(trialEndDate, "MMMM dd, yyyy") : "N/A"} to continue with the Starter plan.
             </AlertDescription>
           </Alert>
@@ -143,8 +135,8 @@ export const TrialCountdownWidget = () => {
               variant="outline"
               className="flex-1 border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950/20"
               onClick={handleCancelTrial}
-              disabled={mutation.isPending}>
-              {mutation.isPending ? "Cancelling..." : "Cancel Trial"}
+              disabled={isCancelling}>
+              {isCancelling ? "Cancelling..." : "Cancel Trial"}
             </Button>
           )}
         </div>

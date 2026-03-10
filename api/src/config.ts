@@ -12,6 +12,7 @@ function envFlag(name: string) {
 }
 
 export const apiConfig = {
+  isDevelopment: process.env.NODE_ENV !== "production",
   port: Number(process.env.PORT || 3000),
   auth0Domain: required("AUTH0_DOMAIN"),
   auth0Audience: required("AUTH0_AUDIENCE"),
@@ -28,5 +29,10 @@ export const apiConfig = {
   payfastPassphrase: process.env.PAYFAST_PASSPHRASE || process.env.VITE_PAYFAST_PASSPHRASE || "",
   payfastMode: process.env.PAYFAST_MODE || process.env.VITE_PAYFAST_MODE || "sandbox",
   supabaseBrandingBucket: process.env.SUPABASE_BRANDING_BUCKET || "company-branding",
-  trialBypassEnabled: envFlag("TRIAL_BYPASS_ENABLED") || envFlag("VITE_TRIAL_BYPASS_ENABLED"),
+  trialBypassEnabled:
+    (process.env.NODE_ENV !== "production") &&
+    (envFlag("TRIAL_BYPASS_ENABLED") || envFlag("VITE_TRIAL_BYPASS_ENABLED")),
+  adminAccessBypassEnabled:
+    (process.env.NODE_ENV !== "production") &&
+    (envFlag("ADMIN_ACCESS_BYPASS_ENABLED") || envFlag("VITE_ADMIN_ACCESS_BYPASS_ENABLED")),
 };

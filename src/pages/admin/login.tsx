@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useLogin } from "@refinedev/core";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -24,6 +24,8 @@ const isInternalMode = import.meta.env.VITE_AUTH_MODE === "internal";
 export const AdminLoginPage = () => {
   const { mutate: login, error: loginError } = useLogin<LoginFormValues & { password?: string }>();
   const [isLoading, setIsLoading] = useState(false);
+  const location = useLocation();
+  const unauthorized = useMemo(() => new URLSearchParams(location.search).get("error") === "unauthorized", [location.search]);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -72,6 +74,14 @@ export const AdminLoginPage = () => {
           </CardHeader>
 
           <CardContent className="space-y-4">
+            {unauthorized && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Admin access required</AlertTitle>
+                <AlertDescription>This account does not have admin access for this portal.</AlertDescription>
+              </Alert>
+            )}
+
             {loginError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />

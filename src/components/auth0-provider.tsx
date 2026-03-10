@@ -8,10 +8,15 @@ import { setProfileBridgeSnapshot } from "@/lib/profile-bridge";
 import { setSubscriptionBridgeSnapshot } from "@/lib/subscription-bridge";
 import { clearPendingAuthHandoff, getPendingAuthHandoff } from "@/lib/auth0-handoff";
 import type { Profile, Subscription } from "@/types";
+import { shouldBypassEmailVerification } from "@/lib/customer-email-bypass";
 
-function Auth0BridgeSync() {
+function Auth0BridgeSync({ appKind }: { appKind: AuthAppKind }) {
   const { isLoading, isAuthenticated, user, error, loginWithRedirect, logout, getAccessTokenSilently } = useAuth0();
-  const requiresEmailVerification = isAuthenticated && !!user?.email && !isAuth0EmailVerified(user);
+  const requiresEmailVerification =
+    isAuthenticated &&
+    !!user?.email &&
+    !isAuth0EmailVerified(user) &&
+    !shouldBypassEmailVerification(appKind);
 
   useEffect(() => {
     setAuth0BridgeSnapshot({
@@ -25,7 +30,7 @@ function Auth0BridgeSync() {
       logout,
       getAccessTokenSilently,
     });
-  }, [error, getAccessTokenSilently, isAuthenticated, isLoading, loginWithRedirect, logout, requiresEmailVerification, user]);
+  }, [appKind, error, getAccessTokenSilently, isAuthenticated, isLoading, loginWithRedirect, logout, requiresEmailVerification, user]);
 
   useEffect(() => {
     let cancelled = false;
@@ -128,7 +133,7 @@ function Auth0BridgeSync() {
     return () => {
       cancelled = true;
     };
-  }, [getAccessTokenSilently, isAuthenticated, requiresEmailVerification, user]);
+  }, [appKind, getAccessTokenSilently, isAuthenticated, requiresEmailVerification, user]);
 
   return null;
 }
@@ -160,7 +165,7 @@ export function AppAuth0Provider({ appKind, children }: { appKind: AuthAppKind; 
         const target = typeof appState?.returnTo === "string" ? appState.returnTo : "/";
         window.history.replaceState({}, document.title, target);
       }}>
-      <Auth0BridgeSync />
+      <Auth0BridgeSync appKind={appKind} />
       {children}
     </Auth0Provider>
   );

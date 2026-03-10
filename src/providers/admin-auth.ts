@@ -4,6 +4,7 @@ import { getAppIdentityFromUser, getAppRoleFromUser } from "@/lib/auth0-identity
 import { getProfileBridgeSnapshot } from "@/lib/profile-bridge";
 import { setPendingAuthHandoff } from "@/lib/auth0-handoff";
 import { signupWithAuth0Database } from "@/lib/auth0-db";
+import { canAccessAdminPortal, getEffectiveAdminRole } from "@/lib/admin-access";
 
 async function beginAdminAuthFlow(email?: string) {
   const current = getAuth0BridgeSnapshot();
@@ -98,7 +99,7 @@ export const adminAuthProvider: AuthProvider = {
       };
     }
 
-    if (current.isAuthenticated && role === "admin") {
+    if (current.isAuthenticated && canAccessAdminPortal(role)) {
       return { authenticated: true };
     }
 
@@ -107,9 +108,9 @@ export const adminAuthProvider: AuthProvider = {
 
   getPermissions: async () => {
     const profileSnapshot = getProfileBridgeSnapshot();
-    if (profileSnapshot.profile?.role) return profileSnapshot.profile.role;
+    if (profileSnapshot.profile?.role) return getEffectiveAdminRole(profileSnapshot.profile.role);
     const current = getAuth0BridgeSnapshot();
-    return getAppRoleFromUser(current.user);
+    return getEffectiveAdminRole(getAppRoleFromUser(current.user));
   },
 
   getIdentity: async () => {
@@ -125,12 +126,13 @@ export const adminAuthProvider: AuthProvider = {
           current.user?.email ||
           "Admin",
         email: current.user?.email,
-        role: profileSnapshot.profile.role,
+        role: getEffectiveAdminRole(profileSnapshot.profile.role),
       };
     }
 
     const current = getAuth0BridgeSnapshot();
-    return getAppIdentityFromUser(current.user);
+    const identity = getAppIdentityFromUser(current.user);
+    return identity ? { ...identity, role: getEffectiveAdminRole(identity.role) } : null;
   },
 
   onError: async (error) => {

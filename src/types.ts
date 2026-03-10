@@ -195,6 +195,24 @@ export interface Subscription {
   created_at?: string;
   updated_at?: string;
   plan?: Plan;
+  profile?: Pick<Profile, "id" | "full_name" | "business_email"> | null;
+}
+
+export type TeamMemberRole = "admin" | "member";
+export type TeamMemberStatus = "invited" | "active";
+
+export interface TeamMember {
+  id: string;
+  owner_profile_id: string;
+  member_profile_id?: string | null;
+  email: string;
+  full_name?: string | null;
+  role: TeamMemberRole;
+  status: TeamMemberStatus;
+  invited_at?: string;
+  created_at?: string;
+  updated_at?: string;
+  member_profile?: Pick<Profile, "id" | "full_name" | "business_email" | "company_name"> | null;
 }
 
 export type CurrentSubscriptionState =

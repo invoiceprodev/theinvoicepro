@@ -140,10 +140,6 @@ export default function PlanCreatePage() {
               <Label htmlFor="trial_days">Trial Days</Label>
               <Input id="trial_days" type="number" min="0" {...register("trial_days")} placeholder="0" />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="currency">Currency</Label>
-              <Input id="currency" {...register("currency")} placeholder="ZAR" defaultValue="ZAR" />
-            </div>
           </div>
 
           <div className="grid gap-2">
@@ -204,7 +200,7 @@ export default function PlanCreatePage() {
 
         <div className="flex gap-2">
           <Button type="submit">Create Plan</Button>
-          <Button type="button" variant="outline" onClick={() => navigate("/tiers")}>
+          <Button type="button" variant="outline" onClick={() => navigate("/admin/tiers")}>
             Cancel
           </Button>
         </div>

@@ -35,12 +35,10 @@ Deployment guide:
 - company branding in settings, persisted to profile and Supabase Storage
 - plan-aware signup flow
 - subscription state in dashboard plans page
-- temporary trial bypass for local testing while PayFast is unresolved
 
 ## Known Caveats
 
 - PayFast recurring sandbox is still blocked by merchant/account setup outside the app
-- `TRIAL_BYPASS_ENABLED` is currently available for testing and should be turned off once PayFast is working
 
 ## Stack
 
@@ -74,13 +72,6 @@ Important groups:
 - Resend vars
 - PayFast vars
 
-Important current local flags:
-
-```env
-TRIAL_BYPASS_ENABLED=true
-VITE_TRIAL_BYPASS_ENABLED=true
-```
-
 ### 3. Run required Supabase migrations
 
 At minimum, make sure your Supabase project includes the current dashboard and Auth0 schema work.
@@ -107,6 +98,27 @@ That starts:
 - frontend on `http://127.0.0.1:5173`
 - API on `http://127.0.0.1:3000`
 
+Admin-only shortcut:
+
+```bash
+npm run dev:admin
+```
+
+That starts the same local stack and serves the admin app at:
+- `http://127.0.0.1:5173/admin/login`
+- `http://127.0.0.1:5173/admin/register`
+
+Customer-only shortcut:
+
+```bash
+npm run dev:customer
+```
+
+That starts the same local stack and serves the customer app at:
+- `http://127.0.0.1:5173`
+- `http://127.0.0.1:5173/login`
+- `http://127.0.0.1:5173/register`
+
 Or run them separately:
 
 ```bash
@@ -117,6 +129,8 @@ npm run dev
 ## Scripts
 
 - `npm run dev` runs the frontend
+- `npm run dev:admin` runs the frontend + API stack for admin work
+- `npm run dev:customer` runs the frontend + API stack for customer work
 - `npm run api:dev` runs the API in watch mode
 - `npm run api:start` runs the API once
 - `npm run dev:all` runs frontend + API together
@@ -140,17 +154,13 @@ Notes:
 
 ## Trial Flow
 
-Current local test flow:
+Expected flow:
 1. choose `Starter/Trial`
 2. create account
 3. confirm email
 4. log in
-5. land on card setup
-6. either:
-   - use `Activate Trial` while bypass is enabled
-   - or continue into PayFast
-
-The bypass exists only to unblock testing and deployment work while PayFast sandbox is unresolved.
+5. complete card setup
+6. continue into the app with the active trial subscription
 
 ## Branding
 
@@ -199,6 +209,5 @@ db/
 
 - finish PayFast recurring billing against a real recurring-capable merchant setup
 - move callback/webhook testing onto the deployed API domain
-- disable trial bypass in production
 - complete PayFast production webhook validation on the deployed API domain
 # theinvoicepro

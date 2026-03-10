@@ -36,10 +36,13 @@ export function TenantShowPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { mutate: updateProfile } = useUpdate();
+  const { mutate: updateSubscription } = useUpdate();
 
   // Local status override for optimistic updates
   const [statusOverride, setStatusOverride] = useState<"active" | "suspended" | "deleted" | null>(null);
   const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
+  const [cancelPlanDialogOpen, setCancelPlanDialogOpen] = useState(false);
+  const [autoRenewOverride, setAutoRenewOverride] = useState<boolean | null>(null);
 
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -67,6 +70,7 @@ export function TenantShowPage() {
     queryOptions: { enabled: !!subscription?.plan_id },
   });
   const plan = planQuery.data?.data;
+  const effectiveAutoRenew = autoRenewOverride ?? subscription?.auto_renew;
 
   const effectiveStatus: "active" | "suspended" | "deleted" =
     statusOverride ?? (profile?.account_status as "active" | "suspended" | "deleted") ?? "active";
@@ -100,6 +104,37 @@ export function TenantShowPage() {
       },
     );
     toast.success(`${profile.full_name || "Tenant"}'s account has been reactivated.`);
+  };
+
+  const handleCancelPlanConfirm = () => {
+    if (!subscription?.id) return;
+
+    setAutoRenewOverride(false);
+    updateSubscription(
+      {
+        resource: "subscriptions",
+        id: subscription.id,
+        values: {
+          auto_renew: false,
+          updated_at: new Date().toISOString(),
+        },
+      },
+      {
+        onSuccess: () => {
+          const expiryDate = subscription.renewal_date || subscription.trial_end_date || subscription.end_date;
+          toast.success(
+            expiryDate
+              ? `Plan cancelled. Access remains active until ${new Date(expiryDate).toLocaleDateString()}.`
+              : "Plan cancelled. Access remains active until the current term ends.",
+          );
+        },
+        onError: () => {
+          setAutoRenewOverride(null);
+          toast.error("Failed to cancel plan. Please try again.");
+        },
+      },
+    );
+    setCancelPlanDialogOpen(false);
   };
 
   const deleteConfirmValue = profile?.full_name || profile?.business_email || "";
@@ -171,6 +206,26 @@ export function TenantShowPage() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <Button variant="destructive" onClick={handleSuspendConfirm}>
               Suspend Account
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Cancel Plan Confirmation Dialog */}
+      <AlertDialog open={cancelPlanDialogOpen} onOpenChange={setCancelPlanDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Plan at Expiry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to cancel <strong>{profile.full_name || profile.business_email || "this tenant"}</strong>
+              's plan. Their subscription will remain active until the current trial or billing period ends. No refund
+              will be issued, and auto-renew will be turned off.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Plan Active</AlertDialogCancel>
+            <Button variant="destructive" onClick={handleCancelPlanConfirm}>
+              Cancel Plan
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -372,6 +427,18 @@ export function TenantShowPage() {
                     {subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}
                   </Badge>
                 </div>
+                <div className="text-sm">
+                  <div className="text-muted-foreground text-xs">Auto-Renew</div>
+                  <div>
+                    {effectiveAutoRenew === false ? (
+                      <Badge variant="outline">Off - ends at expiry</Badge>
+                    ) : (
+                      <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                        On
+                      </Badge>
+                    )}
+                  </div>
+                </div>
                 {plan?.price !== undefined && (
                   <div className="text-sm">
                     <div className="text-muted-foreground text-xs">Price</div>
@@ -394,6 +461,17 @@ export function TenantShowPage() {
                     <div>{new Date(subscription.end_date).toLocaleDateString()}</div>
                   </div>
                 )}
+                {(subscription.status === "active" || subscription.status === "trial") && effectiveAutoRenew !== false ? (
+                  <div className="pt-2">
+                    <Button
+                      variant="outline"
+                      className="text-destructive border-destructive hover:bg-destructive/10"
+                      onClick={() => setCancelPlanDialogOpen(true)}
+                    >
+                      Cancel Plan
+                    </Button>
+                  </div>
+                ) : null}
               </>
             ) : (
               <div className="text-muted-foreground text-sm">No active subscription found.</div>

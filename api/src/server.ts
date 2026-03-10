@@ -24,11 +24,23 @@ function getUserRoles(user: AuthenticatedUser) {
 }
 
 function isAdminUser(user: AuthenticatedUser) {
+  if (apiConfig.adminAccessBypassEnabled) {
+    return true;
+  }
   return getUserRoles(user).some((role) => role.toLowerCase() === "admin");
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function normalizeStoragePathSegment(value: string) {
@@ -161,6 +173,153 @@ function sanitizeExpensePayload(body: Record<string, unknown>, profileId: string
   };
 }
 
+function normalizePlanBillingCycle(value: unknown) {
+  return String(value ?? "monthly").trim().toLowerCase() === "yearly" ? "yearly" : "monthly";
+}
+
+function sanitizePlanFeatures(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.map((entry) => String(entry ?? "").trim()).filter(Boolean);
+}
+
+function sanitizePlanPayload(body: Record<string, unknown>) {
+  return {
+    name: String(body.name ?? "").trim(),
+    description: typeof body.description === "string" ? body.description.trim() : "",
+    price: Number(body.price ?? 0),
+    currency: String(body.currency ?? "ZAR").trim() || "ZAR",
+    billing_cycle: normalizePlanBillingCycle(body.billing_cycle ?? body.billingCycle),
+    features: sanitizePlanFeatures(body.features),
+    is_active: Boolean(body.is_active ?? body.isActive ?? true),
+    is_popular: Boolean(body.is_popular ?? body.isPopular ?? false),
+    trial_days: Math.max(0, Number(body.trial_days ?? body.trialDays ?? 0)),
+    requires_card: Boolean(body.requires_card ?? body.requiresCard ?? false),
+    auto_renew: Boolean(body.auto_renew ?? body.autoRenew ?? false),
+  };
+}
+
+function ensureAdmin(res: Response, user: AuthenticatedUser) {
+  if (isAdminUser(user)) {
+    return true;
+  }
+
+  res.status(403).json({ error: "Admin access required" });
+  return false;
+}
+
+function parseJsonQueryParam<T>(value: unknown, fallback: T): T {
+  if (typeof value !== "string" || !value.trim()) {
+    return fallback;
+  }
+
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+type CrudFilter = {
+  field?: string;
+  operator?: string;
+  value?: unknown;
+};
+
+type CrudSorter = {
+  field?: string;
+  order?: string;
+};
+
+type CrudPagination = {
+  current?: number;
+  pageSize?: number;
+  mode?: string;
+};
+
+function applyCrudFilters(query: any, filters: CrudFilter[]) {
+  let next = query;
+
+  for (const filter of filters) {
+    const field = String(filter.field || "").trim();
+    const operator = String(filter.operator || "").trim();
+    const value = filter.value;
+
+    if (!field || value === undefined) {
+      continue;
+    }
+
+    switch (operator) {
+      case "eq":
+        next = next.eq(field, value);
+        break;
+      case "in":
+        next = next.in(field, Array.isArray(value) ? value : [value]);
+        break;
+      case "gte":
+        next = next.gte(field, value);
+        break;
+      case "lte":
+        next = next.lte(field, value);
+        break;
+      case "gt":
+        next = next.gt(field, value);
+        break;
+      case "lt":
+        next = next.lt(field, value);
+        break;
+      case "contains":
+        next = next.ilike(field, `%${String(value)}%`);
+        break;
+      default:
+        break;
+    }
+  }
+
+  return next;
+}
+
+function applyCrudSorters(query: any, sorters: CrudSorter[]) {
+  let next = query;
+
+  for (const sorter of sorters) {
+    const field = String(sorter.field || "").trim();
+    if (!field) {
+      continue;
+    }
+
+    next = next.order(field, {
+      ascending: String(sorter.order || "asc").toLowerCase() !== "desc",
+    });
+  }
+
+  return next;
+}
+
+function applyCrudPagination(query: any, pagination: CrudPagination) {
+  if (pagination.mode === "off") {
+    return query;
+  }
+
+  const current = Math.max(1, Number(pagination.current || 1));
+  const pageSize = Math.max(1, Number(pagination.pageSize || 100));
+  const from = (current - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  return query.range(from, to);
+}
+
+function buildCrudQuery(req: Request) {
+  const ids = String(req.query.ids || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const filters = parseJsonQueryParam<CrudFilter[]>(req.query.filters, []);
+  const sorters = parseJsonQueryParam<CrudSorter[]>(req.query.sorters, []);
+  const pagination = parseJsonQueryParam<CrudPagination>(req.query.pagination, {});
+
+  return { ids, filters, sorters, pagination };
+}
+
 async function getProfileForUser(user: AuthenticatedUser) {
   const isAdmin = isAdminUser(user);
 
@@ -175,6 +334,17 @@ async function getProfileForUser(user: AuthenticatedUser) {
   }
 
   if (existingProfile?.id) {
+    if (user.email) {
+      await adminSupabase
+        .from("team_members")
+        .update({
+          member_profile_id: existingProfile.id,
+          status: "active",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("email", user.email)
+        .is("member_profile_id", null);
+    }
     return existingProfile;
   }
 
@@ -198,6 +368,18 @@ async function getProfileForUser(user: AuthenticatedUser) {
       createError?.message ||
         "Failed to create profile for authenticated user. Run AUTH0_IDENTITY_ALIGNMENT and AUTH0_PROFILE_DECOUPLING if the profiles table is still tied to Supabase Auth.",
     );
+  }
+
+  if (user.email) {
+    await adminSupabase
+      .from("team_members")
+      .update({
+        member_profile_id: createdProfile.id,
+        status: "active",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("email", user.email)
+      .is("member_profile_id", null);
   }
 
   return createdProfile;
@@ -302,6 +484,535 @@ app.get("/me", async (req: AuthedRequest, res: Response) => {
     auth0: user,
     profile,
   });
+});
+
+app.get("/plans", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+
+  if (!ensureAdmin(res, user)) {
+    return;
+  }
+
+  try {
+    const { data, error, count } = await adminSupabase
+      .from("plans")
+      .select("*", { count: "exact" })
+      .order("price", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    res.json({ data: data || [], total: count || 0 });
+  } catch (error) {
+    console.error("[API] failed to load plans", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to load plans") });
+  }
+});
+
+app.get("/plans/:id", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+
+  if (!ensureAdmin(res, user)) {
+    return;
+  }
+
+  try {
+    const { data, error } = await adminSupabase.from("plans").select("*").eq("id", req.params.id).maybeSingle();
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    if (!data) {
+      res.status(404).json({ error: "Plan not found" });
+      return;
+    }
+
+    res.json({ data });
+  } catch (error) {
+    console.error("[API] failed to load plan", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to load plan") });
+  }
+});
+
+app.get("/profiles", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+
+  if (!ensureAdmin(res, user)) {
+    return;
+  }
+
+  try {
+    const { ids, filters, sorters, pagination } = buildCrudQuery(req);
+    let query = adminSupabase.from("profiles").select("*", { count: "exact" });
+
+    if (ids.length > 0) {
+      query = query.in("id", ids);
+    }
+
+    query = applyCrudFilters(query, filters);
+    query = applyCrudSorters(query, sorters);
+    query = applyCrudPagination(query, pagination);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    res.json({ data: data || [], total: count || 0 });
+  } catch (error) {
+    console.error("[API] failed to load profiles", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to load profiles") });
+  }
+});
+
+app.get("/profiles/:id", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+
+  if (!ensureAdmin(res, user)) {
+    return;
+  }
+
+  try {
+    const { data, error } = await adminSupabase.from("profiles").select("*").eq("id", req.params.id).maybeSingle();
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    if (!data) {
+      res.status(404).json({ error: "Profile not found" });
+      return;
+    }
+
+    res.json({ data });
+  } catch (error) {
+    console.error("[API] failed to load profile", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to load profile") });
+  }
+});
+
+app.patch("/profiles/:id", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+
+  if (!ensureAdmin(res, user)) {
+    return;
+  }
+
+  try {
+    const values = (req.body || {}) as Record<string, unknown>;
+    const payload = {
+      ...values,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await adminSupabase
+      .from("profiles")
+      .update(payload)
+      .eq("id", req.params.id)
+      .select("*")
+      .maybeSingle();
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    if (!data) {
+      res.status(404).json({ error: "Profile not found" });
+      return;
+    }
+
+    res.json({ data });
+  } catch (error) {
+    console.error("[API] failed to update profile", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to update profile") });
+  }
+});
+
+app.get("/subscriptions", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+
+  if (!ensureAdmin(res, user)) {
+    return;
+  }
+
+  try {
+    const { ids, filters, sorters, pagination } = buildCrudQuery(req);
+    let query = adminSupabase
+      .from("subscriptions")
+      .select(
+        "*, plan:plans(*), profile:profiles!subscriptions_user_id_fkey(id, full_name, business_email)",
+        { count: "exact" },
+      );
+
+    if (ids.length > 0) {
+      query = query.in("id", ids);
+    }
+
+    query = applyCrudFilters(query, filters);
+    query = applyCrudSorters(query, sorters);
+    query = applyCrudPagination(query, pagination);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    res.json({ data: data || [], total: count || 0 });
+  } catch (error) {
+    console.error("[API] failed to load subscriptions", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to load subscriptions") });
+  }
+});
+
+app.get("/subscriptions/:id", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+
+  if (!ensureAdmin(res, user)) {
+    return;
+  }
+
+  try {
+    const { data, error } = await adminSupabase
+      .from("subscriptions")
+      .select("*, plan:plans(*), profile:profiles!subscriptions_user_id_fkey(id, full_name, business_email)")
+      .eq("id", req.params.id)
+      .maybeSingle();
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    if (!data) {
+      res.status(404).json({ error: "Subscription not found" });
+      return;
+    }
+
+    res.json({ data });
+  } catch (error) {
+    console.error("[API] failed to load subscription", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to load subscription") });
+  }
+});
+
+app.patch("/subscriptions/:id", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+
+  if (!ensureAdmin(res, user)) {
+    return;
+  }
+
+  try {
+    const values = (req.body || {}) as Record<string, unknown>;
+    const payload = {
+      ...values,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await adminSupabase
+      .from("subscriptions")
+      .update(payload)
+      .eq("id", req.params.id)
+      .select("*, plan:plans(*), profile:profiles!subscriptions_user_id_fkey(id, full_name, business_email)")
+      .maybeSingle();
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    if (!data) {
+      res.status(404).json({ error: "Subscription not found" });
+      return;
+    }
+
+    res.json({ data });
+  } catch (error) {
+    console.error("[API] failed to update subscription", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to update subscription") });
+  }
+});
+
+app.get("/subscription_history", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+
+  if (!ensureAdmin(res, user)) {
+    return;
+  }
+
+  try {
+    const { ids, filters, sorters, pagination } = buildCrudQuery(req);
+    let query = adminSupabase
+      .from("subscription_history")
+      .select(
+        "*, old_plan:plans!subscription_history_old_plan_id_fkey(*), new_plan:plans!subscription_history_new_plan_id_fkey(*), profile:profiles!subscription_history_user_id_fkey(full_name,business_email)",
+        { count: "exact" },
+      );
+
+    if (ids.length > 0) {
+      query = query.in("id", ids);
+    }
+
+    query = applyCrudFilters(query, filters);
+    query = applyCrudSorters(query, sorters);
+    query = applyCrudPagination(query, pagination);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    res.json({ data: data || [], total: count || 0 });
+  } catch (error) {
+    console.error("[API] failed to load subscription history", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to load subscription history") });
+  }
+});
+
+app.get("/trial_conversions", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+
+  if (!ensureAdmin(res, user)) {
+    return;
+  }
+
+  try {
+    const { ids, filters, sorters, pagination } = buildCrudQuery(req);
+    let query = adminSupabase
+      .from("trial_conversions")
+      .select("*, user:profiles(full_name,business_email)", { count: "exact" });
+
+    if (ids.length > 0) {
+      query = query.in("id", ids);
+    }
+
+    query = applyCrudFilters(query, filters);
+    query = applyCrudSorters(query, sorters);
+    query = applyCrudPagination(query, pagination);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    res.json({ data: data || [], total: count || 0 });
+  } catch (error) {
+    console.error("[API] failed to load trial conversions", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to load trial conversions") });
+  }
+});
+
+app.get("/payments", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+
+  if (!ensureAdmin(res, user)) {
+    return;
+  }
+
+  try {
+    const { ids, filters, sorters, pagination } = buildCrudQuery(req);
+    let query = adminSupabase.from("payments").select("*", { count: "exact" });
+
+    if (ids.length > 0) {
+      query = query.in("id", ids);
+    }
+
+    query = applyCrudFilters(query, filters);
+    query = applyCrudSorters(query, sorters);
+    query = applyCrudPagination(query, pagination);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    res.json({ data: data || [], total: count || 0 });
+  } catch (error) {
+    console.error("[API] failed to load payments", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to load payments") });
+  }
+});
+
+app.get("/payments/:id", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+
+  if (!ensureAdmin(res, user)) {
+    return;
+  }
+
+  try {
+    const { data, error } = await adminSupabase.from("payments").select("*").eq("id", req.params.id).maybeSingle();
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    if (!data) {
+      res.status(404).json({ error: "Payment not found" });
+      return;
+    }
+
+    res.json({ data });
+  } catch (error) {
+    console.error("[API] failed to load payment", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to load payment") });
+  }
+});
+
+app.post("/payments", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+
+  if (!ensureAdmin(res, user)) {
+    return;
+  }
+
+  try {
+    const body = (req.body || {}) as Record<string, unknown>;
+    const payload = {
+      subscription_id: typeof body.subscription_id === "string" ? body.subscription_id : null,
+      invoice_id: typeof body.invoice_id === "string" ? body.invoice_id : null,
+      user_id: String(body.user_id ?? "").trim(),
+      amount: Number(body.amount ?? 0),
+      currency: String(body.currency ?? "ZAR").trim() || "ZAR",
+      payment_method: String(body.payment_method ?? body.paymentMethod ?? "payfast").trim() || "payfast",
+      status: String(body.status ?? "pending").trim().toLowerCase() || "pending",
+      payfast_payment_id: typeof body.payfast_payment_id === "string" ? body.payfast_payment_id : null,
+      transaction_reference: typeof body.transaction_reference === "string" ? body.transaction_reference : null,
+    };
+
+    if (!payload.user_id) {
+      res.status(400).json({ error: "User ID is required." });
+      return;
+    }
+
+    const { data, error } = await adminSupabase.from("payments").insert(payload).select("*").single();
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    res.status(201).json({ data });
+  } catch (error) {
+    console.error("[API] failed to create payment", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to create payment") });
+  }
+});
+
+app.post("/plans", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+
+  if (!ensureAdmin(res, user)) {
+    return;
+  }
+
+  try {
+    const payload = sanitizePlanPayload((req.body || {}) as Record<string, unknown>);
+
+    if (!payload.name) {
+      res.status(400).json({ error: "Plan name is required." });
+      return;
+    }
+
+    const { data, error } = await adminSupabase.from("plans").insert(payload).select("*").single();
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    res.status(201).json({ data });
+  } catch (error) {
+    console.error("[API] failed to create plan", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to create plan") });
+  }
+});
+
+app.patch("/plans/:id", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+
+  if (!ensureAdmin(res, user)) {
+    return;
+  }
+
+  try {
+    const payload = {
+      ...sanitizePlanPayload((req.body || {}) as Record<string, unknown>),
+      updated_at: new Date().toISOString(),
+    };
+
+    if (!payload.name) {
+      res.status(400).json({ error: "Plan name is required." });
+      return;
+    }
+
+    const { data, error } = await adminSupabase
+      .from("plans")
+      .update(payload)
+      .eq("id", req.params.id)
+      .select("*")
+      .maybeSingle();
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    if (!data) {
+      res.status(404).json({ error: "Plan not found" });
+      return;
+    }
+
+    res.json({ data });
+  } catch (error) {
+    console.error("[API] failed to update plan", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to update plan") });
+  }
+});
+
+app.delete("/plans/:id", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+
+  if (!ensureAdmin(res, user)) {
+    return;
+  }
+
+  try {
+    const { data, error } = await adminSupabase.from("plans").delete().eq("id", req.params.id).select("id").maybeSingle();
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    if (!data) {
+      res.status(404).json({ error: "Plan not found" });
+      return;
+    }
+
+    res.json({ data });
+  } catch (error) {
+    console.error("[API] failed to delete plan", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to delete plan") });
+  }
 });
 
 app.get("/settings/company", async (req: AuthedRequest, res: Response) => {
@@ -479,6 +1190,154 @@ app.delete("/settings/company/logo", async (req: AuthedRequest, res: Response) =
   }
 });
 
+app.get("/settings/users", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+
+  try {
+    const profile = await getProfileForUser(user);
+    const { data, error } = await adminSupabase
+      .from("team_members")
+      .select("*, member_profile:member_profile_id(id, full_name, business_email, company_name)")
+      .eq("owner_profile_id", profile.id)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    res.json({ data: data || [] });
+  } catch (error) {
+    console.error("[API] failed to load team members", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to load team members") });
+  }
+});
+
+app.post("/settings/users", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+
+  try {
+    const profile = await getProfileForUser(user);
+    const body = (req.body || {}) as Record<string, unknown>;
+    const email = String(body.email ?? "").trim().toLowerCase();
+    const fullName = String(body.fullName ?? body.full_name ?? "").trim() || null;
+    const role = String(body.role ?? "member").trim().toLowerCase() === "admin" ? "admin" : "member";
+
+    if (!email) {
+      res.status(400).json({ error: "Email is required." });
+      return;
+    }
+
+    if (email === String(user.email || profile.business_email || "").trim().toLowerCase()) {
+      res.status(400).json({ error: "You are already the owner of this workspace." });
+      return;
+    }
+
+    const { data: existingProfile } = await adminSupabase
+      .from("profiles")
+      .select("id, full_name, business_email, company_name")
+      .eq("business_email", email)
+      .maybeSingle();
+
+    const payload = {
+      owner_profile_id: profile.id,
+      member_profile_id: existingProfile?.id ?? null,
+      email,
+      full_name: fullName,
+      role,
+      status: existingProfile?.id ? "active" : "invited",
+    };
+
+    const { data, error } = await adminSupabase
+      .from("team_members")
+      .upsert(payload, { onConflict: "owner_profile_id,email" })
+      .select("*, member_profile:member_profile_id(id, full_name, business_email, company_name)")
+      .single();
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    if (isResendConfigured()) {
+      try {
+        await sendResendEmail({
+          to: email,
+          subject: `${profile.company_name || "InvoicePro"} team access`,
+          text: existingProfile?.id
+            ? "You have been added to an InvoicePro workspace."
+            : "You have been invited to join an InvoicePro workspace.",
+          html: `
+            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
+              <h1 style="margin-bottom: 16px;">${existingProfile?.id ? "You were added" : "You are invited"}</h1>
+              <p>Hello ${fullName ? fullName : email},</p>
+              <p>${escapeHtml(profile.company_name || profile.full_name || "A workspace owner")} added you as a ${role} on their InvoicePro workspace.</p>
+              <p>${existingProfile?.id ? "Sign in with your existing account to continue." : `Create your account at ${escapeHtml(apiConfig.customerAppUrl)}/register using this email address to complete access setup.`}</p>
+            </div>
+          `,
+        });
+      } catch (inviteError) {
+        console.warn("[API] failed to send team invite email", inviteError);
+      }
+    }
+
+    res.status(201).json({ data });
+  } catch (error) {
+    console.error("[API] failed to create team member", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to create team member") });
+  }
+});
+
+app.patch("/settings/users/:id", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+
+  try {
+    const profile = await getProfileForUser(user);
+    const role = String((req.body || {}).role ?? "member").trim().toLowerCase() === "admin" ? "admin" : "member";
+
+    const { data, error } = await adminSupabase
+      .from("team_members")
+      .update({ role, updated_at: new Date().toISOString() })
+      .eq("id", req.params.id)
+      .eq("owner_profile_id", profile.id)
+      .select("*, member_profile:member_profile_id(id, full_name, business_email, company_name)")
+      .single();
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    res.json({ data });
+  } catch (error) {
+    console.error("[API] failed to update team member", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to update team member") });
+  }
+});
+
+app.delete("/settings/users/:id", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+
+  try {
+    const profile = await getProfileForUser(user);
+    const { error } = await adminSupabase
+      .from("team_members")
+      .delete()
+      .eq("id", req.params.id)
+      .eq("owner_profile_id", profile.id);
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error("[API] failed to delete team member", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to delete team member") });
+  }
+});
+
 app.get("/subscription/current", async (req: AuthedRequest, res: Response) => {
   const user = req.user!;
 
@@ -526,7 +1385,11 @@ app.get("/subscription/usage", async (req: AuthedRequest, res: Response) => {
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
 
-    const [{ count: clientsCount, error: clientsError }, { count: invoicesCount, error: invoicesError }] =
+    const [
+      { count: clientsCount, error: clientsError },
+      { count: invoicesCount, error: invoicesError },
+      { count: teamMembersCount, error: teamMembersError },
+    ] =
       await Promise.all([
         adminSupabase.from("clients").select("*", { count: "exact", head: true }).eq("user_id", profile.id),
         adminSupabase
@@ -534,6 +1397,7 @@ app.get("/subscription/usage", async (req: AuthedRequest, res: Response) => {
           .select("*", { count: "exact", head: true })
           .eq("user_id", profile.id)
           .gte("invoice_date", monthStart.toISOString().split("T")[0]),
+        adminSupabase.from("team_members").select("*", { count: "exact", head: true }).eq("owner_profile_id", profile.id),
       ]);
 
     if (clientsError) {
@@ -546,10 +1410,16 @@ app.get("/subscription/usage", async (req: AuthedRequest, res: Response) => {
       return;
     }
 
+    if (teamMembersError) {
+      res.status(500).json({ error: teamMembersError.message });
+      return;
+    }
+
     res.json({
       data: {
         savedClients: clientsCount || 0,
         invoicesThisMonth: invoicesCount || 0,
+        teamMembers: (teamMembersCount || 0) + 1,
       },
     });
   } catch (error) {
@@ -1398,7 +2268,7 @@ app.post("/subscriptions/:id/payfast-token", async (req: AuthedRequest, res: Res
 app.post("/subscriptions/:id/activate-bypass", async (req: AuthedRequest, res: Response) => {
   const user = req.user!;
 
-  if (!apiConfig.trialBypassEnabled) {
+  if (!apiConfig.isDevelopment || !apiConfig.trialBypassEnabled) {
     res.status(403).json({ error: "Trial bypass is disabled" });
     return;
   }
@@ -1498,6 +2368,11 @@ app.post("/subscriptions/:id/payfast-checkout", async (req: AuthedRequest, res: 
 });
 
 app.get("/subscriptions/:id/payfast-debug", async (req: AuthedRequest, res: Response) => {
+  if (!apiConfig.isDevelopment) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
   const user = req.user!;
 
   try {

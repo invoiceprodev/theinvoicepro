@@ -458,6 +458,9 @@ Acceptance criteria:
 - Introduce Auth0 SDK/server validation
 - Map Auth0 identities to `profiles`
 - Implement admin role enforcement
+- Assign the correct Auth0 `admin` role to the intended admin users
+- Re-test `/admin/login` and `/admin/register` with normal role enforcement restored
+- Re-test customer login/signup return paths with email verification and trial start flow behaving correctly
 
 ### API
 
@@ -470,12 +473,14 @@ Acceptance criteria:
 - Keep Supabase as data/store layer
 - Finalize schema and RLS
 - Support Auth0 subject-to-profile mapping
+- Update matching `profiles.role` records in Supabase to `admin`
 
 ### Billing
 
 - Centralize PayFast in backend
 - Verify webhook signatures
 - Persist billing audit trail
+- Restore card-required trial start behavior and verify `/auth/card-setup` flow end-to-end
 
 ### Email
 
