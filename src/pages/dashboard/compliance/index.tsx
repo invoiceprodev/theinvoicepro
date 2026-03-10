@@ -8,8 +8,6 @@ import {
   Receipt,
   Scale,
   CheckCircle2,
-  Clock,
-  Minus as MinusIcon,
   AlertTriangle,
   XCircle,
   CheckCheck,
@@ -17,9 +15,6 @@ import {
   FileWarning,
   BadgeCheck,
   BadgeAlert,
-  Download,
-  FileText,
-  History,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,8 +23,6 @@ import { useVatSettings } from "@/providers/vat-settings";
 import type { Invoice, Expense } from "@/types";
 import { normalizeInvoiceStatus } from "@/types";
 import dayjs from "dayjs";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 
 function formatCurrency(amount: number, currency = "ZAR") {
   return new Intl.NumberFormat("en-ZA", {
@@ -91,7 +84,6 @@ interface Period {
   collected: number;
   onExpenses: number;
   net: number;
-  status: "Filed" | "Pending" | "N/A";
 }
 
 function PeriodTable({ periods }: { periods: Period[] }) {
@@ -104,7 +96,6 @@ function PeriodTable({ periods }: { periods: Period[] }) {
             <th className="text-right py-2 pr-4 font-medium">VAT Collected</th>
             <th className="text-right py-2 pr-4 font-medium">VAT on Expenses</th>
             <th className="text-right py-2 pr-4 font-medium">Net Payable</th>
-            <th className="text-right py-2 font-medium">Status</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border/60">
@@ -118,26 +109,6 @@ function PeriodTable({ periods }: { periods: Period[] }) {
                 {formatCurrency(period.onExpenses)}
               </td>
               <td className="py-3 pr-4 text-right font-mono text-xs font-semibold">{formatCurrency(period.net)}</td>
-              <td className="py-3 text-right">
-                {period.status === "Filed" && (
-                  <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    Filed
-                  </span>
-                )}
-                {period.status === "Pending" && (
-                  <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
-                    <Clock className="h-3.5 w-3.5" />
-                    Pending
-                  </span>
-                )}
-                {period.status === "N/A" && (
-                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                    <MinusIcon className="h-3.5 w-3.5" />
-                    N/A
-                  </span>
-                )}
-              </td>
             </tr>
           ))}
         </tbody>
@@ -251,248 +222,6 @@ function AlertsBanner({ failingItems }: AlertsBannerProps) {
   );
 }
 
-// ─── Mock Audit Log Data ──────────────────────────────────────────────────────
-
-interface AuditEntry {
-  id: string;
-  date: string;
-  action: string;
-  resource: string;
-  user: string;
-  details: string;
-}
-
-const AUDIT_LOG: AuditEntry[] = [
-  {
-    id: "1",
-    date: "2025-05-28 14:32",
-    action: "Invoice Created",
-    resource: "INV-012",
-    user: "Admin",
-    details: "New invoice for Acme Corp · R 12,500.00",
-  },
-  {
-    id: "2",
-    date: "2025-05-27 11:15",
-    action: "Payment Received",
-    resource: "INV-010",
-    user: "Admin",
-    details: "Full payment received · R 8,200.00",
-  },
-  {
-    id: "3",
-    date: "2025-05-26 09:48",
-    action: "Expense Added",
-    resource: "EXP-015",
-    user: "Admin",
-    details: "Office supplies · Operating Cost · R 640.00",
-  },
-  {
-    id: "4",
-    date: "2025-05-25 16:05",
-    action: "Invoice Sent",
-    resource: "INV-011",
-    user: "Admin",
-    details: "Invoice emailed to contact@globex.com",
-  },
-  {
-    id: "5",
-    date: "2025-05-24 10:22",
-    action: "Invoice Edited",
-    resource: "INV-009",
-    user: "Admin",
-    details: "Due date updated and line item revised",
-  },
-  {
-    id: "6",
-    date: "2025-05-23 13:44",
-    action: "Expense Added",
-    resource: "EXP-014",
-    user: "Admin",
-    details: "AWS subscription · Subscription · R 2,100.00",
-  },
-  {
-    id: "7",
-    date: "2025-05-22 08:30",
-    action: "Invoice Created",
-    resource: "INV-011",
-    user: "Admin",
-    details: "New invoice for Globex Inc · R 34,000.00",
-  },
-  {
-    id: "8",
-    date: "2025-05-21 15:17",
-    action: "Payment Received",
-    resource: "INV-008",
-    user: "Admin",
-    details: "Partial payment received · R 5,000.00",
-  },
-  {
-    id: "9",
-    date: "2025-05-20 12:09",
-    action: "Client Added",
-    resource: "CLT-007",
-    user: "Admin",
-    details: "New client: Initech Solutions registered",
-  },
-  {
-    id: "10",
-    date: "2025-05-19 09:55",
-    action: "Expense Edited",
-    resource: "EXP-013",
-    user: "Admin",
-    details: "Amount corrected from R 900 to R 1,050",
-  },
-  {
-    id: "11",
-    date: "2025-05-18 17:01",
-    action: "VAT Return Filed",
-    resource: "TAX-Q1",
-    user: "Admin",
-    details: "Q1 2025 VAT return submitted to SARS",
-  },
-  {
-    id: "12",
-    date: "2025-05-16 14:28",
-    action: "Invoice Cancelled",
-    resource: "INV-007",
-    user: "Admin",
-    details: "Invoice voided — duplicate entry",
-  },
-  {
-    id: "13",
-    date: "2025-05-15 11:40",
-    action: "Expense Added",
-    resource: "EXP-012",
-    user: "Admin",
-    details: "Staff salary · Pay Salary · R 22,000.00",
-  },
-  {
-    id: "14",
-    date: "2025-05-14 10:03",
-    action: "Invoice Created",
-    resource: "INV-010",
-    user: "Admin",
-    details: "New invoice for Initech Solutions · R 8,200.00",
-  },
-  {
-    id: "15",
-    date: "2025-05-13 08:52",
-    action: "Payment Received",
-    resource: "INV-006",
-    user: "Admin",
-    details: "Full payment received · R 15,750.00",
-  },
-];
-
-const ACTION_COLORS: Record<string, string> = {
-  "Invoice Created": "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400",
-  "Invoice Sent": "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400",
-  "Invoice Edited": "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400",
-  "Invoice Cancelled": "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400",
-  "Payment Received": "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",
-  "Expense Added": "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400",
-  "Expense Edited": "bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-400",
-  "Client Added": "bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-400",
-  "VAT Return Filed": "bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-400",
-};
-
-// ─── Audit Log Section ────────────────────────────────────────────────────────
-
-function AuditLogSection() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <History className="h-4 w-4 text-muted-foreground" />
-          Audit Log
-        </CardTitle>
-        <CardDescription>Read-only record of all financial actions in this system</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-muted-foreground text-xs uppercase tracking-wider">
-                <th className="text-left py-2 pr-4 font-medium whitespace-nowrap">Date</th>
-                <th className="text-left py-2 pr-4 font-medium">Action</th>
-                <th className="text-left py-2 pr-4 font-medium">Resource</th>
-                <th className="text-left py-2 pr-4 font-medium">User</th>
-                <th className="text-left py-2 font-medium">Details</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60">
-              {AUDIT_LOG.map((entry) => (
-                <tr key={entry.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="py-2.5 pr-4 font-mono text-xs text-muted-foreground whitespace-nowrap">
-                    {entry.date}
-                  </td>
-                  <td className="py-2.5 pr-4">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                        ACTION_COLORS[entry.action] ?? "bg-muted text-muted-foreground"
-                      }`}>
-                      {entry.action}
-                    </span>
-                  </td>
-                  <td className="py-2.5 pr-4 font-mono text-xs font-semibold">{entry.resource}</td>
-                  <td className="py-2.5 pr-4 text-xs text-muted-foreground">{entry.user}</td>
-                  <td className="py-2.5 text-xs text-muted-foreground">{entry.details}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ─── Export Section ───────────────────────────────────────────────────────────
-
-interface ExportSectionProps {
-  selectedPeriod: string;
-  selectedTab: "monthly" | "quarterly";
-}
-
-function ExportSection({ selectedPeriod, selectedTab }: ExportSectionProps) {
-  const periodLabel = selectedPeriod || (selectedTab === "monthly" ? "current month" : "current quarter");
-
-  function handleExport(format: "PDF" | "CSV") {
-    toast.success(`VAT Report exported as ${format}`, {
-      description: `Period: ${periodLabel} · ${format} download ready`,
-      richColors: true,
-    });
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <Download className="h-4 w-4 text-muted-foreground" />
-          Export VAT Report
-        </CardTitle>
-        <CardDescription>
-          Export the VAT report for the currently selected period:{" "}
-          <span className="font-medium text-foreground">{periodLabel}</span>
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-wrap gap-3">
-          <Button variant="outline" className="gap-2" onClick={() => handleExport("PDF")}>
-            <FileText className="h-4 w-4" />
-            Export VAT Report (PDF)
-          </Button>
-          <Button variant="outline" className="gap-2" onClick={() => handleExport("CSV")}>
-            <Download className="h-4 w-4" />
-            Export VAT Report (CSV)
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 export function CompliancePage() {
   const { settings } = useVatSettings();
   const vatRate = settings.vatRate;
@@ -524,7 +253,7 @@ export function CompliancePage() {
   const netVatPayable = vatCollected - vatOnExpenses;
 
   // --- Period helpers ---
-  // Use the latest invoice/expense date as "now" reference so mock data looks realistic
+  // Use the latest invoice/expense date as the reporting reference point
   const allDates = invoices.map((i) => i.invoice_date).concat(expenses.map((e) => e.date));
   const latestDate = allDates.length > 0 ? allDates.reduce((a, b) => (a > b ? a : b)) : dayjs().format("YYYY-MM-DD");
   const now = dayjs(latestDate);
@@ -544,17 +273,12 @@ export function CompliancePage() {
   }
 
   const [selectedPeriodTab, setSelectedPeriodTab] = useState<"monthly" | "quarterly">("monthly");
-  const [selectedPeriodLabel, setSelectedPeriodLabel] = useState("");
-
   // Monthly: last 6 months
   const monthlyPeriods: Period[] = Array.from({ length: 6 }, (_, i) => {
     const month = now.subtract(5 - i, "month");
     const start = month.startOf("month");
     const end = month.endOf("month");
-    const isCurrent = start.isSame(now.startOf("month"));
-    const isFuture = start.isAfter(now);
-    const status: Period["status"] = isFuture ? "N/A" : isCurrent ? "Pending" : "Filed";
-    return { label: month.format("MMMM YYYY"), status, ...calcPeriodVat(start, end) };
+    return { label: month.format("MMMM YYYY"), ...calcPeriodVat(start, end) };
   });
 
   // Quarterly: last 4 quarters — manual calculation without plugin
@@ -566,20 +290,10 @@ export function CompliancePage() {
     const quartersBack = 3 - i;
     const start = nowQuarterStart.subtract(quartersBack * 3, "month");
     const end = start.add(2, "month").endOf("month");
-    const isCurrent = start.isSame(nowQuarterStart);
-    const isFuture = start.isAfter(now);
-    const status: Period["status"] = isFuture ? "N/A" : isCurrent ? "Pending" : "Filed";
     const qNum = Math.floor(start.month() / 3) + 1;
     const label = `Q${qNum} ${start.year()}`;
-    return { label, status, ...calcPeriodVat(start, end) };
+    return { label, ...calcPeriodVat(start, end) };
   });
-
-  // Derive a readable period label for export
-  const currentPeriodDisplayLabel =
-    selectedPeriodLabel ||
-    (selectedPeriodTab === "monthly"
-      ? (monthlyPeriods[monthlyPeriods.length - 1]?.label ?? "")
-      : (quarterlyPeriods[quarterlyPeriods.length - 1]?.label ?? ""));
 
   // ─── Compliance Checklist Logic ─────────────────────────────────────────────
 
@@ -616,18 +330,7 @@ export function CompliancePage() {
         : `${expensesWithoutVatFlag.length} expense${expensesWithoutVatFlag.length !== 1 ? "s" : ""} missing VAT flag: ${expensesWithoutVatFlag.map((e) => e.recipient).join(", ")}.`,
   };
 
-  // 3. Current period VAT return filed — current month is always "Pending"
-  const currentPeriodFiled = false; // current period is always Pending in this system
-  const currentPeriodLabel = now.format("MMMM YYYY");
-  const vatReturnFiled: ChecklistItem = {
-    id: "vat-return-filed",
-    label: "Current period VAT return filed",
-    description: `The VAT return for ${currentPeriodLabel} must be submitted to the tax authority.`,
-    pass: currentPeriodFiled,
-    detail: `VAT return for ${currentPeriodLabel} is pending — submit to SARS before the due date.`,
-  };
-
-  // 4. Company VAT registration number set
+  // 3. Company VAT registration number set
   const vatNumberSet = settings.vatNumber.trim().length > 0;
   const vatNumberCheck: ChecklistItem = {
     id: "vat-number",
@@ -639,7 +342,7 @@ export function CompliancePage() {
       : "No VAT registration number found — add it in Settings → Tax & VAT.",
   };
 
-  const checklistItems: ChecklistItem[] = [allInvoicesHaveVat, allExpensesLogged, vatReturnFiled, vatNumberCheck];
+  const checklistItems: ChecklistItem[] = [allInvoicesHaveVat, allExpensesLogged, vatNumberCheck];
 
   const failingItems = checklistItems.filter((item) => !item.pass);
   const passingCount = checklistItems.filter((item) => item.pass).length;
@@ -712,7 +415,7 @@ export function CompliancePage() {
               <a href="/dashboard/settings" className="underline font-medium hover:no-underline">
                 Settings → Tax &amp; VAT
               </a>{" "}
-              to apply VAT automatically. Figures below use the configured rate ({vatRate}%) for illustration.
+              to apply VAT automatically. Figures below use the configured rate ({vatRate}%).
             </p>
           </CardContent>
         </Card>
@@ -805,14 +508,13 @@ export function CompliancePage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Tax Period Summary</CardTitle>
-          <CardDescription>VAT figures filtered by period at {vatRate}% rate · Status is indicative</CardDescription>
+          <CardDescription>VAT figures filtered by period at {vatRate}% rate</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs
             defaultValue="monthly"
             onValueChange={(v) => {
               setSelectedPeriodTab(v as "monthly" | "quarterly");
-              setSelectedPeriodLabel("");
             }}>
             <TabsList className="mb-4">
               <TabsTrigger value="monthly">Monthly</TabsTrigger>
@@ -834,7 +536,7 @@ export function CompliancePage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">VAT Breakdown Summary</CardTitle>
-          <CardDescription>Calculated at {vatRate}% VAT rate from mock data</CardDescription>
+          <CardDescription>Calculated at {vatRate}% VAT rate from invoices and expenses</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -899,11 +601,6 @@ export function CompliancePage() {
         </CardContent>
       </Card>
 
-      {/* Export Section */}
-      <ExportSection selectedPeriod={currentPeriodDisplayLabel} selectedTab={selectedPeriodTab} />
-
-      {/* Audit Log */}
-      <AuditLogSection />
     </div>
   );
 }
