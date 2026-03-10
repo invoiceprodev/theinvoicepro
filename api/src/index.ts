@@ -7,7 +7,9 @@ if (existsSync(envFilePath)) {
 }
 
 const [{ app }, { apiConfig }] = await Promise.all([import("./server.js"), import("./config.js")]);
+const host = process.env.HOST || "0.0.0.0";
 
-app.listen(apiConfig.port, () => {
-  console.log(`[API] listening on http://127.0.0.1:${apiConfig.port}`);
+app.listen(apiConfig.port, host, () => {
+  const displayHost = host === "0.0.0.0" ? "localhost" : host;
+  console.log(`[API] listening on http://${displayHost}:${apiConfig.port}`);
 });
