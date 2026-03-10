@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InputPassword } from "@/components/refine-ui/form/input-password";
+import { getAdminRoute } from "@/lib/admin-routing";
 import { ShieldCheck, AlertTriangle, AlertCircle } from "lucide-react";
 
 const loginSchema = z.object({
@@ -150,7 +151,7 @@ export const AdminLoginPage = () => {
         <p className="text-center text-xs text-slate-500">Authorised personnel only</p>
         <div className="text-center text-sm text-slate-400">
           Need an admin account?{" "}
-          <Link to="/admin/register" className="text-purple-300 font-semibold hover:underline">
+          <Link to={getAdminRoute("/register")} className="text-purple-300 font-semibold hover:underline">
             Register
           </Link>
         </div>

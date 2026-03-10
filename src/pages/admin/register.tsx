@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InputPassword } from "@/components/refine-ui/form/input-password";
+import { getAdminRoute } from "@/lib/admin-routing";
 import { cn } from "@/lib/utils";
 
 const registerSchema = z
@@ -172,7 +173,7 @@ export const AdminRegisterPage = () => {
             <div className="text-sm text-center text-slate-400">
               Already have an admin account?{" "}
               <Link
-                to="/admin/login"
+                to={getAdminRoute("/login")}
                 className={cn("text-purple-300 font-semibold hover:underline", isLoading && "pointer-events-none opacity-50")}>
                 Login
               </Link>

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { getAdminRoute } from "@/lib/admin-routing";
 import { Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -218,7 +219,7 @@ export default function PlanEditPage() {
 
         <div className="flex gap-2">
           <Button type="submit">Save Changes</Button>
-          <Button type="button" variant="outline" onClick={() => navigate("/admin/tiers")}>
+          <Button type="button" variant="outline" onClick={() => navigate(getAdminRoute("/tiers"))}>
             Cancel
           </Button>
         </div>

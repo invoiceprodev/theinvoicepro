@@ -3,18 +3,20 @@ import { useAuth } from "@/contexts/auth-context";
 import { getSelectedPlanCheckout, hasSelectedPlanCheckout } from "@/lib/plan-selection";
 import { canAccessAdminPortal } from "@/lib/admin-access";
 import { canStartTrialWithoutCard } from "@/lib/trial-bypass";
+import { getAdminRoute, isAdminContext } from "@/lib/admin-routing";
 
 function buildAdminLoginRedirect(reason?: string) {
   const params = new URLSearchParams();
   if (reason) params.set("error", reason);
   const query = params.toString();
-  return query ? `/admin/login?${query}` : "/admin/login";
+  const base = getAdminRoute("/login");
+  return query ? `${base}?${query}` : base;
 }
 
 export function AuthCallbackPage() {
   const { user, isAuthenticated, loading, requiresEmailVerification, verificationEmail } = useAuth();
   const location = useLocation();
-  const isAdminCallback = location.pathname.startsWith("/admin");
+  const isAdminCallback = isAdminContext(location.pathname);
 
   if (loading) {
     return (
@@ -35,7 +37,7 @@ export function AuthCallbackPage() {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to={isAdminCallback ? "/admin/login" : "/login"} replace />;
+    return <Navigate to={isAdminCallback ? getAdminRoute("/login") : "/login"} replace />;
   }
 
   if (isAdminCallback && !canAccessAdminPortal(user?.role)) {
@@ -47,13 +49,13 @@ export function AuthCallbackPage() {
     return <Navigate to={canStartTrialWithoutCard(selectedPlan) ? "/plans" : "/auth/card-setup"} replace />;
   }
 
-  return <Navigate to={isAdminCallback ? "/admin/dashboard" : "/dashboard"} replace />;
+  return <Navigate to={isAdminCallback ? getAdminRoute("/dashboard") : "/dashboard"} replace />;
 }
 
 export function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, loading } = useAuth();
   const location = useLocation();
-  const isAdminRoute = location.pathname.startsWith("/admin");
+  const isAdminRoute = isAdminContext(location.pathname);
 
   if (loading) {
     return (
@@ -68,7 +70,7 @@ export function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
 
   if (isAuthenticated) {
     if (isAdminRoute && canAccessAdminPortal(user?.role)) {
-      return <Navigate to="/admin/dashboard" replace />;
+      return <Navigate to={getAdminRoute("/dashboard")} replace />;
     }
 
     if (isAdminRoute) {

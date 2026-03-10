@@ -1,6 +1,7 @@
 import type { DataProvider, HttpError } from "@refinedev/core";
 import { dataProvider as supabaseDataProvider } from "@refinedev/supabase";
 import { ApiClientError, apiRequest, hasApiBaseUrl } from "@/lib/api-client";
+import { isAdminContext } from "@/lib/admin-routing";
 import { supabaseClient } from "@/lib/supabase";
 
 // Export Supabase data provider configured with our client
@@ -17,7 +18,7 @@ const isAdminPlanResource = (resource: string) => ["admin-plans", "tiers"].inclu
 const isAdminOnlyResource = (resource: string) =>
   ["profiles", "subscriptions", "subscription_history", "trial_conversions", "payments"].includes(resource);
 
-const isAdminRoute = () => typeof window !== "undefined" && window.location.pathname.startsWith("/admin");
+const isAdminRoute = () => typeof window !== "undefined" && isAdminContext(window.location.pathname, window.location.hostname);
 
 const useApiForResource = (resource: string, originalResource?: string) =>
   hasApiBaseUrl() &&

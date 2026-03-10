@@ -2,15 +2,14 @@ import { Link, useSearchParams } from "react-router";
 import { MailCheck, ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { getAdminRoute } from "@/lib/admin-routing";
 
 export function VerifyEmailPage() {
   const [params] = useSearchParams();
   const email = params.get("email");
   const planId = params.get("plan");
   const isAdmin = params.get("next") === "admin";
-  const returnPath = isAdmin
-    ? "/admin/login"
-    : `/login${planId ? `?plan=${encodeURIComponent(planId)}` : ""}`;
+  const returnPath = isAdmin ? getAdminRoute("/login") : `/login${planId ? `?plan=${encodeURIComponent(planId)}` : ""}`;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-background px-4 py-8">

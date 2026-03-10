@@ -2,6 +2,7 @@ import type React from "react";
 import { Navigate, useLocation } from "react-router";
 import { useAuth } from "@/contexts/auth-context";
 import { canAccessAdminPortal } from "@/lib/admin-access";
+import { getAdminRoute, isAdminContext } from "@/lib/admin-routing";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -10,8 +11,8 @@ interface ProtectedRouteProps {
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
   const location = useLocation();
-  const isAdminRoute = location.pathname.startsWith("/admin");
-  const adminLoginRedirect = `/admin/login?error=unauthorized`;
+  const isAdminRoute = isAdminContext(location.pathname);
+  const adminLoginRedirect = `${getAdminRoute("/login")}?error=unauthorized`;
 
   if (loading) {
     return (
@@ -25,7 +26,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to={isAdminRoute ? "/admin/login" : "/login"} replace state={{ from: location }} />;
+    return <Navigate to={isAdminRoute ? getAdminRoute("/login") : "/login"} replace state={{ from: location }} />;
   }
 
   if (isAdminRoute && !canAccessAdminPortal(user?.role)) {

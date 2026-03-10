@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { getAdminRoute } from "@/lib/admin-routing";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -153,7 +154,7 @@ export function TenantShowPage() {
       {
         onSuccess: () => {
           toast.success(`${profile.full_name || "Tenant"}'s account has been deleted.`);
-          navigate("/admin/tenants");
+          navigate(getAdminRoute("/tenants"));
         },
         onError: () => {
           setStatusOverride(null);
@@ -287,7 +288,7 @@ export function TenantShowPage() {
         </div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/admin/tenants")}>
+            <Button variant="ghost" size="sm" onClick={() => navigate(getAdminRoute("/tenants"))}>
               <ArrowLeft className="h-4 w-4 mr-1" />
               Back
             </Button>

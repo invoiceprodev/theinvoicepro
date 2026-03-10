@@ -5,6 +5,7 @@ import { getProfileBridgeSnapshot } from "@/lib/profile-bridge";
 import { setPendingAuthHandoff } from "@/lib/auth0-handoff";
 import { signupWithAuth0Database } from "@/lib/auth0-db";
 import { canAccessAdminPortal, getEffectiveAdminRole } from "@/lib/admin-access";
+import { getAdminRoute } from "@/lib/admin-routing";
 
 async function beginAdminAuthFlow(email?: string) {
   const current = getAuth0BridgeSnapshot();
@@ -21,11 +22,11 @@ async function beginAdminAuthFlow(email?: string) {
   setPendingAuthHandoff({
     mode: "admin-login",
     email,
-    returnTo: "/admin/dashboard",
+    returnTo: getAdminRoute("/dashboard"),
   });
 
   await current.loginWithRedirect({
-    appState: { returnTo: "/admin/dashboard" },
+    appState: { returnTo: getAdminRoute("/dashboard") },
     authorizationParams: {
       login_hint: email || undefined,
     },
@@ -76,11 +77,11 @@ export const adminAuthProvider: AuthProvider = {
     const current = getAuth0BridgeSnapshot();
     current.logout?.({
       logoutParams: {
-        returnTo: `${window.location.origin}/admin/login`,
+        returnTo: `${window.location.origin}${getAdminRoute("/login")}`,
       },
     });
 
-    return { success: true, redirectTo: "/admin/login" };
+    return { success: true, redirectTo: getAdminRoute("/login") };
   },
 
   check: async () => {
@@ -103,7 +104,7 @@ export const adminAuthProvider: AuthProvider = {
       return { authenticated: true };
     }
 
-    return { authenticated: false, redirectTo: "/admin/login", logout: true };
+    return { authenticated: false, redirectTo: getAdminRoute("/login"), logout: true };
   },
 
   getPermissions: async () => {

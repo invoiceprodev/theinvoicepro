@@ -12,6 +12,7 @@ import { ThemeProvider } from "@/components/refine-ui/theme/theme-provider";
 import { AuthProvider } from "@/contexts/auth-context";
 import { AppAuth0Provider } from "@/components/auth0-provider";
 import { ProtectedRoute } from "@/components/protected-route";
+import { getAdminRoute, isAdminContext, isAdminHostname, stripAdminPrefix } from "@/lib/admin-routing";
 import { LayoutDashboard, FileText, Users, CreditCard, Home, ShieldCheck, Settings, Layers } from "lucide-react";
 
 // Customer app pages
@@ -52,8 +53,16 @@ import { TenantListPage } from "@/pages/admin/tenants/list";
 import TenantShowPage from "@/pages/admin/tenants/show";
 import AdminSettingsPage from "@/pages/admin/settings/index";
 
+function AdminPrefixedRedirect() {
+  const location = useLocation();
+  const destination = `${stripAdminPrefix(location.pathname)}${location.search}${location.hash}`;
+  return <Navigate to={destination} replace />;
+}
+
 // ─── Admin App ────────────────────────────────────────────────────────────────
-function AdminApp() {
+function AdminApp({ adminHost }: { adminHost: boolean }) {
+  const adminRoute = (path: string) => getAdminRoute(path, adminHost);
+
   return (
     <ThemeProvider forcedTheme="light">
       <AuthProvider>
@@ -73,7 +82,7 @@ function AdminApp() {
           resources={[
             {
               name: "dashboard",
-              list: "/admin/dashboard",
+              list: adminRoute("/dashboard"),
               meta: {
                 label: "Dashboard",
                 icon: <LayoutDashboard />,
@@ -81,9 +90,9 @@ function AdminApp() {
             },
             {
               name: "tiers",
-              list: "/admin/tiers",
-              create: "/admin/tiers/create",
-              edit: "/admin/tiers/:id/edit",
+              list: adminRoute("/tiers"),
+              create: adminRoute("/tiers/create"),
+              edit: adminRoute("/tiers/:id/edit"),
               meta: {
                 label: "Pricing Tiers",
                 icon: <Layers />,
@@ -91,7 +100,7 @@ function AdminApp() {
             },
             {
               name: "subscriptions",
-              list: "/admin/subscriptions",
+              list: adminRoute("/subscriptions"),
               meta: {
                 label: "Subscriptions",
                 icon: <CreditCard />,
@@ -99,9 +108,9 @@ function AdminApp() {
             },
             {
               name: "tenants",
-              list: "/admin/tenants",
-              show: "/admin/tenants/:id",
-              edit: "/admin/tenants/:id/edit",
+              list: adminRoute("/tenants"),
+              show: adminRoute("/tenants/:id"),
+              edit: adminRoute("/tenants/:id/edit"),
               meta: {
                 label: "Tenants",
                 icon: <Users />,
@@ -109,7 +118,7 @@ function AdminApp() {
             },
             {
               name: "settings",
-              list: "/admin/settings",
+              list: adminRoute("/settings"),
               meta: {
                 label: "Settings",
                 icon: <Settings />,
@@ -118,12 +127,12 @@ function AdminApp() {
           ]}>
           <Routes>
             {/* Admin root redirects */}
-            <Route path="/" element={<Navigate to="/admin/login" replace />} />
-            <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
+            <Route path="/" element={<Navigate to={adminRoute("/login")} replace />} />
+            <Route path="/admin" element={<Navigate to={adminRoute("/login")} replace />} />
 
             {/* Admin Public Route */}
             <Route
-              path="/admin/login"
+              path={adminRoute("/login")}
               element={
                 <PublicOnlyRoute>
                   <AdminLoginPage />
@@ -131,14 +140,14 @@ function AdminApp() {
               }
             />
             <Route
-              path="/admin/register"
+              path={adminRoute("/register")}
               element={
                 <PublicOnlyRoute>
                   <AdminRegisterPage />
                 </PublicOnlyRoute>
               }
             />
-            <Route path="/admin/callback" element={<AuthCallbackPage />} />
+            <Route path={adminRoute("/callback")} element={<AuthCallbackPage />} />
 
             {/* Admin Protected Routes */}
             <Route
@@ -149,17 +158,18 @@ function AdminApp() {
                   </Layout>
                 </ProtectedRoute>
               }>
-              <Route path="/admin/dashboard" element={<AdminDashboard />} />
-              <Route path="/admin/tiers" element={<PlanListPage />} />
-              <Route path="/admin/tiers/create" element={<CreatePlanPage />} />
-              <Route path="/admin/tiers/:id/edit" element={<EditPlanPage />} />
-              <Route path="/admin/subscriptions" element={<SubscriptionListPage />} />
-              <Route path="/admin/tenants" element={<TenantListPage />} />
-              <Route path="/admin/tenants/:id" element={<TenantShowPage />} />
-              <Route path="/admin/settings" element={<AdminSettingsPage />} />
+              <Route path={adminRoute("/dashboard")} element={<AdminDashboard />} />
+              <Route path={adminRoute("/tiers")} element={<PlanListPage />} />
+              <Route path={adminRoute("/tiers/create")} element={<CreatePlanPage />} />
+              <Route path={adminRoute("/tiers/:id/edit")} element={<EditPlanPage />} />
+              <Route path={adminRoute("/subscriptions")} element={<SubscriptionListPage />} />
+              <Route path={adminRoute("/tenants")} element={<TenantListPage />} />
+              <Route path={adminRoute("/tenants/:id")} element={<TenantShowPage />} />
+              <Route path={adminRoute("/settings")} element={<AdminSettingsPage />} />
             </Route>
 
-            <Route path="/admin/*" element={<RefineAiErrorComponent />} />
+            {adminHost ? <Route path="/admin/*" element={<AdminPrefixedRedirect />} /> : null}
+            <Route path={adminHost ? "*" : "/admin/*"} element={<RefineAiErrorComponent />} />
           </Routes>
           <Toaster />
         </Refine>
@@ -336,9 +346,9 @@ function CustomerApp() {
 function AppRouter() {
   const location = useLocation();
   const hostname = typeof window !== "undefined" ? window.location.hostname : "";
-  const isAdminDomain = hostname === "admin.theinvoicepro.co.za";
-  const isAdmin = isAdminDomain || location.pathname.startsWith("/admin");
-  return <AppAuth0Provider appKind={isAdmin ? "admin" : "customer"}>{isAdmin ? <AdminApp /> : <CustomerApp />}</AppAuth0Provider>;
+  const adminHost = isAdminHostname(hostname);
+  const isAdmin = isAdminContext(location.pathname, hostname);
+  return <AppAuth0Provider appKind={isAdmin ? "admin" : "customer"}>{isAdmin ? <AdminApp adminHost={adminHost} /> : <CustomerApp />}</AppAuth0Provider>;
 }
 
 // ─── Root App ─────────────────────────────────────────────────────────────────

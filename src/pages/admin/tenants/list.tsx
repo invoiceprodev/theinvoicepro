@@ -11,6 +11,7 @@ import { RefreshButton } from "@/components/refine-ui/buttons/refresh";
 import { Breadcrumb } from "@/components/refine-ui/layout/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getAdminRoute } from "@/lib/admin-routing";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -559,7 +560,7 @@ export function TenantListPage() {
                     {/* Actions */}
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => navigate(`/admin/tenants/${profile.id}`)}>
+                        <Button variant="ghost" size="sm" onClick={() => navigate(getAdminRoute(`/tenants/${profile.id}`))}>
                           <Eye className="h-4 w-4 mr-1" />
                           View
                         </Button>
