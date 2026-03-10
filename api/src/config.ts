@@ -6,6 +6,17 @@ function required(name: string) {
   return value;
 }
 
+function requiredOneOf(...names: string[]) {
+  for (const name of names) {
+    const value = process.env[name];
+    if (value) {
+      return value;
+    }
+  }
+
+  throw new Error(`Missing required environment variable. Set one of: ${names.join(", ")}`);
+}
+
 function envFlag(name: string) {
   const value = process.env[name];
   return value === "true" || value === "1";
@@ -16,7 +27,7 @@ export const apiConfig = {
   port: Number(process.env.PORT || 3000),
   auth0Domain: required("AUTH0_DOMAIN"),
   auth0Audience: required("AUTH0_AUDIENCE"),
-  supabaseUrl: required("VITE_SUPABASE_URL"),
+  supabaseUrl: requiredOneOf("SUPABASE_URL", "VITE_SUPABASE_URL"),
   supabaseServiceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY"),
   resendApiKey: process.env.RESEND_API_KEY || "",
   resendFromEmail: process.env.RESEND_FROM_EMAIL || "noreply@theinvoicepro.co.za",
