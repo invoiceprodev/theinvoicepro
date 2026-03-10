@@ -355,6 +355,11 @@ export function PlansPage() {
                       return;
                     }
                     if (subscription && !isCurrentPlan && subscriptionState !== "trial_pending") {
+                      if (planRequiresCard(plan)) {
+                        setSelectedPlanCheckout(plan);
+                        navigate("/auth/card-setup");
+                        return;
+                      }
                       void handleChangePlan(plan);
                       return;
                     }
