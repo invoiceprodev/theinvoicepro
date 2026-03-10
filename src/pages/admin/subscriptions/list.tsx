@@ -37,6 +37,7 @@ import {
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { apiRequest } from "@/lib/api-client";
+import { submitPayFastForm } from "@/lib/payfast-form";
 
 const columnHelper = createColumnHelper<Subscription>();
 
@@ -152,25 +153,33 @@ export default function SubscriptionListPage() {
     setPayingSubscriptionId(subscription.id);
 
     try {
-      const response = await apiRequest<{ data: { url: string } }>(`/subscriptions/${subscription.id}/payfast-checkout`, {
-        method: "POST",
-      });
+      const paymentWindow = window.open("", `payfast-${subscription.id}`, "width=800,height=600,scrollbars=yes");
 
-      const paymentWindow = window.open(response.data.url, "_blank", "width=800,height=600,scrollbars=yes");
-
-      if (paymentWindow) {
-        openNotification?.({
-          type: "success",
-          message: "Payment Initiated",
-          description: `PayFast checkout opened for ${profile.full_name || profile.business_email || plan.name}.`,
-        });
-      } else {
+      if (!paymentWindow) {
         openNotification?.({
           type: "error",
           message: "Popup Blocked",
           description: "Please allow popups to complete payment.",
         });
+        return;
       }
+
+      const response = await apiRequest<{
+        data: {
+          action: string;
+          fields: Record<string, string | number | boolean>;
+        };
+      }>(`/subscriptions/${subscription.id}/payfast-checkout`, {
+        method: "POST",
+      });
+
+      submitPayFastForm(response.data.action, response.data.fields, paymentWindow.name);
+
+      openNotification?.({
+        type: "success",
+        message: "Payment Initiated",
+        description: `PayFast checkout opened for ${profile.full_name || profile.business_email || plan.name}.`,
+      });
     } catch (error) {
       openNotification?.({
         type: "error",

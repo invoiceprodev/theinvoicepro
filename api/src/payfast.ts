@@ -89,11 +89,17 @@ export function buildTrialSubscriptionCheckout(input: TrialCheckoutInput) {
 
   const signature = buildSignature(paymentData);
   const payfastUrl = apiConfig.payfastMode === "live" ? "https://www.payfast.co.za/eng/process" : "https://sandbox.payfast.co.za/eng/process";
-  const url = `${payfastUrl}?${new URLSearchParams({ ...paymentData, signature }).toString()}`;
+  const formFields = {
+    ...paymentData,
+    signature,
+  };
+  const url = `${payfastUrl}?${new URLSearchParams(formFields).toString()}`;
 
   return {
     url,
     signature,
+    action: payfastUrl,
+    fields: formFields,
     debug: {
       mode: apiConfig.payfastMode,
       payfastUrl,

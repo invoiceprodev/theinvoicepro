@@ -9,6 +9,7 @@ import type { Plan, Subscription } from "@/types";
 import { clearSelectedPlanCheckout } from "@/lib/plan-selection";
 import { setSubscriptionBridgeSnapshot } from "@/lib/subscription-bridge";
 import { canStartTrialWithoutCard } from "@/lib/trial-bypass";
+import { submitPayFastForm } from "@/lib/payfast-form";
 
 interface CardCollectionStepProps {
   userId: string;
@@ -59,6 +60,8 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
 
       const payment = await apiRequest<{
         data: {
+          action: string;
+          fields: Record<string, string | number | boolean>;
           url: string;
           debug: Record<string, string | boolean>;
         };
@@ -71,7 +74,7 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
         console.table(payment.data.debug);
       }
 
-      window.location.href = payment.data.url;
+      submitPayFastForm(payment.data.action, payment.data.fields);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to set up card authorization. Please try again.");
       setIsProcessing(false);
