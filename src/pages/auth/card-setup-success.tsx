@@ -7,10 +7,12 @@ import { apiRequest } from "@/lib/api-client";
 import { clearSelectedPlanCheckout, getSelectedPlanCheckout } from "@/lib/plan-selection";
 import { setSubscriptionBridgeSnapshot } from "@/lib/subscription-bridge";
 import { getCurrentSubscriptionState, type Subscription } from "@/types";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function CardSetupSuccess() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { isAuthenticated, loading } = useAuth();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("Processing your card setup...");
 
@@ -19,6 +21,18 @@ export default function CardSetupSuccess() {
   const planName = searchParams.get("plan_name") || "selected";
 
   useEffect(() => {
+    if (loading) {
+      setStatus("loading");
+      setMessage("Restoring your session...");
+      return;
+    }
+
+    if (!isAuthenticated) {
+      setStatus("error");
+      setMessage("Your session could not be restored. Please sign in and try again.");
+      return;
+    }
+
     const processCardSetup = async () => {
       try {
         const subscriptionId = searchParams.get("subscription_id");
@@ -90,7 +104,7 @@ export default function CardSetupSuccess() {
     };
 
     void processCardSetup();
-  }, [navigate, searchParams]);
+  }, [isAuthenticated, loading, navigate, searchParams]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
