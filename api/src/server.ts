@@ -125,7 +125,25 @@ function sanitizeInvoiceItem(item: unknown) {
   };
 }
 
-function sanitizeInvoicePayload(body: Record<string, unknown>, profileId: string) {
+function sanitizeClientStatus(status?: string | null) {
+  const normalized = String(status || "Active").trim().toLowerCase();
+  if (normalized === "inactive") return "Inactive";
+  if (normalized === "suspended") return "Suspended";
+  return "Active";
+}
+
+function sanitizeClientPayload(body: Record<string, unknown>) {
+  return {
+    name: String(body.name ?? "").trim(),
+    email: String(body.email ?? "").trim(),
+    company: String(body.company ?? "").trim(),
+    phone: String(body.phone ?? "").trim(),
+    address: String(body.address ?? "").trim(),
+    status: sanitizeClientStatus(typeof body.status === "string" ? body.status : null),
+  };
+}
+
+function sanitizeInvoicePayload(body: Record<string, unknown>) {
   const lineItems = Array.isArray(body.lineItems) ? body.lineItems.map(sanitizeInvoiceItem) : [];
   const subtotal = Number(body.subtotal ?? 0);
   const total = Number(body.total ?? 0);
@@ -133,7 +151,6 @@ function sanitizeInvoicePayload(body: Record<string, unknown>, profileId: string
 
   return {
     invoice_number: String(body.invoice_number ?? body.invoiceNumber ?? "").trim(),
-    user_id: profileId,
     client_id: String(body.client_id ?? body.clientId ?? "").trim(),
     invoice_date: String(body.invoice_date ?? body.invoiceDate ?? "").trim(),
     due_date: String(body.due_date ?? body.dueDate ?? "").trim(),
@@ -157,9 +174,8 @@ function normalizeExpenseStatus(status?: string | null) {
   return "Pending";
 }
 
-function sanitizeExpensePayload(body: Record<string, unknown>, profileId: string) {
+function sanitizeExpensePayload(body: Record<string, unknown>) {
   return {
-    user_id: profileId,
     category: String(body.category ?? "").trim(),
     recipient: String(body.recipient ?? "").trim(),
     recipient_email: String(body.recipient_email ?? body.recipientEmail ?? "").trim() || null,
@@ -1848,14 +1864,10 @@ app.post("/clients", async (req: AuthedRequest, res: Response) => {
   try {
     const profile = await getProfileForUser(user);
     const profileId = profile.id;
+    const sanitized = sanitizeClientPayload(body as Record<string, unknown>);
     const payload = {
       user_id: profileId,
-      name: body.name.trim(),
-      email: body.email.trim(),
-      company: body.company?.trim() || "",
-      phone: body.phone?.trim() || "",
-      address: body.address?.trim() || "",
-      status: body.status || "Active",
+      ...sanitized,
     };
 
     const { data, error } = await adminSupabase.from("clients").insert(payload).select("*").single();
@@ -2015,7 +2027,7 @@ app.post("/invoices", async (req: AuthedRequest, res: Response) => {
   try {
     const profile = await getProfileForUser(user);
     const isAdmin = isAdminUser(user);
-    const payload = sanitizeInvoicePayload(body, profile.id);
+    const payload = sanitizeInvoicePayload(body);
 
     if (!payload.invoice_number || !payload.client_id || !payload.invoice_date || !payload.due_date) {
       res.status(400).json({ error: "Invoice number, client, invoice date, and due date are required" });
@@ -2044,14 +2056,18 @@ app.post("/invoices", async (req: AuthedRequest, res: Response) => {
     }
 
     const { lineItems, ...invoicePayload } = payload;
+    const invoiceInsertPayload = {
+      ...invoicePayload,
+      user_id: client.user_id,
+    };
     const { data: invoice, error: invoiceError } = await adminSupabase
       .from("invoices")
-      .insert(invoicePayload)
+      .insert(invoiceInsertPayload)
       .select("*")
       .single();
 
     if (invoiceError || !invoice?.id) {
-      console.error("[API] failed to insert invoice", { invoiceError, invoicePayload, auth0UserId: user.sub });
+      console.error("[API] failed to insert invoice", { invoiceError, invoiceInsertPayload, auth0UserId: user.sub });
       res.status(500).json({ error: invoiceError?.message || "Failed to create invoice" });
       return;
     }
@@ -2089,7 +2105,7 @@ app.patch("/invoices/:id", async (req: AuthedRequest, res: Response) => {
   try {
     const profile = await getProfileForUser(user);
     const isAdmin = isAdminUser(user);
-    const payload = sanitizeInvoicePayload(body, profile.id);
+    const payload = sanitizeInvoicePayload(body);
 
     let invoiceOwnershipQuery = adminSupabase.from("invoices").select("id,user_id").eq("id", req.params.id);
     if (!isAdmin) {
@@ -2107,10 +2123,30 @@ app.patch("/invoices/:id", async (req: AuthedRequest, res: Response) => {
       return;
     }
 
+    let clientQuery = adminSupabase.from("clients").select("id,user_id").eq("id", payload.client_id);
+    if (!isAdmin) {
+      clientQuery = clientQuery.eq("user_id", existingInvoice.user_id);
+    }
+
+    const { data: client, error: clientError } = await clientQuery.maybeSingle();
+    if (clientError) {
+      res.status(500).json({ error: clientError.message });
+      return;
+    }
+
+    if (!client?.id) {
+      res.status(400).json({ error: "Selected client does not exist for this account" });
+      return;
+    }
+
     const { lineItems, ...invoicePayload } = payload;
+    const invoiceUpdatePayload = {
+      ...invoicePayload,
+      user_id: existingInvoice.user_id,
+    };
     const { data: updatedInvoice, error: updateError } = await adminSupabase
       .from("invoices")
-      .update(invoicePayload)
+      .update(invoiceUpdatePayload)
       .eq("id", req.params.id)
       .select("*")
       .single();
@@ -2187,8 +2223,9 @@ app.patch("/clients/:id", async (req: AuthedRequest, res: Response) => {
     const profile = await getProfileForUser(user);
     const profileId = profile.id;
     const isAdmin = isAdminUser(user);
+    const payload = sanitizeClientPayload(body as Record<string, unknown>);
 
-    let query = adminSupabase.from("clients").update(body).eq("id", req.params.id);
+    let query = adminSupabase.from("clients").update(payload).eq("id", req.params.id);
     if (!isAdmin) {
       query = query.eq("user_id", profileId);
     }
@@ -2290,14 +2327,21 @@ app.post("/expenses", async (req: AuthedRequest, res: Response) => {
 
   try {
     const profile = await getProfileForUser(user);
-    const payload = sanitizeExpensePayload(body, profile.id);
+    const payload = sanitizeExpensePayload(body);
 
     if (!payload.category || !payload.recipient || !payload.date || payload.amount <= 0) {
       res.status(400).json({ error: "Category, recipient, date, and a positive amount are required" });
       return;
     }
 
-    const { data, error } = await adminSupabase.from("expenses").insert(payload).select("*").single();
+    const { data, error } = await adminSupabase
+      .from("expenses")
+      .insert({
+        ...payload,
+        user_id: profile.id,
+      })
+      .select("*")
+      .single();
     if (error || !data) {
       res.status(500).json({ error: error?.message || "Failed to create expense" });
       return;
@@ -2317,9 +2361,30 @@ app.patch("/expenses/:id", async (req: AuthedRequest, res: Response) => {
   try {
     const profile = await getProfileForUser(user);
     const isAdmin = isAdminUser(user);
-    const payload = sanitizeExpensePayload(body, profile.id);
+    const payload = sanitizeExpensePayload(body);
 
-    let query = adminSupabase.from("expenses").update(payload).eq("id", req.params.id);
+    let expenseOwnershipQuery = adminSupabase.from("expenses").select("id,user_id").eq("id", req.params.id);
+    if (!isAdmin) {
+      expenseOwnershipQuery = expenseOwnershipQuery.eq("user_id", profile.id);
+    }
+
+    const { data: existingExpense, error: existingExpenseError } = await expenseOwnershipQuery.maybeSingle();
+    if (existingExpenseError) {
+      res.status(500).json({ error: existingExpenseError.message });
+      return;
+    }
+
+    if (!existingExpense?.id) {
+      res.status(404).json({ error: "Expense not found" });
+      return;
+    }
+
+    const expenseUpdatePayload = {
+      ...payload,
+      user_id: existingExpense.user_id,
+    };
+
+    let query = adminSupabase.from("expenses").update(expenseUpdatePayload).eq("id", req.params.id);
     if (!isAdmin) {
       query = query.eq("user_id", profile.id);
     }
