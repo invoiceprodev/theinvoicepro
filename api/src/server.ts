@@ -6,6 +6,7 @@ import { buildTrialSubscriptionCheckout, verifyPayFastSignature } from "./payfas
 import {
   isResendConfigured,
   sendExpenseReceiptEmail,
+  sendFooterSubscriptionEmail,
   sendInvoiceEmail,
   sendResendEmail,
   sendTrialLifecycleEmail,
@@ -402,6 +403,31 @@ app.get("/health", (_req, res) => {
     database: "supabase",
     email: isResendConfigured() ? "resend" : "disabled",
   });
+});
+
+app.post("/subscribe", async (req: Request, res: Response) => {
+  const body = (req.body || {}) as { name?: string; email?: string };
+  const name = body.name?.trim() || "";
+  const email = body.email?.trim() || "";
+
+  if (!name || !email) {
+    res.status(400).json({ error: "Name and email are required" });
+    return;
+  }
+
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailPattern.test(email)) {
+    res.status(400).json({ error: "Enter a valid email address" });
+    return;
+  }
+
+  try {
+    const result = await sendFooterSubscriptionEmail({ name, email });
+    res.json({ ok: true, id: result.id });
+  } catch (error) {
+    console.error("[API] failed to send footer subscription email", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to submit subscription") });
+  }
 });
 
 app.post("/payfast/webhook", async (req: Request, res: Response) => {

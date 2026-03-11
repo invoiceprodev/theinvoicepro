@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useList } from "@refinedev/core";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
 import { Link } from "react-router";
 import { useNavigate } from "react-router";
 import {
@@ -81,6 +82,10 @@ const currencySymbols: Record<string, string> = {
 
 export const LandingPage = () => {
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
+  const [subscriberName, setSubscriberName] = useState("");
+  const [subscriberEmail, setSubscriberEmail] = useState("");
+  const [subscribeState, setSubscribeState] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [subscribeMessage, setSubscribeMessage] = useState("");
   const navigate = useNavigate();
   const { result: plansResult } = useList<Plan>({
     resource: "plans",
@@ -129,6 +134,42 @@ export const LandingPage = () => {
     }
 
     navigate("/register");
+  };
+
+  const handleFooterSubscribe = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const submit = async () => {
+      setSubscribeState("submitting");
+      setSubscribeMessage("");
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/subscribe`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: subscriberName.trim(),
+          email: subscriberEmail.trim(),
+        }),
+      });
+
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+
+      if (!response.ok) {
+        throw new Error(body?.error || "Failed to subscribe");
+      }
+
+      setSubscriberName("");
+      setSubscriberEmail("");
+      setSubscribeState("success");
+      setSubscribeMessage("Thanks. We received your details.");
+    };
+
+    void submit().catch((error) => {
+      setSubscribeState("error");
+      setSubscribeMessage(error instanceof Error ? error.message : "Failed to subscribe");
+    });
   };
 
   return (
@@ -505,8 +546,39 @@ export const LandingPage = () => {
               </ul>
             </div>
           </div>
-          <div className="border-t pt-8 text-center text-sm text-muted-foreground">
-            <p>© 2024 InvoicePro. All rights reserved.</p>
+          <div className="border-t pt-8 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+            <div className="max-w-sm">
+              <h4 className="font-semibold text-foreground mb-3">Subscribe</h4>
+              <form onSubmit={handleFooterSubscribe} className="space-y-3">
+                <Input
+                  type="text"
+                  placeholder="Your name"
+                  value={subscriberName}
+                  onChange={(event) => setSubscriberName(event.target.value)}
+                  required
+                  disabled={subscribeState === "submitting"}
+                />
+                <Input
+                  type="email"
+                  placeholder="Your email"
+                  value={subscriberEmail}
+                  onChange={(event) => setSubscriberEmail(event.target.value)}
+                  required
+                  disabled={subscribeState === "submitting"}
+                />
+                <Button type="submit" className="w-full md:w-auto" disabled={subscribeState === "submitting"}>
+                  {subscribeState === "submitting" ? "Submitting..." : "Subscribe"}
+                </Button>
+                {subscribeMessage ? (
+                  <p className={cn("text-sm", subscribeState === "error" ? "text-destructive" : "text-muted-foreground")}>
+                    {subscribeMessage}
+                  </p>
+                ) : null}
+              </form>
+            </div>
+            <div className="text-sm text-muted-foreground md:text-right">
+              <p>© 2024 InvoicePro. All rights reserved.</p>
+            </div>
           </div>
         </div>
       </footer>

@@ -185,6 +185,26 @@ export async function sendTrialLifecycleEmail(input: {
   });
 }
 
+export async function sendFooterSubscriptionEmail(input: { name: string; email: string }) {
+  const trimmedName = input.name.trim();
+  const trimmedEmail = input.email.trim();
+
+  return sendResendEmail({
+    to: "hello@theinvoicepro.co.za",
+    subject: "New footer subscription",
+    text: `A new footer subscription was submitted.\n\nName: ${trimmedName}\nEmail: ${trimmedEmail}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
+        <h1 style="margin-bottom: 16px;">New footer subscription</h1>
+        <table style="border-collapse: collapse; width: 100%; margin: 16px 0;">
+          <tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>Name</strong></td><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(trimmedName)}</td></tr>
+          <tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>Email</strong></td><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(trimmedEmail)}</td></tr>
+        </table>
+      </div>
+    `,
+  });
+}
+
 function escapeHtml(value: string) {
   return value
     .replaceAll("&", "&amp;")
