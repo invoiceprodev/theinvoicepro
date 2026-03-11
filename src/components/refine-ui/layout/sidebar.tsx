@@ -189,7 +189,7 @@ function SidebarItemLink({ item, selectedKey }: MenuItemProps) {
 
 function SidebarHeader() {
   const { title } = useRefineOptions();
-  const { open, isMobile } = useShadcnSidebar();
+  const { open, openMobile, isMobile } = useShadcnSidebar();
   const Link = useLink();
   const [profileSnapshot, setProfileSnapshot] = React.useState(getProfileBridgeSnapshot());
 
@@ -198,6 +198,7 @@ function SidebarHeader() {
   const defaultTitleText = typeof title.text === "string" ? title.text : "InvoicePro";
   const companyName = profileSnapshot.profile?.company_name?.trim() || defaultTitleText;
   const logoUrl = profileSnapshot.profile?.logo_url || null;
+  const sidebarOpen = isMobile ? openMobile : open;
 
   return (
     <ShadcnSidebarHeader
@@ -227,8 +228,8 @@ function SidebarHeader() {
           "duration-200",
           "cursor-pointer",
           {
-            "pl-3": !open,
-            "pl-5": open,
+            "pl-3": !sidebarOpen,
+            "pl-5": sidebarOpen,
           },
         )}>
         <div
@@ -239,8 +240,8 @@ function SidebarHeader() {
         </div>
         <div
           className={cn("min-w-0 transition-opacity duration-200", {
-            "opacity-0": !open,
-            "opacity-100": open,
+            "opacity-0": !sidebarOpen,
+            "opacity-100": sidebarOpen,
           })}>
           <h2 className="truncate text-sm font-bold">{companyName}</h2>
           {companyName !== defaultTitleText ? <p className="truncate text-[11px] text-muted-foreground">{defaultTitleText}</p> : null}
@@ -249,10 +250,10 @@ function SidebarHeader() {
 
       <ShadcnSidebarTrigger
         className={cn("text-muted-foreground", "mr-1.5", {
-          "opacity-0": !open,
-          "opacity-100": open || isMobile,
-          "pointer-events-auto": open || isMobile,
-          "pointer-events-none": !open && !isMobile,
+          "opacity-0": !sidebarOpen,
+          "opacity-100": sidebarOpen || isMobile,
+          "pointer-events-auto": sidebarOpen || isMobile,
+          "pointer-events-none": !sidebarOpen && !isMobile,
         })}
       />
     </ShadcnSidebarHeader>

@@ -49,7 +49,7 @@ function DesktopHeader() {
 }
 
 function MobileHeader() {
-  const { open, isMobile } = useSidebar()
+  const { open, openMobile, isMobile } = useSidebar()
   const { title } = useRefineOptions()
   const [profileSnapshot, setProfileSnapshot] = React.useState(getProfileBridgeSnapshot())
 
@@ -58,6 +58,7 @@ function MobileHeader() {
   const defaultTitleText = typeof title.text === "string" ? title.text : "InvoicePro"
   const companyName = profileSnapshot.profile?.company_name?.trim() || defaultTitleText
   const logoUrl = profileSnapshot.profile?.logo_url || null
+  const sidebarOpen = isMobile ? openMobile : open
 
   return (
     <header
@@ -79,10 +80,10 @@ function MobileHeader() {
     >
       <SidebarTrigger
         className={cn("text-muted-foreground", "rotate-180", "ml-1", {
-          "opacity-0": open,
-          "opacity-100": !open || isMobile,
-          "pointer-events-auto": !open || isMobile,
-          "pointer-events-none": open && !isMobile,
+          "opacity-0": sidebarOpen,
+          "opacity-100": !sidebarOpen || isMobile,
+          "pointer-events-auto": !sidebarOpen || isMobile,
+          "pointer-events-none": sidebarOpen && !isMobile,
         })}
       />
 
@@ -98,8 +99,8 @@ function MobileHeader() {
           "transition-discrete",
           "duration-200",
           {
-            "pl-3": !open,
-            "pl-5": open,
+            "pl-3": !sidebarOpen,
+            "pl-5": sidebarOpen,
           },
         )}
       >
@@ -112,8 +113,8 @@ function MobileHeader() {
         </div>
         <div
           className={cn("min-w-0 transition-opacity duration-200", {
-            "opacity-0": !open,
-            "opacity-100": open,
+            "opacity-0": !sidebarOpen,
+            "opacity-100": sidebarOpen,
           })}
         >
           <h2 className={cn("truncate text-sm font-bold")}>{companyName}</h2>
