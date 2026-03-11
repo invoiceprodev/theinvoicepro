@@ -233,6 +233,12 @@ Confirm SSL is issued for all three domains.
 
 ## 8. PayFast
 
+Current blocker:
+
+- PayFast currently returns: `Merchant unable to receive payments due to invalid account details provided.`
+- This indicates a PayFast merchant-account configuration/verification issue, not an app redirect or DNS issue
+- Resume PayFast work by fixing the merchant account in PayFast first, then re-test checkout and webhook handling
+
 In PayFast dashboard, confirm:
 
 - production merchant credentials are used

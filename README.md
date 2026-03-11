@@ -47,6 +47,8 @@ Deployment guide:
 ## Known Caveats
 
 - PayFast recurring sandbox is still blocked by merchant/account setup outside the app
+- PayFast live payments are currently blocked at the merchant-account level. Current PayFast error: `Merchant unable to receive payments due to invalid account details provided.`
+- When PayFast work resumes, start by fixing the PayFast merchant account details and live account verification before debugging app code or webhook handling
 
 ## Stack
 
@@ -141,6 +143,7 @@ npm run dev
 - `npm run dev:customer` runs the frontend + API stack for customer work
 - `npm run api:dev` runs the API in watch mode
 - `npm run api:start` runs the API once
+- `npm test` runs the baseline unit tests with Node's built-in test runner
 - `npm run preview` runs the frontend production preview locally
 - `npm run dev:all` runs frontend + API together
 - `npm run build` runs TypeScript and production build

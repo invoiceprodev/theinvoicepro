@@ -4,6 +4,17 @@
 
 PayFast is the primary payment gateway for TheInvoicePro — handling invoice payments and subscription billing in ZAR.
 
+## Current Status
+
+- App-side PayFast checkout and webhook code is in place
+- Current blocker is the PayFast merchant account itself
+- Latest live error: `Merchant unable to receive payments due to invalid account details provided.`
+- Resume here next time:
+  - verify PayFast account activation/FICA status
+  - verify banking/account details in PayFast
+  - confirm live payments and recurring billing are enabled
+  - then re-test checkout against `https://api.theinvoicepro.co.za/payfast/webhook`
+
 ## Environment Variables
 
 Add these to your API `.env` and Railway environment settings:

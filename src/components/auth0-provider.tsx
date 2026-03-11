@@ -212,8 +212,10 @@ export function AppAuth0Provider({ appKind, children }: { appKind: AuthAppKind; 
       clientId={auth0Config.clientId!}
       cacheLocation="localstorage"
       useRefreshTokens
+      useRefreshTokensFallback
       authorizationParams={{
         audience: auth0Config.audience,
+        scope: "openid profile email offline_access",
         redirect_uri: auth0Config.redirectUri,
       }}
       onRedirectCallback={(appState) => {
