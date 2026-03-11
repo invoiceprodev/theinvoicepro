@@ -87,13 +87,15 @@ export function isPaystackConfigured() {
 }
 
 export async function initializePaystackSubscriptionCheckout(input: PaystackInitializeInput) {
-  const callbackBase =
-    apiConfig.paystackCallbackUrl ||
-    `${apiConfig.customerAppUrl}/auth/card-setup/success?provider=paystack&subscription_id=${encodeURIComponent(input.subscriptionId)}&plan_id=${encodeURIComponent(input.planId)}`;
+  const callbackBase = apiConfig.paystackCallbackUrl || `${apiConfig.customerAppUrl}/auth/card-setup/success`;
+  const callbackUrl = new URL(callbackBase);
 
-  const callbackUrl = callbackBase.includes("?")
-    ? `${callbackBase}&plan_name=${encodeURIComponent(input.planName)}&trial_days=${input.trialDays}&amount=${input.amount}`
-    : `${callbackBase}?plan_name=${encodeURIComponent(input.planName)}&trial_days=${input.trialDays}&amount=${input.amount}`;
+  callbackUrl.searchParams.set("provider", "paystack");
+  callbackUrl.searchParams.set("subscription_id", input.subscriptionId);
+  callbackUrl.searchParams.set("plan_id", input.planId);
+  callbackUrl.searchParams.set("plan_name", input.planName);
+  callbackUrl.searchParams.set("trial_days", String(input.trialDays));
+  callbackUrl.searchParams.set("amount", String(input.amount));
 
   const data = await paystackRequest<PaystackInitializeData>("/transaction/initialize", {
     method: "POST",
@@ -101,7 +103,7 @@ export async function initializePaystackSubscriptionCheckout(input: PaystackInit
       email: input.email,
       amount: toKobo(input.amount),
       currency: "ZAR",
-      callback_url: callbackUrl,
+      callback_url: callbackUrl.toString(),
       metadata: {
         provider: "paystack",
         userId: input.userId,
