@@ -3,6 +3,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import { apiConfig } from "./config.js";
 import { verifyAccessToken, type AuthenticatedUser } from "./auth.js";
 import { buildTrialSubscriptionCheckout, verifyPayFastSignature } from "./payfast.js";
+import { initializePaystackSubscriptionCheckout, isPaystackConfigured, verifyPaystackTransaction, verifyPaystackWebhookSignature } from "./paystack.js";
 import {
   isResendConfigured,
   sendExpenseReceiptEmail,
@@ -386,12 +387,105 @@ async function getProfileForUser(user: AuthenticatedUser) {
   return createdProfile;
 }
 
+async function recordPaystackSubscriptionPayment(input: {
+  subscriptionId: string;
+  userId: string;
+  amount: number;
+  currency: string;
+  reference: string;
+  status: "completed" | "failed";
+}) {
+  const { data: existingPayment } = await adminSupabase
+    .from("payments")
+    .select("id")
+    .eq("subscription_id", input.subscriptionId)
+    .eq("transaction_reference", input.reference)
+    .maybeSingle();
+
+  if (existingPayment?.id) {
+    return existingPayment.id;
+  }
+
+  const { data: payment, error } = await adminSupabase
+    .from("payments")
+    .insert({
+      subscription_id: input.subscriptionId,
+      user_id: input.userId,
+      amount: input.amount,
+      currency: input.currency || "ZAR",
+      payment_method: "paystack",
+      status: input.status,
+      transaction_reference: input.reference,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to record Paystack payment: ${error.message}`);
+  }
+
+  return payment?.id || null;
+}
+
+async function applyPaystackChargeToSubscription(input: {
+  subscriptionId: string;
+  reference: string;
+  amount: number;
+  currency: string;
+  customerCode?: string | null;
+  authorizationCode?: string | null;
+}) {
+  const { data: subscription, error: subscriptionError } = await adminSupabase
+    .from("subscriptions")
+    .select("*")
+    .eq("id", input.subscriptionId)
+    .single();
+
+  if (subscriptionError || !subscription?.id) {
+    throw new Error(subscriptionError?.message || "Subscription not found for Paystack payment");
+  }
+
+  const updatePayload: Record<string, unknown> = {
+    paystack_reference: input.reference,
+    paystack_customer_code: input.customerCode || null,
+    paystack_authorization_code: input.authorizationCode || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (subscription.status !== "trial") {
+    updatePayload.status = "active";
+  }
+
+  const { data: updatedSubscription, error: updateError } = await adminSupabase
+    .from("subscriptions")
+    .update(updatePayload)
+    .eq("id", subscription.id)
+    .select("*")
+    .single();
+
+  if (updateError || !updatedSubscription?.id) {
+    throw new Error(updateError?.message || "Failed to update subscription with Paystack authorization");
+  }
+
+  const paymentId = await recordPaystackSubscriptionPayment({
+    subscriptionId: subscription.id,
+    userId: subscription.user_id,
+    amount: input.amount,
+    currency: input.currency || "ZAR",
+    reference: input.reference,
+    status: "completed",
+  });
+
+  return { subscription: updatedSubscription, paymentId };
+}
+
 app.use(
   cors({
     origin: [apiConfig.customerAppUrl, apiConfig.adminAppUrl],
     credentials: false,
   }),
 );
+app.use("/paystack/webhook", express.raw({ type: "application/json" }));
 app.use("/payfast/webhook", express.urlencoded({ extended: false }));
 app.use(express.json({ limit: "5mb" }));
 
@@ -427,6 +521,54 @@ app.post("/subscribe", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("[API] failed to send footer subscription email", error);
     res.status(500).json({ error: getErrorMessage(error, "Failed to submit subscription") });
+  }
+});
+
+app.post("/paystack/webhook", async (req: Request, res: Response) => {
+  const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from([]);
+
+  try {
+    if (!verifyPaystackWebhookSignature(rawBody, req.headers["x-paystack-signature"]?.toString() || null)) {
+      res.status(400).send("Invalid signature");
+      return;
+    }
+
+    const payload = JSON.parse(rawBody.toString("utf8")) as {
+      event?: string;
+      data?: {
+        reference?: string;
+        amount?: number;
+        currency?: string;
+        metadata?: Record<string, unknown> | null;
+        customer?: { customer_code?: string } | null;
+        authorization?: { authorization_code?: string } | null;
+      };
+    };
+
+    if (payload.event !== "charge.success" || !payload.data?.reference) {
+      res.status(200).send("OK");
+      return;
+    }
+
+    const subscriptionId = typeof payload.data.metadata?.subscriptionId === "string" ? payload.data.metadata.subscriptionId : "";
+    if (!subscriptionId) {
+      res.status(200).send("OK");
+      return;
+    }
+
+    await applyPaystackChargeToSubscription({
+      subscriptionId,
+      reference: payload.data.reference,
+      amount: Number(payload.data.amount || 0) / 100,
+      currency: payload.data.currency || "ZAR",
+      customerCode: payload.data.customer?.customer_code || null,
+      authorizationCode: payload.data.authorization?.authorization_code || null,
+    });
+
+    res.status(200).send("OK");
+  } catch (error) {
+    console.error("[Paystack webhook] processing failed", error);
+    res.status(200).send("OK");
   }
 });
 
@@ -481,7 +623,7 @@ app.post("/payfast/webhook", async (req: Request, res: Response) => {
 });
 
 app.use(async (req: AuthedRequest, res: Response, next: NextFunction) => {
-  if (req.path === "/health") {
+  if (req.path === "/health" || req.path === "/paystack/webhook") {
     next();
     return;
   }
@@ -2324,6 +2466,166 @@ app.post("/subscriptions/:id/payfast-token", async (req: AuthedRequest, res: Res
   } catch (error) {
     console.error("[API] failed to update subscription PayFast token", error);
     res.status(500).json({ error: getErrorMessage(error, "Failed to update subscription token") });
+  }
+});
+
+app.post("/subscriptions/:id/paystack-checkout", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+  const body = (req.body || {}) as { planId?: string };
+
+  if (!isPaystackConfigured()) {
+    res.status(500).json({ error: "Paystack is not configured on the API." });
+    return;
+  }
+
+  try {
+    const requesterProfile = await getProfileForUser(user);
+    const isAdmin = isAdminUser(user);
+
+    let subscriptionQuery = adminSupabase.from("subscriptions").select("*").eq("id", req.params.id);
+    if (!isAdmin) {
+      subscriptionQuery = subscriptionQuery.eq("user_id", requesterProfile.id);
+    }
+
+    const { data: subscription, error: subscriptionError } = await subscriptionQuery.single();
+    if (subscriptionError || !subscription?.id) {
+      res.status(subscriptionError?.code === "PGRST116" ? 404 : 500).json({
+        error: subscriptionError?.message || "Subscription not found",
+      });
+      return;
+    }
+
+    const { data: plan, error: planError } = await adminSupabase
+      .from("plans")
+      .select("*")
+      .eq("id", body.planId || subscription.plan_id)
+      .single();
+
+    if (planError || !plan?.id) {
+      res.status(planError?.code === "PGRST116" ? 404 : 500).json({
+        error: planError?.message || "Plan not found for subscription",
+      });
+      return;
+    }
+
+    const { data: ownerProfile, error: ownerProfileError } = await adminSupabase
+      .from("profiles")
+      .select("*")
+      .eq("id", subscription.user_id)
+      .single();
+
+    if (ownerProfileError || !ownerProfile?.id || !ownerProfile.business_email) {
+      res.status(ownerProfileError?.code === "PGRST116" ? 404 : 500).json({
+        error: ownerProfileError?.message || "Subscription owner profile email is required",
+      });
+      return;
+    }
+
+    const checkout = await initializePaystackSubscriptionCheckout({
+      email: ownerProfile.business_email,
+      amount: Number(plan.price || 0),
+      subscriptionId: subscription.id,
+      planId: plan.id,
+      planName: String(plan.name || "InvoicePro"),
+      userId: ownerProfile.id,
+      trialDays: Number(plan.trial_days || 0),
+      billingCycle: plan.billing_cycle === "yearly" ? "yearly" : "monthly",
+    });
+
+    res.json({
+      data: {
+        provider: "paystack",
+        authorizationUrl: checkout.authorizationUrl,
+        reference: checkout.reference,
+        accessCode: checkout.accessCode,
+      },
+    });
+  } catch (error) {
+    console.error("[API] failed to initialize Paystack checkout", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to initialize Paystack checkout") });
+  }
+});
+
+app.post("/subscriptions/:id/paystack-verify", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+  const body = (req.body || {}) as { reference?: string; planId?: string | null };
+
+  if (!body.reference) {
+    res.status(400).json({ error: "reference is required" });
+    return;
+  }
+
+  try {
+    const profile = await getProfileForUser(user);
+    const isAdmin = isAdminUser(user);
+
+    let subscriptionQuery = adminSupabase.from("subscriptions").select("*").eq("id", req.params.id);
+    if (!isAdmin) {
+      subscriptionQuery = subscriptionQuery.eq("user_id", profile.id);
+    }
+
+    const { data: subscription, error: subscriptionError } = await subscriptionQuery.single();
+    if (subscriptionError || !subscription?.id) {
+      res.status(subscriptionError?.code === "PGRST116" ? 404 : 500).json({
+        error: subscriptionError?.message || "Subscription not found",
+      });
+      return;
+    }
+
+    const verification = await verifyPaystackTransaction(body.reference);
+    if (verification.status !== "success") {
+      res.status(400).json({ error: verification.gateway_response || "Paystack transaction was not successful" });
+      return;
+    }
+
+    const metadataSubscriptionId =
+      typeof verification.metadata?.subscriptionId === "string" ? verification.metadata.subscriptionId : subscription.id;
+    if (metadataSubscriptionId !== subscription.id) {
+      res.status(400).json({ error: "Paystack reference does not match this subscription" });
+      return;
+    }
+
+    if (body.planId) {
+      const { data: plan, error: planError } = await adminSupabase
+        .from("plans")
+        .select("*")
+        .eq("id", body.planId)
+        .eq("is_active", true)
+        .single();
+
+      if (planError || !plan?.id) {
+        res.status(404).json({ error: planError?.message || "Selected plan not found" });
+        return;
+      }
+
+      const { error: updatePlanError } = await adminSupabase
+        .from("subscriptions")
+        .update({
+          plan_id: plan.id,
+          auto_renew: Boolean(plan.auto_renew),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", subscription.id);
+
+      if (updatePlanError) {
+        res.status(500).json({ error: updatePlanError.message });
+        return;
+      }
+    }
+
+    const result = await applyPaystackChargeToSubscription({
+      subscriptionId: subscription.id,
+      reference: verification.reference,
+      amount: Number(verification.amount || 0) / 100,
+      currency: verification.currency || "ZAR",
+      customerCode: verification.customer?.customer_code || null,
+      authorizationCode: verification.authorization?.authorization_code || null,
+    });
+
+    res.json({ data: result.subscription });
+  } catch (error) {
+    console.error("[API] failed to verify Paystack transaction", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to verify Paystack transaction") });
   }
 });
 

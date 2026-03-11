@@ -25,6 +25,7 @@ function envFlag(name: string) {
 export const apiConfig = {
   isDevelopment: process.env.NODE_ENV !== "production",
   port: Number(process.env.PORT || 3000),
+  paymentProvider: (process.env.PAYMENT_PROVIDER || "payfast").toLowerCase(),
   auth0Domain: required("AUTH0_DOMAIN"),
   auth0Audience: required("AUTH0_AUDIENCE"),
   supabaseUrl: requiredOneOf("SUPABASE_URL", "VITE_SUPABASE_URL"),
@@ -39,6 +40,10 @@ export const apiConfig = {
   payfastMerchantKey: process.env.PAYFAST_MERCHANT_KEY || "",
   payfastPassphrase: process.env.PAYFAST_PASSPHRASE || "",
   payfastMode: process.env.PAYFAST_MODE || "sandbox",
+  paystackPublicKey: process.env.PAYSTACK_PUBLIC_KEY || "",
+  paystackSecretKey: process.env.PAYSTACK_SECRET_KEY || "",
+  paystackWebhookSecret: process.env.PAYSTACK_WEBHOOK_SECRET || process.env.PAYSTACK_SECRET_KEY || "",
+  paystackCallbackUrl: process.env.PAYSTACK_CALLBACK_URL || "",
   supabaseBrandingBucket: process.env.SUPABASE_BRANDING_BUCKET || "company-branding",
   trialBypassEnabled:
     (process.env.NODE_ENV !== "production") &&

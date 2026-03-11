@@ -25,6 +25,7 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
   const [subscriptionCreated, setSubscriptionCreated] = useState(false);
   const [debugPayload, setDebugPayload] = useState<Record<string, string | boolean> | null>(null);
   const [debugUrl, setDebugUrl] = useState<string | null>(null);
+  const paymentProvider = (import.meta.env.VITE_PAYMENT_PROVIDER || "payfast").toLowerCase();
   const showPayFastDebug = import.meta.env.DEV;
   const allowTrialBypass = canStartTrialWithoutCard(plan);
 
@@ -57,6 +58,21 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
       const subscription = await createSubscription();
 
       setSubscriptionCreated(true);
+
+      if (paymentProvider === "paystack") {
+        const payment = await apiRequest<{
+          data: {
+            authorizationUrl: string;
+            reference: string;
+          };
+        }>(`/subscriptions/${subscription.id}/paystack-checkout`, {
+          method: "POST",
+          body: JSON.stringify({ planId: plan.id }),
+        });
+
+        window.location.href = payment.data.authorizationUrl;
+        return;
+      }
 
       const payment = await apiRequest<{
         data: {
@@ -146,7 +162,7 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
                 <CheckCircle2 className="w-8 h-8 text-green-600" />
               </div>
             </div>
-            <CardTitle>Redirecting to PayFast</CardTitle>
+            <CardTitle>Redirecting to {paymentProvider === "paystack" ? "Paystack" : "PayFast"}</CardTitle>
             <CardDescription>We are opening secure card setup for your {plan.name} plan.</CardDescription>
           </CardHeader>
         </Card>
@@ -205,7 +221,9 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
                         after {trialDays} days if you do not cancel.
                       </p>
                       {plan.auto_renew && (
-                        <p className="text-xs text-muted-foreground mt-2">This trial auto-renews through PayFast after the trial period.</p>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          This trial auto-renews through {paymentProvider === "paystack" ? "Paystack" : "PayFast"} after the trial period.
+                        </p>
                       )}
                     </>
                   ) : (
@@ -226,18 +244,21 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
               <Alert>
                 <AlertTitle>No card required for this trial</AlertTitle>
                 <AlertDescription>
-                  Starter/Trial can begin immediately without card setup. The PayFast flow remains available below if you
-                  still want to attach billing details now.
+                  Starter/Trial can begin immediately without card setup. The {paymentProvider === "paystack" ? "Paystack" : "PayFast"} flow
+                  remains available below if you still want to attach billing details now.
                 </AlertDescription>
               </Alert>
             ) : null}
 
             <div className="flex items-start gap-3 text-xs text-muted-foreground">
               <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              <p>Your payment information is securely processed by PayFast. We never store your card details on our servers.</p>
+              <p>
+                Your payment information is securely processed by {paymentProvider === "paystack" ? "Paystack" : "PayFast"}. We never
+                store your card details on our servers.
+              </p>
             </div>
 
-            {showPayFastDebug && debugPayload ? (
+            {paymentProvider === "payfast" && showPayFastDebug && debugPayload ? (
               <div className="rounded-lg border bg-muted/40 p-4 text-xs">
                 <p className="font-semibold text-foreground mb-2">PayFast debug payload</p>
                 <div className="grid gap-1 text-muted-foreground">
@@ -266,10 +287,14 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
             ) : null}
 
             <Button onClick={handleSetupCard} disabled={isProcessing} size="lg" className="w-full">
-              {isProcessing ? "Redirecting to PayFast..." : trialDays > 0 ? "Start Trial With Card" : "Continue to PayFast"}
+              {isProcessing
+                ? `Redirecting to ${paymentProvider === "paystack" ? "Paystack" : "PayFast"}...`
+                : trialDays > 0
+                  ? "Start Trial With Card"
+                  : `Continue to ${paymentProvider === "paystack" ? "Paystack" : "PayFast"}`}
             </Button>
 
-            {showPayFastDebug ? (
+            {paymentProvider === "payfast" && showPayFastDebug ? (
               <Button onClick={handleInspectPayload} variant="outline" size="sm" className="w-full" disabled={isProcessing}>
                 Inspect PayFast Payload
               </Button>
@@ -280,7 +305,7 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
             </Button>
 
             <p className="text-xs text-center text-muted-foreground">
-              By continuing, you authorise PayFast to set up recurring billing
+              By continuing, you authorise {paymentProvider === "paystack" ? "Paystack" : "PayFast"} to set up recurring billing
               {trialDays > 0 ? ` after your ${trialDays}-day trial` : ""}.
             </p>
           </CardFooter>

@@ -23,6 +23,8 @@ export default function CardSetupSuccess() {
       try {
         const subscriptionId = searchParams.get("subscription_id");
         const payfastToken = searchParams.get("token") || searchParams.get("pf_payment_id");
+        const paystackReference = searchParams.get("reference");
+        const provider = (searchParams.get("provider") || import.meta.env.VITE_PAYMENT_PROVIDER || "payfast").toLowerCase();
         const selectedPlan = getSelectedPlanCheckout();
 
         if (!subscriptionId) {
@@ -31,13 +33,29 @@ export default function CardSetupSuccess() {
           return;
         }
 
-        await apiRequest(`/subscriptions/${subscriptionId}/payfast-token`, {
-          method: "POST",
-          body: JSON.stringify({
-            payfastToken: payfastToken || null,
-            planId: selectedPlan?.id || null,
-          }),
-        });
+        if (provider === "paystack") {
+          if (!paystackReference) {
+            setStatus("error");
+            setMessage("Missing Paystack reference. Please try again.");
+            return;
+          }
+
+          await apiRequest(`/subscriptions/${subscriptionId}/paystack-verify`, {
+            method: "POST",
+            body: JSON.stringify({
+              reference: paystackReference,
+              planId: selectedPlan?.id || searchParams.get("plan_id") || null,
+            }),
+          });
+        } else {
+          await apiRequest(`/subscriptions/${subscriptionId}/payfast-token`, {
+            method: "POST",
+            body: JSON.stringify({
+              payfastToken: payfastToken || null,
+              planId: selectedPlan?.id || null,
+            }),
+          });
+        }
 
         const currentSubscription = await apiRequest<{ data: Subscription | null }>("/subscription/current");
 

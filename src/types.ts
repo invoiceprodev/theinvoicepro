@@ -188,6 +188,9 @@ export interface Subscription {
   end_date?: string;
   renewal_date?: string;
   payfast_token?: string;
+  paystack_reference?: string;
+  paystack_customer_code?: string;
+  paystack_authorization_code?: string;
   subscription_token?: string;
   trial_start_date?: string;
   trial_end_date?: string;
@@ -230,7 +233,7 @@ export function getCurrentSubscriptionState(subscription?: Subscription | null):
 
   if (subscription.status === "trial") {
     const requiresCard = Boolean(subscription.plan?.requires_card);
-    return subscription.payfast_token || !requiresCard ? "trial_active" : "trial_pending";
+    return subscription.payfast_token || subscription.paystack_authorization_code || !requiresCard ? "trial_active" : "trial_pending";
   }
 
   if (subscription.status === "active") {
