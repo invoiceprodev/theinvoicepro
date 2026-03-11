@@ -2965,18 +2965,9 @@ app.post("/auth/sync-profile", async (req: AuthedRequest, res: Response) => {
     body.fullName?.trim() || user.name || user.nickname || user.email || (body.mode === "admin-login" ? "Admin" : "User");
   const resolvedEmail = body.email?.trim() || user.email || null;
 
-  const payload = {
-    auth0_user_id: user.sub,
-    auth_provider: "auth0",
-    full_name: resolvedName,
-    business_email: resolvedEmail,
-    role: isAdmin ? "admin" : "user",
-    last_login_at: new Date().toISOString(),
-  };
-
   const { data: existingProfile, error: existingError } = await adminSupabase
     .from("profiles")
-    .select("id")
+    .select("id, role")
     .eq("auth0_user_id", user.sub)
     .maybeSingle();
 
@@ -2984,6 +2975,16 @@ app.post("/auth/sync-profile", async (req: AuthedRequest, res: Response) => {
     res.status(500).json({ error: existingError.message });
     return;
   }
+
+  const resolvedRole = existingProfile?.role === "admin" || isAdmin ? "admin" : "user";
+  const payload = {
+    auth0_user_id: user.sub,
+    auth_provider: "auth0",
+    full_name: resolvedName,
+    business_email: resolvedEmail,
+    role: resolvedRole,
+    last_login_at: new Date().toISOString(),
+  };
 
   if (existingProfile?.id) {
     const { data, error } = await adminSupabase

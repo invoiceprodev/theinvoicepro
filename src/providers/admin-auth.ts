@@ -86,9 +86,10 @@ export const adminAuthProvider: AuthProvider = {
 
   check: async () => {
     const current = getAuth0BridgeSnapshot();
-    const role = getAppRoleFromUser(current.user);
+    const profileSnapshot = getProfileBridgeSnapshot();
+    const role = profileSnapshot.profile?.role ?? getAppRoleFromUser(current.user);
 
-    if (current.isLoading) {
+    if (current.isLoading || (current.isAuthenticated && profileSnapshot.isLoading)) {
       return { authenticated: false };
     }
 

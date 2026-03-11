@@ -153,7 +153,12 @@ function Auth0BridgeSync({ appKind }: { appKind: AuthAppKind }) {
           }),
         });
         const response = await apiRequest<{ profile: Profile | null; auth0: Record<string, unknown> }>("/me");
-        const subscriptionResponse = await apiRequest<{ data: Subscription | null }>("/subscription/current");
+
+        let subscription: Subscription | null = null;
+        if (appKind !== "admin") {
+          const subscriptionResponse = await apiRequest<{ data: Subscription | null }>("/subscription/current");
+          subscription = subscriptionResponse.data;
+        }
 
         if (cancelled) return;
 
@@ -166,7 +171,7 @@ function Auth0BridgeSync({ appKind }: { appKind: AuthAppKind }) {
         });
         setSubscriptionBridgeSnapshot({
           isLoading: false,
-          subscription: subscriptionResponse.data,
+          subscription,
         });
       } catch (syncError) {
         console.error("[Auth0] profile sync failed", syncError);
