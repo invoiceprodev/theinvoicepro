@@ -40,6 +40,7 @@ import CardSetupSuccess from "./pages/auth/card-setup-success";
 import { AuthCallbackPage, PublicOnlyRoute } from "@/pages/auth/callback";
 import { PricingPage } from "@/pages/services/pricing";
 import { SignupPage } from "@/pages/services/signup";
+import { PrivacyPolicyPage } from "@/pages/privacy-policy/index";
 
 // Admin app pages
 import { AdminDashboard } from "@/pages/admin/index";
@@ -265,6 +266,7 @@ function CustomerApp() {
           ]}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="/services/pricing" element={<PricingPage />} />
             <Route path="/services/signup" element={<SignupPage />} />
 

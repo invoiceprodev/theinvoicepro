@@ -539,9 +539,9 @@ export const LandingPage = () => {
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
+                  <Link to="/privacy-policy" className="text-muted-foreground hover:text-primary transition-colors">
                     Privacy Policy
-                  </a>
+                  </Link>
                 </li>
               </ul>
             </div>
