@@ -635,7 +635,24 @@ app.use(async (req: AuthedRequest, res: Response, next: NextFunction) => {
   }
 
   try {
-    req.user = await verifyAccessToken(authHeader.slice("Bearer ".length));
+    const verifiedUser = await verifyAccessToken(authHeader.slice("Bearer ".length));
+    const { data: mappedProfile, error: profileError } = await adminSupabase
+      .from("profiles")
+      .select("role")
+      .eq("auth0_user_id", verifiedUser.sub)
+      .maybeSingle();
+
+    if (profileError) {
+      throw new Error(`Failed to resolve profile role: ${profileError.message}`);
+    }
+
+    req.user = {
+      ...verifiedUser,
+      roles:
+        mappedProfile?.role === "admin" && !verifiedUser.roles.some((role) => role.toLowerCase() === "admin")
+          ? [...verifiedUser.roles, "admin"]
+          : verifiedUser.roles,
+    };
     next();
   } catch (error) {
     console.error("[API] token verification failed", error);
