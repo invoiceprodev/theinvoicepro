@@ -11,6 +11,7 @@ import { RefineAiErrorComponent } from "@/components/catch-all";
 import { ThemeProvider } from "@/components/refine-ui/theme/theme-provider";
 import { AuthProvider } from "@/contexts/auth-context";
 import { AppAuth0Provider } from "@/components/auth0-provider";
+import { BrandingFaviconSync } from "@/components/branding-favicon-sync";
 import { ProtectedRoute } from "@/components/protected-route";
 import { getAdminRoute, isAdminContext, isAdminHostname, stripAdminPrefix } from "@/lib/admin-routing";
 import { LayoutDashboard, FileText, Users, CreditCard, Home, ShieldCheck, Settings, Layers } from "lucide-react";
@@ -351,7 +352,12 @@ function AppRouter() {
   const hostname = typeof window !== "undefined" ? window.location.hostname : "";
   const adminHost = isAdminHostname(hostname);
   const isAdmin = isAdminContext(location.pathname, hostname);
-  return <AppAuth0Provider appKind={isAdmin ? "admin" : "customer"}>{isAdmin ? <AdminApp adminHost={adminHost} /> : <CustomerApp />}</AppAuth0Provider>;
+  return (
+    <AppAuth0Provider appKind={isAdmin ? "admin" : "customer"}>
+      <BrandingFaviconSync />
+      {isAdmin ? <AdminApp adminHost={adminHost} /> : <CustomerApp />}
+    </AppAuth0Provider>
+  );
 }
 
 // ─── Root App ─────────────────────────────────────────────────────────────────
