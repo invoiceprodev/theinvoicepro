@@ -38,6 +38,40 @@ import { Subscription, Plan, SubscriptionHistory, Profile, TrialConversion } fro
 import { Button } from "@/components/ui/button";
 
 export const AdminDashboard = () => {
+  const dashboardNow = useMemo(() => new Date(), []);
+  const recentSubscriptionHistoryPagination = useMemo(() => ({ mode: "server" as const, currentPage: 1, pageSize: 10 }), []);
+  const recentSubscriptionHistorySorters = useMemo(() => [{ field: "changed_at", order: "desc" as const }], []);
+  const last60DaysSubscriptionHistoryFilters = useMemo(
+    () => [
+      {
+        field: "changed_at",
+        operator: "gte" as const,
+        value: new Date(dashboardNow.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+    ],
+    [dashboardNow],
+  );
+  const upcomingTrialExpirationFilters = useMemo(
+    () => [
+      { field: "status", operator: "eq" as const, value: "active_trial" },
+      {
+        field: "trial_end_date",
+        operator: "lte" as const,
+        value: new Date(dashboardNow.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        field: "trial_end_date",
+        operator: "gte" as const,
+        value: dashboardNow.toISOString(),
+      },
+    ],
+    [dashboardNow],
+  );
+  const upcomingTrialExpirationSorters = useMemo(() => [{ field: "trial_end_date", order: "asc" as const }], []);
+  const failedConversionFilters = useMemo(() => [{ field: "status", operator: "eq" as const, value: "failed" }], []);
+  const failedConversionSorters = useMemo(() => [{ field: "trial_end_date", order: "desc" as const }], []);
+  const failedConversionPagination = useMemo(() => ({ mode: "server" as const, currentPage: 1, pageSize: 10 }), []);
+
   // Fetch all profiles to count total clients
   const { result: profilesData, query: profilesQuery } = useList<Profile>({
     resource: "profiles",
@@ -63,8 +97,8 @@ export const AdminDashboard = () => {
   // Fetch recent subscription history
   const { result: subscriptionHistoryResult, query: subscriptionHistoryQuery } = useList<any>({
     resource: "subscription_history",
-    pagination: { mode: "server", currentPage: 1, pageSize: 10 },
-    sorters: [{ field: "changed_at", order: "desc" }],
+    pagination: recentSubscriptionHistoryPagination,
+    sorters: recentSubscriptionHistorySorters,
     meta: {
       select:
         "*, old_plan:plans!subscription_history_old_plan_id_fkey(name), new_plan:plans!subscription_history_new_plan_id_fkey(name), profile:profiles!subscription_history_user_id_fkey(full_name)",
@@ -75,13 +109,7 @@ export const AdminDashboard = () => {
   const { result: allSubscriptionHistoryResult, query: allSubscriptionHistoryQuery } = useList<SubscriptionHistory>({
     resource: "subscription_history",
     pagination: { mode: "off" },
-    filters: [
-      {
-        field: "changed_at",
-        operator: "gte",
-        value: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(), // Last 60 days
-      },
-    ],
+    filters: last60DaysSubscriptionHistoryFilters,
   });
 
   // Fetch trial conversion data
@@ -96,20 +124,8 @@ export const AdminDashboard = () => {
   // Fetch upcoming trial expirations (next 7 days)
   const { result: upcomingExpirationsResult, query: upcomingExpirationsQuery } = useList<TrialConversion>({
     resource: "trial_conversions",
-    filters: [
-      { field: "status", operator: "eq", value: "active_trial" },
-      {
-        field: "trial_end_date",
-        operator: "lte",
-        value: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      },
-      {
-        field: "trial_end_date",
-        operator: "gte",
-        value: new Date().toISOString(),
-      },
-    ],
-    sorters: [{ field: "trial_end_date", order: "asc" }],
+    filters: upcomingTrialExpirationFilters,
+    sorters: upcomingTrialExpirationSorters,
     meta: {
       select: "*, user:profiles(full_name, email)",
     },
@@ -118,9 +134,9 @@ export const AdminDashboard = () => {
   // Fetch failed conversions
   const { result: failedConversionsResult, query: failedConversionsQuery } = useList<TrialConversion>({
     resource: "trial_conversions",
-    filters: [{ field: "status", operator: "eq", value: "failed" }],
-    sorters: [{ field: "trial_end_date", order: "desc" }],
-    pagination: { mode: "server", currentPage: 1, pageSize: 10 },
+    filters: failedConversionFilters,
+    sorters: failedConversionSorters,
+    pagination: failedConversionPagination,
     meta: {
       select: "*, user:profiles(full_name, email)",
     },
