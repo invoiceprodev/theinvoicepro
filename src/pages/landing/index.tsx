@@ -328,7 +328,7 @@ export const LandingPage = () => {
                   {(trialDays > 0 || requiresCard) && (
                     <div className="pt-2">
                       <Badge variant="outline" className="text-xs font-normal border-orange-500 text-orange-600">
-                        {requiresCard ? "Card required via PayFast" : `${trialDays}-day trial available`}
+                        {requiresCard ? "Card required via Paystack" : `${trialDays}-day trial available`}
                       </Badge>
                     </div>
                   )}

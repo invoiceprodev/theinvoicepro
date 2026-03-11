@@ -5,8 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Check, CreditCard, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCurrentSubscriptionState, type Plan } from "@/types";
@@ -41,13 +39,12 @@ function getPlanCta(plan: Plan) {
 export function PlansPage() {
   const navigate = useNavigate();
   const [dialog, setDialog] = useState<DialogState>({ open: false });
-  const [cardNumber, setCardNumber] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [cvv, setCvv] = useState("");
   const [processing, setProcessing] = useState(false);
   const [subscriptionActionLoading, setSubscriptionActionLoading] = useState<"cancel" | "change" | "start" | null>(null);
   const { open: openNotification } = useNotification();
   const { loading: subscriptionLoading, subscription, state: subscriptionState } = useSubscriptionState();
+  const paymentProvider = (import.meta.env.VITE_PAYMENT_PROVIDER || "paystack").toLowerCase();
+  const paymentProviderLabel = paymentProvider === "paystack" ? "Paystack" : "PayFast";
 
   const { result, query } = useList<Plan>({
     resource: "plans",
@@ -61,27 +58,11 @@ export function PlansPage() {
   }, [result?.data]);
   const plansErrorMessage =
     query.error instanceof Error ? query.error.message : "Failed to load subscription plans from the live catalog.";
-
-  function formatCard(value: string) {
-    return value
-      .replace(/\D/g, "")
-      .slice(0, 16)
-      .replace(/(.{4})/g, "$1 ")
-      .trim();
-  }
-
-  function formatExpiry(value: string) {
-    const digits = value.replace(/\D/g, "").slice(0, 4);
-    if (digits.length >= 3) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-    return digits;
-  }
+  const hasSavedPaymentMethod = Boolean(subscription?.payfast_token || subscription?.paystack_authorization_code);
 
   function openPlanDialog(plan: Plan) {
     setSelectedPlanCheckout(plan);
     setDialog({ open: true, plan });
-    setCardNumber("");
-    setExpiry("");
-    setCvv("");
   }
 
   function closeDialog() {
@@ -206,23 +187,42 @@ export function PlansPage() {
     }
   }
 
+  function handleManagePaymentMethod() {
+    if (!subscription?.plan) {
+      openNotification?.({
+        type: "error",
+        message: "Payment setup unavailable",
+        description: "No current plan was found for this subscription.",
+      });
+      return;
+    }
+
+    setSelectedPlanCheckout(subscription.plan);
+    navigate("/auth/card-setup");
+  }
+
   return (
     <div className="container mx-auto max-w-6xl px-4 py-10">
       <div className="mb-10 text-center">
         <h1 className="mb-2 text-3xl font-bold tracking-tight">Subscription Plans</h1>
         <p className="text-base text-muted-foreground">
           Plans are managed from admin and reflected here automatically. Starter/Trial starts with a 60-day trial, while
-          Pro and Enterprise continue through PayFast card setup.
+          Pro and Enterprise continue through {paymentProviderLabel} card setup.
         </p>
       </div>
 
       {!subscriptionLoading && subscription ? (
         <Card className="mb-8 border-primary/20 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="text-xl">Current Subscription</CardTitle>
-            <CardDescription>
-              {subscription.plan?.name || "Active plan"} • {subscriptionState.replace("_", " ")}
-            </CardDescription>
+          <CardHeader className="gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className="text-xl">Current Subscription</CardTitle>
+              <CardDescription>
+                {subscription.plan?.name || "Active plan"} • {subscriptionState.replace("_", " ")}
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleManagePaymentMethod} disabled={!subscription.plan}>
+              {hasSavedPaymentMethod ? "Update Payment Method" : "Set Up Card"}
+            </Button>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             {subscriptionState === "trial_pending" ? (
@@ -327,7 +327,7 @@ export function PlansPage() {
                 </div>
                 {requiresCard && (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-                    Card required via PayFast.
+                    Card required via {paymentProviderLabel}.
                     {trialDays > 0 && autoRenew
                       ? ` Starts with a ${trialDays}-day trial, then auto-renews unless cancelled before renewal.`
                       : ""}
@@ -352,6 +352,11 @@ export function PlansPage() {
                   onClick={() => {
                     if (!subscription && canStartTrialWithoutCard(plan)) {
                       void handleStartTrialWithoutCard(plan);
+                      return;
+                    }
+                    if (!subscription && planRequiresCard(plan)) {
+                      setSelectedPlanCheckout(plan);
+                      navigate("/auth/card-setup");
                       return;
                     }
                     if (subscription && !isCurrentPlan && subscriptionState !== "trial_pending") {
@@ -421,7 +426,7 @@ export function PlansPage() {
                     <p className="mt-1">
                       {dialog.plan.trial_days
                         ? `Your card will be authorised now and charged only after ${dialog.plan.trial_days} days.`
-                        : "Your card will be collected now and used for recurring billing through PayFast."}
+                        : `Your card will be collected now and used for recurring billing through ${paymentProviderLabel}.`}
                     </p>
                     {dialog.plan.auto_renew && dialog.plan.trial_days ? (
                       <p className="mt-1">This subscription auto-renews unless you cancel before the trial ends.</p>
@@ -429,41 +434,11 @@ export function PlansPage() {
                   </div>
 
                   <div className="space-y-3">
-                    <div className="space-y-1">
-                      <Label htmlFor="plan-card-number">Card Number</Label>
-                      <Input
-                        id="plan-card-number"
-                        placeholder="1234 5678 9012 3456"
-                        value={cardNumber}
-                        onChange={(e) => setCardNumber(formatCard(e.target.value))}
-                        maxLength={19}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label htmlFor="plan-expiry">Expiry</Label>
-                        <Input
-                          id="plan-expiry"
-                          placeholder="MM/YY"
-                          value={expiry}
-                          onChange={(e) => setExpiry(formatExpiry(e.target.value))}
-                          maxLength={5}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="plan-cvv">CVV</Label>
-                        <Input
-                          id="plan-cvv"
-                          placeholder="123"
-                          value={cvv}
-                          onChange={(e) => setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                          maxLength={4}
-                          type="password"
-                        />
-                      </div>
-                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      You will be redirected to secure {paymentProviderLabel} checkout to complete card setup for this plan.
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      By continuing, you authorise PayFast to auto-renew this plan
+                      By continuing, you authorise {paymentProviderLabel} to auto-renew this plan
                       {dialog.plan.trial_days ? ` after ${dialog.plan.trial_days} days` : ""}.
                     </p>
                   </div>

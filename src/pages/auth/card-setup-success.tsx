@@ -38,7 +38,7 @@ export default function CardSetupSuccess() {
         const subscriptionId = searchParams.get("subscription_id");
         const payfastToken = searchParams.get("token") || searchParams.get("pf_payment_id");
         const paystackReference = searchParams.get("reference");
-        const provider = (searchParams.get("provider") || import.meta.env.VITE_PAYMENT_PROVIDER || "payfast").toLowerCase();
+        const provider = (searchParams.get("provider") || import.meta.env.VITE_PAYMENT_PROVIDER || "paystack").toLowerCase();
         const selectedPlan = getSelectedPlanCheckout();
 
         if (!subscriptionId) {

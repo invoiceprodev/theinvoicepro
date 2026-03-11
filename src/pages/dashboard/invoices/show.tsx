@@ -192,6 +192,50 @@ export function InvoiceShowPage() {
                 </CardHeader>
               </Card>
 
+              <Card>
+                <CardHeader>
+                  <CardTitle>Your Business Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {businessProfile ? (
+                    <>
+                      {businessProfile.company_name ? (
+                        <div>
+                          <p className="text-sm text-muted-foreground">Business Name</p>
+                          <p className="font-medium">{businessProfile.company_name}</p>
+                        </div>
+                      ) : null}
+                      {businessProfile.business_email ? (
+                        <div>
+                          <p className="text-sm text-muted-foreground">Email</p>
+                          <p className="font-medium">{businessProfile.business_email}</p>
+                        </div>
+                      ) : null}
+                      {businessProfile.business_phone ? (
+                        <div>
+                          <p className="text-sm text-muted-foreground">Phone</p>
+                          <p className="font-medium">{businessProfile.business_phone}</p>
+                        </div>
+                      ) : null}
+                      {businessProfile.business_address ? (
+                        <div>
+                          <p className="text-sm text-muted-foreground">Address</p>
+                          <p className="font-medium whitespace-pre-line">{businessProfile.business_address}</p>
+                        </div>
+                      ) : null}
+                      {businessProfile.registration_number ? (
+                        <div>
+                          <p className="text-sm text-muted-foreground">Registration Number</p>
+                          <p className="font-medium">{businessProfile.registration_number}</p>
+                        </div>
+                      ) : null}
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground">Business settings are not available yet.</p>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* Client Details Section */}
               <Card>
                 <CardHeader>

@@ -9,6 +9,19 @@ interface InvoicePdfOptions {
 const getDocumentLabel = (invoiceNumber?: string) =>
   String(invoiceNumber || "").toUpperCase().startsWith("QUO-") ? "QUOTE" : "INVOICE";
 
+const appendMultilineText = (
+  doc: jsPDF,
+  value: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight = 5,
+) => {
+  const lines = doc.splitTextToSize(value, maxWidth);
+  doc.text(lines, x, y);
+  return y + lines.length * lineHeight;
+};
+
 /**
  * Get currency symbol from currency code
  */
@@ -98,6 +111,13 @@ export const generateInvoicePDF = async (
   }
   if (businessProfile?.business_phone) {
     doc.text(businessProfile.business_phone, margin, yPosition);
+    yPosition += 5;
+  }
+  if (businessProfile?.business_address) {
+    yPosition = appendMultilineText(doc, businessProfile.business_address, margin, yPosition, 70);
+  }
+  if (businessProfile?.registration_number) {
+    doc.text(`Reg: ${businessProfile.registration_number}`, margin, yPosition);
     yPosition += 5;
   }
 

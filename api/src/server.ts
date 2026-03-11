@@ -1700,7 +1700,11 @@ app.post("/subscription/change-plan", async (req: AuthedRequest, res: Response) 
       return;
     }
 
-    if (Boolean(plan.requires_card) && !subscription.payfast_token) {
+    const hasReusableBillingAuthorization = Boolean(
+      subscription.payfast_token || subscription.paystack_authorization_code,
+    );
+
+    if (Boolean(plan.requires_card) && !hasReusableBillingAuthorization) {
       res.status(409).json({ error: "Card setup is required before switching to this plan" });
       return;
     }
