@@ -234,6 +234,7 @@ type CrudSorter = {
 
 type CrudPagination = {
   current?: number;
+  currentPage?: number;
   pageSize?: number;
   mode?: string;
 };
@@ -302,7 +303,7 @@ function applyCrudPagination(query: any, pagination: CrudPagination) {
     return query;
   }
 
-  const current = Math.max(1, Number(pagination.current || 1));
+  const current = Math.max(1, Number(pagination.current ?? pagination.currentPage ?? 1));
   const pageSize = Math.max(1, Number(pagination.pageSize || 100));
   const from = (current - 1) * pageSize;
   const to = from + pageSize - 1;
