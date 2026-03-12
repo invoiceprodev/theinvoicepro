@@ -41,7 +41,11 @@ import CardSetupSuccess from "./pages/auth/card-setup-success";
 import { AuthCallbackPage, PublicOnlyRoute } from "@/pages/auth/callback";
 import { PricingPage } from "@/pages/services/pricing";
 import { SignupPage } from "@/pages/services/signup";
-import { PrivacyPolicyPage } from "@/pages/privacy-policy/index";
+import { PrivacyPolicyPage } from "@/pages/legal/privacy";
+import { TermsOfServicePage } from "@/pages/legal/terms";
+import { RefundPolicyPage } from "@/pages/legal/refund-policy";
+import { CookiePolicyPage } from "@/pages/legal/cookie-policy";
+import { AcceptableUsePolicyPage } from "@/pages/legal/acceptable-use";
 
 // Admin app pages
 import { AdminDashboard } from "@/pages/admin/index";
@@ -267,7 +271,12 @@ function CustomerApp() {
           ]}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms" element={<TermsOfServicePage />} />
+            <Route path="/refund-policy" element={<RefundPolicyPage />} />
+            <Route path="/cookie-policy" element={<CookiePolicyPage />} />
+            <Route path="/acceptable-use" element={<AcceptableUsePolicyPage />} />
             <Route path="/services/pricing" element={<PricingPage />} />
             <Route path="/services/signup" element={<SignupPage />} />
 

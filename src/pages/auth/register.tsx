@@ -12,7 +12,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InputPassword } from "@/components/refine-ui/form/input-password";
 import { FileText, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getSelectedPlanCheckout, setSelectedPlanCheckout } from "@/lib/plan-selection";
+import { clearSelectedPlanCheckout, getSelectedPlanCheckout, setSelectedPlanCheckout } from "@/lib/plan-selection";
+import { canStartTrialWithoutCard } from "@/lib/trial-bypass";
 import type { Plan } from "@/types";
 
 const registerSchema = z
@@ -53,15 +54,24 @@ export const RegisterPage = () => {
   });
 
   useEffect(() => {
+    if (selectedPlan && !canStartTrialWithoutCard(selectedPlan)) {
+      clearSelectedPlanCheckout();
+    }
+  }, [selectedPlan]);
+
+  useEffect(() => {
     if (!selectedPlanId || selectedPlan || !plansResult?.data?.length) {
       return;
     }
 
     const matchedPlan = (plansResult.data as Plan[]).find((plan) => plan.id === selectedPlanId);
-    if (matchedPlan) {
+    if (matchedPlan && canStartTrialWithoutCard(matchedPlan)) {
       setSelectedPlanCheckout(matchedPlan);
     }
   }, [plansResult, selectedPlan, selectedPlanId]);
+
+  const activeSelectedPlan =
+    selectedPlan && canStartTrialWithoutCard(selectedPlan) ? selectedPlan : null;
 
   const onSubmit = (values: RegisterFormValues) => {
     register(values);
@@ -84,12 +94,25 @@ export const RegisterPage = () => {
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold">Sign Up</CardTitle>
             <CardDescription>Enter your details and we will send a confirmation link to your email</CardDescription>
-            {selectedPlan && (!selectedPlanId || selectedPlan.id === selectedPlanId) && (
+            {activeSelectedPlan &&
+              (!selectedPlanId || activeSelectedPlan.id === selectedPlanId) && (
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-primary">
-                Selected plan: <strong>{selectedPlan.name}</strong>
-                {selectedPlan.trial_days ? ` with a ${selectedPlan.trial_days}-day trial` : ""}
+                Selected plan: <strong>{activeSelectedPlan.name}</strong>
+                {activeSelectedPlan.trial_days
+                  ? ` with a ${activeSelectedPlan.trial_days}-day trial`
+                  : ""}
               </div>
             )}
+            {selectedPlanId && !activeSelectedPlan ? (
+              <Alert className="border-orange-200 bg-orange-50 text-orange-900">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Plan unavailable</AlertTitle>
+                <AlertDescription>
+                  Public signup is temporarily limited to trials that do not
+                  require card setup.
+                </AlertDescription>
+              </Alert>
+            ) : null}
           </CardHeader>
 
           <CardContent>
