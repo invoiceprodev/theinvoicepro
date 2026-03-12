@@ -26,9 +26,14 @@ export const canSendTrialEmails = (): boolean => {
 async function sendTrialEmailViaApi(input: {
   to: string;
   toName: string;
-  subject: string;
-  message: string;
-  metadata?: Record<string, string>;
+  event: "trial_started" | "trial_ending" | "subscription_activated" | "payment_failed";
+  planName: string;
+  planPrice: string;
+  trialEndDate?: string;
+  renewalDate?: string;
+  daysRemaining?: number;
+  paymentId?: string;
+  errorMessage?: string;
 }) {
   return apiRequest<{ ok: true; id: string }>("/emails/trial", {
     method: "POST",
@@ -86,14 +91,10 @@ export const sendTrialStartedEmail = async (
     await sendTrialEmailViaApi({
       to: profile.business_email,
       toName: profile.full_name || "User",
-      subject: `Welcome to Your ${plan.name} Trial!`,
-      message: `Welcome to your ${plan.name} trial! Your 14-day free trial has started and will end on ${formattedEndDate}. During your trial, you'll have full access to all features. After the trial period, your subscription will automatically convert to the Starter plan at R${plan.price.toFixed(2)}/month unless you cancel.`,
-      metadata: {
-        Plan: plan.name,
-        Price: `R${plan.price.toFixed(2)}`,
-        "Trial Ends": formattedEndDate,
-        Duration: "14 days",
-      },
+      event: "trial_started",
+      planName: plan.name,
+      planPrice: `R${plan.price.toFixed(2)}/month`,
+      trialEndDate: formattedEndDate,
     });
     console.log(`[Trial Email] Trial started email sent to ${profile.business_email}`);
     return true;
@@ -136,14 +137,11 @@ export const sendTrialEndingReminderEmail = async (
     await sendTrialEmailViaApi({
       to: profile.business_email,
       toName: profile.full_name || "User",
-      subject: `Your Trial Ends in ${daysRemaining} Days`,
-      message: `Your ${plan.name} trial is ending soon! You have ${daysRemaining} days remaining. On ${formattedEndDate}, your trial will convert to the Starter plan at R${plan.price.toFixed(2)}/month. To avoid being charged, you can cancel anytime before the trial ends.`,
-      metadata: {
-        Plan: plan.name,
-        "Days Remaining": daysRemaining.toString(),
-        "Trial Ends": formattedEndDate,
-        Price: `R${plan.price.toFixed(2)}`,
-      },
+      event: "trial_ending",
+      planName: plan.name,
+      planPrice: `R${plan.price.toFixed(2)}/month`,
+      trialEndDate: formattedEndDate,
+      daysRemaining,
     });
     console.log(`[Trial Email] Trial reminder email sent to ${profile.business_email}`);
     return true;
@@ -185,14 +183,11 @@ export const sendSubscriptionActivatedEmail = async (
     await sendTrialEmailViaApi({
       to: profile.business_email,
       toName: profile.full_name || "User",
-      subject: `Welcome to ${plan.name} Plan!`,
-      message: `Your trial has ended and your subscription to the ${plan.name} plan is now active! You've been charged R${plan.price.toFixed(2)} for your first month. Your subscription will automatically renew on ${formattedRenewalDate}. Thank you for choosing us!`,
-      metadata: {
-        Plan: plan.name,
-        Price: `R${plan.price.toFixed(2)}`,
-        "Renewal Date": formattedRenewalDate,
-        "Payment ID": paymentId || "N/A",
-      },
+      event: "subscription_activated",
+      planName: plan.name,
+      planPrice: `R${plan.price.toFixed(2)}/month`,
+      renewalDate: formattedRenewalDate,
+      paymentId,
     });
     console.log(`[Trial Email] Subscription activated email sent to ${profile.business_email}`);
     return true;
@@ -227,13 +222,10 @@ export const sendPaymentFailedEmail = async (
     await sendTrialEmailViaApi({
       to: profile.business_email,
       toName: profile.full_name || "User",
-      subject: "Action Required: Payment Failed",
-      message: `We were unable to process your payment for the ${plan.name} plan (R${plan.price.toFixed(2)}/month). Your subscription has been paused. Please update your payment method in your account settings to reactivate your subscription and continue accessing all features.`,
-      metadata: {
-        Plan: plan.name,
-        Price: `R${plan.price.toFixed(2)}`,
-        Error: errorMessage,
-      },
+      event: "payment_failed",
+      planName: plan.name,
+      planPrice: `R${plan.price.toFixed(2)}/month`,
+      errorMessage,
     });
     console.log(`[Trial Email] Payment failed email sent to ${profile.business_email}`);
     return true;

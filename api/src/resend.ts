@@ -1,4 +1,15 @@
 import { apiConfig } from "./config.js";
+import { renderEmailHtml, renderEmailText } from "./emails/render.js";
+import { createElement, type ReactElement } from "react";
+import {
+  ExpenseReceiptEmailTemplate,
+  FooterSubscriptionEmailTemplate,
+  InvoiceEmailTemplate,
+  TeamInviteEmailTemplate,
+  TestEmailTemplate,
+  TrialLifecycleEmailTemplate,
+  WelcomeEmailTemplate,
+} from "./emails/templates.js";
 
 interface ResendSendEmailPayload {
   to: string | string[];
@@ -48,21 +59,33 @@ export async function sendResendEmail(payload: ResendSendEmailPayload): Promise<
   return body as ResendSendEmailResponse;
 }
 
+async function sendReactEmail(input: {
+  to: string | string[];
+  subject: string;
+  template: ReactElement;
+  text?: string;
+  attachments?: Array<{
+    filename: string;
+    content: string;
+  }>;
+}) {
+  return sendResendEmail({
+    to: input.to,
+    subject: input.subject,
+    html: renderEmailHtml(input.template),
+    text: input.text || renderEmailText(input.template),
+    attachments: input.attachments,
+  });
+}
+
 export async function sendWelcomeEmail(input: { email: string; fullName?: string }) {
   const name = input.fullName?.trim() || "there";
 
-  return sendResendEmail({
+  return sendReactEmail({
     to: input.email,
     subject: "Welcome to InvoicePro",
     text: `Hi ${name}, welcome to InvoicePro. Your account is ready and you can now start using your dashboard.`,
-    html: `
-      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
-        <h1 style="margin-bottom: 16px;">Welcome to InvoicePro</h1>
-        <p>Hi ${escapeHtml(name)},</p>
-        <p>Your account is ready. You can now start creating invoices, managing clients, and tracking expenses in your dashboard.</p>
-        <p style="margin-top: 24px;">Thanks,<br />The InvoicePro Team</p>
-      </div>
-    `,
+    template: createElement(WelcomeEmailTemplate, { fullName: name }),
   });
 }
 
@@ -80,28 +103,11 @@ export async function sendInvoiceEmail(input: {
   includePlatformBranding?: boolean;
   pdfBase64?: string;
 }) {
-  return sendResendEmail({
+  return sendReactEmail({
     to: input.to,
     subject: `Invoice ${input.invoiceNumber} from ${input.businessName}`,
     text: `Hi ${input.toName}, your invoice ${input.invoiceNumber} for ${input.invoiceTotal} is ready. Due date: ${input.dueDate}.`,
-    html: `
-      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
-        <h1 style="margin-bottom: 16px;">Invoice ${escapeHtml(input.invoiceNumber)}</h1>
-        <p>Hi ${escapeHtml(input.toName)},</p>
-        <p>Please find your invoice details below.</p>
-        <table style="border-collapse: collapse; width: 100%; margin: 16px 0;">
-          <tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>Business</strong></td><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(input.businessName)}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>Invoice Number</strong></td><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(input.invoiceNumber)}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>Invoice Date</strong></td><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(input.invoiceDate)}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>Due Date</strong></td><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(input.dueDate)}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>Status</strong></td><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(input.invoiceStatus)}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>Total</strong></td><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(input.invoiceTotal)}</td></tr>
-        </table>
-        ${input.notes ? `<p><strong>Notes:</strong> ${escapeHtml(input.notes)}</p>` : ""}
-        ${input.businessEmail ? `<p>If you have questions, reply to ${escapeHtml(input.businessEmail)}.</p>` : ""}
-        ${input.includePlatformBranding === false ? "" : `<p style="margin-top: 24px; color: #64748b; font-size: 12px;">Sent with InvoicePro</p>`}
-      </div>
-    `,
+    template: createElement(InvoiceEmailTemplate, input),
     attachments: input.pdfBase64
       ? [
           {
@@ -125,26 +131,11 @@ export async function sendExpenseReceiptEmail(input: {
   notes?: string;
   pdfBase64?: string;
 }) {
-  return sendResendEmail({
+  return sendReactEmail({
     to: input.to,
     subject: `${input.expenseCategory} receipt from ${input.businessName}`,
     text: `Hi ${input.toName}, your ${input.expenseCategory.toLowerCase()} receipt for ${input.expenseAmount} is attached. Payment method recorded: ${input.paymentMethod}.`,
-    html: `
-      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
-        <h1 style="margin-bottom: 16px;">${escapeHtml(input.expenseCategory)} Receipt</h1>
-        <p>Hi ${escapeHtml(input.toName)},</p>
-        <p>Please find your receipt details below.</p>
-        <table style="border-collapse: collapse; width: 100%; margin: 16px 0;">
-          <tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>Business</strong></td><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(input.businessName)}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>Category</strong></td><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(input.expenseCategory)}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>Date</strong></td><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(input.expenseDate)}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>Amount</strong></td><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(input.expenseAmount)}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>Payment Method</strong></td><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(input.paymentMethod)}</td></tr>
-        </table>
-        ${input.notes ? `<p><strong>Notes:</strong> ${escapeHtml(input.notes)}</p>` : ""}
-        ${input.businessEmail ? `<p>If you have questions, reply to ${escapeHtml(input.businessEmail)}.</p>` : ""}
-      </div>
-    `,
+    template: createElement(ExpenseReceiptEmailTemplate, input),
     attachments: input.pdfBase64
       ? [
           {
@@ -163,25 +154,39 @@ export async function sendTrialLifecycleEmail(input: {
   message: string;
   metadata?: Record<string, string>;
 }) {
-  const metadataRows = Object.entries(input.metadata || {})
-    .map(
-      ([label, value]) =>
-        `<tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>${escapeHtml(label)}</strong></td><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(value)}</td></tr>`,
-    )
-    .join("");
-
-  return sendResendEmail({
+  return sendReactEmail({
     to: input.to,
     subject: input.subject,
     text: `Hi ${input.toName}, ${input.message}`,
-    html: `
-      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
-        <h1 style="margin-bottom: 16px;">${escapeHtml(input.subject)}</h1>
-        <p>Hi ${escapeHtml(input.toName)},</p>
-        <p>${escapeHtml(input.message)}</p>
-        ${metadataRows ? `<table style="border-collapse: collapse; width: 100%; margin: 16px 0;">${metadataRows}</table>` : ""}
-      </div>
-    `,
+    template: createElement(TrialLifecycleEmailTemplate, input),
+  });
+}
+
+export type TrialEmailEventType =
+  | "trial_started"
+  | "trial_ending"
+  | "subscription_activated"
+  | "payment_failed";
+
+export async function sendTrialEventEmail(input: {
+  to: string;
+  toName: string;
+  event: TrialEmailEventType;
+  planName: string;
+  planPrice: string;
+  trialEndDate?: string;
+  renewalDate?: string;
+  daysRemaining?: number;
+  paymentId?: string;
+  errorMessage?: string;
+}) {
+  const content = buildTrialEventEmailContent(input);
+  return sendTrialLifecycleEmail({
+    to: input.to,
+    toName: input.toName,
+    subject: content.subject,
+    message: content.message,
+    metadata: content.metadata,
   });
 }
 
@@ -189,27 +194,98 @@ export async function sendFooterSubscriptionEmail(input: { name: string; email: 
   const trimmedName = input.name.trim();
   const trimmedEmail = input.email.trim();
 
-  return sendResendEmail({
+  return sendReactEmail({
     to: "hello@theinvoicepro.co.za",
     subject: "New footer subscription",
     text: `A new footer subscription was submitted.\n\nName: ${trimmedName}\nEmail: ${trimmedEmail}`,
-    html: `
-      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
-        <h1 style="margin-bottom: 16px;">New footer subscription</h1>
-        <table style="border-collapse: collapse; width: 100%; margin: 16px 0;">
-          <tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>Name</strong></td><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(trimmedName)}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>Email</strong></td><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(trimmedEmail)}</td></tr>
-        </table>
-      </div>
-    `,
+    template: createElement(FooterSubscriptionEmailTemplate, {
+      name: trimmedName,
+      email: trimmedEmail,
+    }),
   });
 }
 
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+export async function sendTeamInviteEmail(input: {
+  to: string;
+  subject: string;
+  recipientName: string;
+  inviterName: string;
+  companyName: string;
+  role: string;
+  signupUrl: string;
+  existingAccount: boolean;
+}) {
+  return sendReactEmail({
+    to: input.to,
+    subject: input.subject,
+    template: createElement(TeamInviteEmailTemplate, input),
+  });
+}
+
+export async function sendTestEmail(input: { to: string }) {
+  return sendReactEmail({
+    to: input.to,
+    subject: "InvoicePro Resend test",
+    template: createElement(TestEmailTemplate),
+  });
+}
+
+function buildTrialEventEmailContent(input: {
+  event: TrialEmailEventType;
+  planName: string;
+  planPrice: string;
+  trialEndDate?: string;
+  renewalDate?: string;
+  daysRemaining?: number;
+  paymentId?: string;
+  errorMessage?: string;
+}): {
+  subject: string;
+  message: string;
+  metadata: Record<string, string>;
+} {
+  switch (input.event) {
+    case "trial_started":
+      return {
+        subject: `Welcome to Your ${input.planName} Trial!`,
+        message: `Welcome to your ${input.planName} trial. Your free trial has started and will end on ${input.trialEndDate || "the scheduled end date"}. During your trial, you'll have full access to all features. After the trial period, your subscription will automatically convert to the paid plan at ${input.planPrice} unless you cancel.`,
+        metadata: {
+          Plan: input.planName,
+          Price: input.planPrice,
+          "Trial Ends": input.trialEndDate || "N/A",
+        },
+      };
+    case "trial_ending":
+      return {
+        subject: `Your Trial Ends in ${input.daysRemaining ?? 0} Days`,
+        message: `Your ${input.planName} trial is ending soon. You have ${input.daysRemaining ?? 0} days remaining. On ${input.trialEndDate || "the scheduled end date"}, your trial will convert to the paid plan at ${input.planPrice}. To avoid being charged, cancel before the trial ends.`,
+        metadata: {
+          Plan: input.planName,
+          Price: input.planPrice,
+          "Days Remaining": String(input.daysRemaining ?? 0),
+          "Trial Ends": input.trialEndDate || "N/A",
+        },
+      };
+    case "subscription_activated":
+      return {
+        subject: `Welcome to ${input.planName} Plan!`,
+        message: `Your trial has ended and your subscription to the ${input.planName} plan is now active. Your first billing period has started at ${input.planPrice}. Your subscription will automatically renew on ${input.renewalDate || "the next renewal date"}.`,
+        metadata: {
+          Plan: input.planName,
+          Price: input.planPrice,
+          "Renewal Date": input.renewalDate || "N/A",
+          "Payment ID": input.paymentId || "N/A",
+        },
+      };
+    case "payment_failed":
+      return {
+        subject: "Action Required: Payment Failed",
+        message: `We were unable to process your payment for the ${input.planName} plan (${input.planPrice}). Your subscription has been paused. Please update your payment method in your account settings to reactivate your subscription and continue accessing all features.`,
+        metadata: {
+          Plan: input.planName,
+          Price: input.planPrice,
+          Error: input.errorMessage || "N/A",
+        },
+      };
+  }
 }

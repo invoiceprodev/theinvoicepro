@@ -9,11 +9,14 @@ import {
   sendExpenseReceiptEmail,
   sendFooterSubscriptionEmail,
   sendInvoiceEmail,
-  sendResendEmail,
+  sendTeamInviteEmail,
+  sendTestEmail,
+  sendTrialEventEmail,
   sendTrialLifecycleEmail,
   sendWelcomeEmail,
 } from "./resend.js";
 import { adminSupabase } from "./supabase.js";
+import { getEmailPreview, listEmailPreviews } from "./emails/previews.js";
 
 type AuthedRequest = Request & { user?: AuthenticatedUser };
 
@@ -34,15 +37,6 @@ function isAdminUser(user: AuthenticatedUser) {
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
 }
 
 function normalizeStoragePathSegment(value: string) {
@@ -516,6 +510,52 @@ app.get("/health", (_req, res) => {
   });
 });
 
+app.get("/emails/previews", (_req, res) => {
+  if (!apiConfig.isDevelopment) {
+    res.status(404).send("Not found");
+    return;
+  }
+
+  const items = listEmailPreviews()
+    .map(
+      (name) =>
+        `<li style="margin: 0 0 12px;"><a href="/emails/previews/${name}" style="color:#1d4ed8;text-decoration:none;">${name}</a> <span style="color:#64748b;">|</span> <a href="/emails/previews/${name}?format=text" style="color:#1d4ed8;text-decoration:none;">text</a></li>`,
+    )
+    .join("");
+
+  res.type("html").send(`<!DOCTYPE html>
+  <html>
+    <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8fafc;color:#0f172a;padding:32px;">
+      <div style="max-width:720px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:32px;">
+        <p style="margin:0 0 8px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#64748b;">Development Only</p>
+        <h1 style="margin:0 0 12px;">Email previews</h1>
+        <p style="margin:0 0 24px;color:#475569;">These routes render the same React email templates used by the API sender.</p>
+        <ul style="padding-left:20px;margin:0;">${items}</ul>
+      </div>
+    </body>
+  </html>`);
+});
+
+app.get("/emails/previews/:name", (req, res) => {
+  if (!apiConfig.isDevelopment) {
+    res.status(404).send("Not found");
+    return;
+  }
+
+  const preview = getEmailPreview(String(req.params.name || ""));
+  if (!preview) {
+    res.status(404).send("Unknown email preview");
+    return;
+  }
+
+  if (String(req.query.format || "").toLowerCase() === "text") {
+    res.type("text/plain").send(preview.text);
+    return;
+  }
+
+  res.type("html").send(preview.html);
+});
+
 app.post("/subscribe", async (req: Request, res: Response) => {
   const body = (req.body || {}) as { name?: string; email?: string };
   const name = body.name?.trim() || "";
@@ -640,7 +680,11 @@ app.post("/payfast/webhook", async (req: Request, res: Response) => {
 });
 
 app.use(async (req: AuthedRequest, res: Response, next: NextFunction) => {
-  if (req.path === "/health" || req.path === "/paystack/webhook") {
+  if (
+    req.path === "/health" ||
+    req.path === "/paystack/webhook" ||
+    (apiConfig.isDevelopment && req.path.startsWith("/emails/previews"))
+  ) {
     next();
     return;
   }
@@ -1472,20 +1516,16 @@ app.post("/settings/users", async (req: AuthedRequest, res: Response) => {
 
     if (isResendConfigured()) {
       try {
-        await sendResendEmail({
+        await sendTeamInviteEmail({
           to: email,
           subject: `${profile.company_name || "InvoicePro"} team access`,
-          text: existingProfile?.id
-            ? "You have been added to an InvoicePro workspace."
-            : "You have been invited to join an InvoicePro workspace.",
-          html: `
-            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
-              <h1 style="margin-bottom: 16px;">${existingProfile?.id ? "You were added" : "You are invited"}</h1>
-              <p>Hello ${fullName ? fullName : email},</p>
-              <p>${escapeHtml(profile.company_name || profile.full_name || "A workspace owner")} added you as a ${role} on their InvoicePro workspace.</p>
-              <p>${existingProfile?.id ? "Sign in with your existing account to continue." : `Create your account at ${escapeHtml(apiConfig.customerAppUrl)}/register using this email address to complete access setup.`}</p>
-            </div>
-          `,
+          recipientName: fullName || email,
+          inviterName:
+            profile.company_name || profile.full_name || "A workspace owner",
+          companyName: profile.company_name || "InvoicePro",
+          role,
+          signupUrl: `${apiConfig.customerAppUrl}/register`,
+          existingAccount: Boolean(existingProfile?.id),
         });
       } catch (inviteError) {
         console.warn("[API] failed to send team invite email", inviteError);
@@ -2926,12 +2966,7 @@ app.post("/emails/test", async (req: AuthedRequest, res: Response) => {
   }
 
   try {
-    const result = await sendResendEmail({
-      to: email,
-      subject: "InvoicePro Resend test",
-      text: "This is a test email from the InvoicePro API using Resend.",
-      html: "<p>This is a test email from the <strong>InvoicePro API</strong> using Resend.</p>",
-    });
+    const result = await sendTestEmail({ to: email });
 
     res.json({ ok: true, id: result.id, to: email });
   } catch (error) {
@@ -3011,24 +3046,45 @@ app.post("/emails/trial", async (req: AuthedRequest, res: Response) => {
   const body = req.body as {
     to: string;
     toName: string;
-    subject: string;
-    message: string;
+    event?: "trial_started" | "trial_ending" | "subscription_activated" | "payment_failed";
+    planName?: string;
+    planPrice?: string;
+    trialEndDate?: string;
+    renewalDate?: string;
+    daysRemaining?: number;
+    paymentId?: string;
+    errorMessage?: string;
+    subject?: string;
+    message?: string;
     metadata?: Record<string, string>;
   };
 
-  if (!body.to || !body.subject || !body.message) {
+  if (!body.to) {
     res.status(400).json({ error: "Missing required trial email fields" });
     return;
   }
 
   try {
-    const result = await sendTrialLifecycleEmail({
-      to: body.to,
-      toName: body.toName || "User",
-      subject: body.subject,
-      message: body.message,
-      metadata: body.metadata,
-    });
+    const result = body.event
+      ? await sendTrialEventEmail({
+          to: body.to,
+          toName: body.toName || "User",
+          event: body.event,
+          planName: body.planName || "InvoicePro",
+          planPrice: body.planPrice || "N/A",
+          trialEndDate: body.trialEndDate,
+          renewalDate: body.renewalDate,
+          daysRemaining: body.daysRemaining,
+          paymentId: body.paymentId,
+          errorMessage: body.errorMessage,
+        })
+      : await sendTrialLifecycleEmail({
+          to: body.to,
+          toName: body.toName || "User",
+          subject: body.subject || "InvoicePro update",
+          message: body.message || "",
+          metadata: body.metadata,
+        });
     res.json({ ok: true, id: result.id });
   } catch (error) {
     res.status(500).json({ error: error instanceof Error ? error.message : "Failed to send trial email" });
