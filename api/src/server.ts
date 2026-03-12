@@ -530,6 +530,7 @@ app.get("/emails/previews", (_req, res) => {
         <p style="margin:0 0 8px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#64748b;">Development Only</p>
         <h1 style="margin:0 0 12px;">Email previews</h1>
         <p style="margin:0 0 24px;color:#475569;">These routes render the same React email templates used by the API sender.</p>
+        <p style="margin:0 0 24px;color:#475569;">Optional query params: <code>?logoUrl=https://...</code> and <code>?format=auth0</code> for Auth0-ready HTML on supported templates.</p>
         <ul style="padding-left:20px;margin:0;">${items}</ul>
       </div>
     </body>
@@ -542,7 +543,11 @@ app.get("/emails/previews/:name", (req, res) => {
     return;
   }
 
-  const preview = getEmailPreview(String(req.params.name || ""));
+  const preview = getEmailPreview(String(req.params.name || ""), {
+    logoUrl:
+      typeof req.query.logoUrl === "string" ? req.query.logoUrl : undefined,
+    auth0: String(req.query.format || "").toLowerCase() === "auth0",
+  });
   if (!preview) {
     res.status(404).send("Unknown email preview");
     return;

@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import React, { type CSSProperties, type ReactNode } from "react";
 
 const pageStyle: CSSProperties = {
   backgroundColor: "#f8fafc",
@@ -19,10 +19,9 @@ const containerStyle: CSSProperties = {
 };
 
 const headerStyle: CSSProperties = {
-  background:
-    "linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%)",
-  color: "#ffffff",
-  padding: "32px 32px 24px",
+  backgroundColor: "#ffffff",
+  color: "#0f172a",
+  padding: "28px 32px 8px",
 };
 
 const contentStyle: CSSProperties = {
@@ -37,20 +36,23 @@ const footerStyle: CSSProperties = {
   color: "#64748b",
   fontSize: "12px",
   lineHeight: 1.6,
+  textAlign: "center",
 };
 
 const titleStyle: CSSProperties = {
-  margin: "0 0 8px",
+  margin: "18px 0 8px",
   fontSize: "28px",
   lineHeight: 1.2,
   fontWeight: 700,
+  textAlign: "center",
 };
 
 const subtitleStyle: CSSProperties = {
   margin: 0,
   fontSize: "14px",
   lineHeight: 1.6,
-  color: "rgba(255,255,255,0.86)",
+  color: "#475569",
+  textAlign: "center",
 };
 
 const paragraphStyle: CSSProperties = {
@@ -96,11 +98,41 @@ const mutedStyle: CSSProperties = {
   color: "#64748b",
 };
 
+const brandWordmarkStyle: CSSProperties = {
+  margin: 0,
+  fontSize: "32px",
+  lineHeight: 1,
+  fontWeight: 800,
+  letterSpacing: "-0.04em",
+  textAlign: "center",
+  color: "#0f172a",
+};
+
+const calloutStyle: CSSProperties = {
+  margin: "24px 0",
+  padding: "18px 20px",
+  backgroundColor: "#f8fafc",
+  border: "1px solid #dbeafe",
+  borderRadius: "12px",
+};
+
+const infoLabelStyle: CSSProperties = {
+  margin: "0 0 6px",
+  fontSize: "12px",
+  lineHeight: 1.5,
+  textTransform: "uppercase",
+  letterSpacing: "0.08em",
+  fontWeight: 700,
+  color: "#64748b",
+};
+
 type EmailLayoutProps = {
   title: string;
   preview: string;
   children: ReactNode;
   footerText?: string;
+  supportEmail?: string;
+  supportUrl?: string;
 };
 
 function EmailLayout({
@@ -108,6 +140,8 @@ function EmailLayout({
   preview,
   children,
   footerText = "Sent by The Invoice Pro",
+  supportEmail = "support@theinvoicepro.co.za",
+  supportUrl = "https://theinvoicepro.co.za",
 }: EmailLayoutProps) {
   return (
     <html>
@@ -117,9 +151,7 @@ function EmailLayout({
         </div>
         <div style={containerStyle}>
           <div style={headerStyle}>
-            <p style={{ margin: "0 0 10px", fontSize: "12px", letterSpacing: "0.12em", textTransform: "uppercase" }}>
-              The Invoice Pro
-            </p>
+            <p style={brandWordmarkStyle}>InvoicePro</p>
             <h1 style={titleStyle}>{title}</h1>
             <p style={subtitleStyle}>{preview}</p>
           </div>
@@ -127,9 +159,15 @@ function EmailLayout({
           <div style={footerStyle}>
             <p style={{ margin: "0 0 8px" }}>{footerText}</p>
             <p style={{ margin: 0 }}>
-              support@theinvoicepro.co.za
+              {supportEmail}
               <br />
-              https://theinvoicepro.co.za
+              {supportUrl}
+              <br />
+              332 Lungfish Street, Skycity,
+              <br />
+              Alberton Johannesburg,
+              <br />
+              South Africa 1449
             </p>
           </div>
         </div>
@@ -169,6 +207,71 @@ export function WelcomeEmailTemplate(input: { fullName: string }) {
       <p style={paragraphStyle}>
         We recommend starting by adding your business details, clients, and
         first invoice.
+      </p>
+    </EmailLayout>
+  );
+}
+
+export function ConfirmEmailTemplate(input: {
+  fullName: string;
+  confirmationUrl: string;
+  appName?: string;
+  logoUrl?: string;
+  supportEmail?: string;
+  supportUrl?: string;
+}) {
+  const appName = input.appName || "InvoicePro";
+
+  return (
+    <EmailLayout
+      title="Confirm your email"
+      preview="Use your secure magic link to verify your email address and activate your InvoicePro account."
+      supportEmail={input.supportEmail}
+      supportUrl={input.supportUrl}
+    >
+      <p style={paragraphStyle}>Hi {input.fullName},</p>
+      <p style={paragraphStyle}>Thanks for creating your {appName} account.</p>
+      <p style={paragraphStyle}>
+        Use the secure magic link below to confirm your email address and
+        finish activating your account.
+      </p>
+      <p style={{ margin: "24px 0" }}>
+        <a href={input.confirmationUrl} style={buttonStyle}>
+          Confirm Email Address
+        </a>
+      </p>
+      <div style={calloutStyle}>
+        <p style={infoLabelStyle}>What happens next</p>
+        <p style={{ ...paragraphStyle, marginBottom: 0 }}>
+          Once confirmed, you can sign in, complete your setup, and continue to
+          your dashboard.
+        </p>
+      </div>
+      <div
+        style={{
+          margin: "0 0 24px",
+          padding: "18px 20px",
+          borderRadius: "12px",
+          backgroundColor: "#0f172a",
+          color: "#ffffff",
+        }}
+      >
+        <p style={{ margin: "0 0 6px", fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(255,255,255,0.65)" }}>
+          Secure sign-in
+        </p>
+        <p style={{ margin: 0, fontSize: "14px", lineHeight: 1.7, color: "rgba(255,255,255,0.88)" }}>
+          This magic link is unique to your account and should only be used by
+          you.
+        </p>
+      </div>
+      <p style={paragraphStyle}>
+        If the button does not work, copy and paste this link into your browser:
+      </p>
+      <p style={{ ...paragraphStyle, wordBreak: "break-word", color: "#1d4ed8" }}>
+        {input.confirmationUrl}
+      </p>
+      <p style={paragraphStyle}>
+        If you did not create this account, you can ignore this email.
       </p>
     </EmailLayout>
   );

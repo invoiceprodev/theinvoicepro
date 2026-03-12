@@ -1,6 +1,7 @@
 import { createElement } from "react";
 import { renderEmailHtml, renderEmailText } from "./render.js";
 import {
+  ConfirmEmailTemplate,
   ExpenseReceiptEmailTemplate,
   FooterSubscriptionEmailTemplate,
   InvoiceEmailTemplate,
@@ -16,6 +17,11 @@ type PreviewDefinition = {
   text: string;
 };
 
+type PreviewOptions = {
+  logoUrl?: string;
+  auth0?: boolean;
+};
+
 function renderPreview(subject: string, template: ReturnType<typeof createElement>): PreviewDefinition {
   return {
     subject,
@@ -24,8 +30,35 @@ function renderPreview(subject: string, template: ReturnType<typeof createElemen
   };
 }
 
-export function getEmailPreview(name: string): PreviewDefinition | null {
+export function getEmailPreview(
+  name: string,
+  options: PreviewOptions = {},
+): PreviewDefinition | null {
   switch (name) {
+    case "confirm-email":
+      return renderPreview(
+        "Confirm your email",
+        createElement(ConfirmEmailTemplate, {
+          fullName: options.auth0
+            ? "{{ user.name | default: user.email | escape }}"
+            : "Jerry",
+          confirmationUrl: options.auth0 ? "{{ url }}" : "https://theinvoicepro.co.za/auth/callback?verification_token=example-token",
+          appName: options.auth0
+            ? "{{ application.name | default: friendly_name | escape }}"
+            : "InvoicePro",
+          logoUrl:
+            options.logoUrl ||
+            (options.auth0
+              ? "{{ application.metadata.logo_url }}"
+              : process.env.EMAIL_PREVIEW_LOGO_URL || undefined),
+          supportEmail: options.auth0
+            ? "{{ support_email | default: \"support@theinvoicepro.co.za\" }}"
+            : "support@theinvoicepro.co.za",
+          supportUrl: options.auth0
+            ? "{{ support_url | default: \"https://theinvoicepro.co.za\" }}"
+            : "https://theinvoicepro.co.za",
+        }),
+      );
     case "welcome":
       return renderPreview(
         "Welcome to InvoicePro",
@@ -155,6 +188,7 @@ export function getEmailPreview(name: string): PreviewDefinition | null {
 
 export function listEmailPreviews() {
   return [
+    "confirm-email",
     "welcome",
     "invoice",
     "expense-receipt",
