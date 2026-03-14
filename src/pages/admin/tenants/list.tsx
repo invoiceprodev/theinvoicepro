@@ -12,6 +12,7 @@ import { Breadcrumb } from "@/components/refine-ui/layout/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getAdminRoute } from "@/lib/admin-routing";
+import { downloadCsv } from "@/lib/csv";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -21,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Calendar, Mail, Building, Eye, ShieldBan, ShieldCheck, Trash2, Search, X } from "lucide-react";
+import { Users, Calendar, Mail, Building, Eye, ShieldBan, ShieldCheck, Trash2, Search, X, Download } from "lucide-react";
 import { toast } from "sonner";
 
 export function TenantListPage() {
@@ -256,6 +257,52 @@ export function TenantListPage() {
     setStatusFilter("all");
   };
 
+  const exportUsersAsCsv = () => {
+    if (filteredProfiles.length === 0) {
+      toast.error("There are no tenants to export.");
+      return;
+    }
+
+    const headers = [
+      "Name",
+      "Email",
+      "Company",
+      "Plan",
+      "Subscription Status",
+      "Auto Renew",
+      "Account Status",
+      "Role",
+      "Phone",
+      "Address",
+      "Registration Number",
+      "Currency",
+      "Joined",
+    ];
+
+    const rows = filteredProfiles.map((profile) => {
+      const subscription = subscriptionByUserId[profile.id];
+
+      return [
+        profile.full_name || "",
+        profile.business_email || "",
+        profile.company_name || "",
+        getPlanName(profile.id),
+        subscription?.status || "No Subscription",
+        subscription ? (subscription.auto_renew === false ? "Disabled" : "Enabled") : "N/A",
+        getEffectiveStatus(profile),
+        profile.role,
+        profile.business_phone || "",
+        profile.business_address || "",
+        profile.registration_number || "",
+        profile.currency || "",
+        profile.created_at ? new Date(profile.created_at).toLocaleDateString() : "",
+      ];
+    });
+
+    downloadCsv(`tenants_${new Date().toISOString().split("T")[0]}.csv`, headers, rows);
+    toast.success(`Exported ${filteredProfiles.length} ${filteredProfiles.length === 1 ? "tenant" : "tenants"} to CSV.`);
+  };
+
   const isLoading = profilesLoading || subscriptionsLoading || plansLoading;
 
   return (
@@ -365,6 +412,10 @@ export function TenantListPage() {
             <p className="text-muted-foreground">All registered businesses and users on the platform</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={exportUsersAsCsv} disabled={isLoading || filteredProfiles.length === 0}>
+              <Download className="mr-2 h-4 w-4" />
+              Export CSV
+            </Button>
             <RefreshButton resource="profiles" />
           </div>
         </div>
