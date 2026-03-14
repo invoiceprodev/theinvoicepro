@@ -12,6 +12,7 @@ import { ThemeProvider } from "@/components/refine-ui/theme/theme-provider";
 import { AuthProvider } from "@/contexts/auth-context";
 import { AppAuth0Provider } from "@/components/auth0-provider";
 import { BrandingFaviconSync } from "@/components/branding-favicon-sync";
+import { SeoManager } from "@/components/seo-manager";
 import { ProtectedRoute } from "@/components/protected-route";
 import { getAdminRoute, isAdminContext, isAdminHostname, stripAdminPrefix } from "@/lib/admin-routing";
 import { LayoutDashboard, FileText, Users, CreditCard, Home, ShieldCheck, Settings, Layers } from "lucide-react";
@@ -364,6 +365,7 @@ function AppRouter() {
   return (
     <AppAuth0Provider appKind={isAdmin ? "admin" : "customer"}>
       <BrandingFaviconSync />
+      <SeoManager />
       {isAdmin ? <AdminApp adminHost={adminHost} /> : <CustomerApp />}
     </AppAuth0Provider>
   );

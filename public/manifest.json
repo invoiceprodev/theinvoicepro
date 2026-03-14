@@ -1,8 +1,17 @@
 {
-  "short_name": "Refine App",
-  "name": "Refine Generated App",
-  "start_url": ".",
+  "short_name": "Invoice Pro",
+  "name": "The Invoice Pro",
+  "description": "Create invoices, manage clients, track expenses, and get paid faster with The Invoice Pro.",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "theme_color": "#0f766e",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48 32x32 16x16",
+      "type": "image/x-icon"
+    }
+  ]
 }
