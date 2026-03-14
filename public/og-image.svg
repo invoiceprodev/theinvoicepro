@@ -1,0 +1,43 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#0F172A" />
+  <rect width="1200" height="630" fill="url(#paint0_linear)" fill-opacity="0.95" />
+  <circle cx="1065" cy="117" r="204" fill="#14B8A6" fill-opacity="0.14" />
+  <circle cx="938" cy="530" r="250" fill="#38BDF8" fill-opacity="0.14" />
+  <rect x="74" y="74" width="1052" height="482" rx="28" fill="white" fill-opacity="0.06" stroke="white" stroke-opacity="0.12" />
+  <rect x="120" y="142" width="126" height="126" rx="24" fill="#14B8A6" />
+  <path d="M158 203C158 192.507 166.507 184 177 184H189.5C199.993 184 208.5 192.507 208.5 203V206.5H218C225.18 206.5 231 212.32 231 219.5V238C231 245.18 225.18 251 218 251H148C140.82 251 135 245.18 135 238V219.5C135 212.32 140.82 206.5 148 206.5H158V203Z" fill="white" />
+  <path d="M174 205.5V202C174 196.477 178.477 192 184 192H182.5C188.023 192 192.5 196.477 192.5 202V205.5H174Z" fill="#14B8A6" />
+  <text fill="white" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="56" font-weight="700" letter-spacing="0em">
+    <tspan x="285" y="198.864">The Invoice Pro</tspan>
+  </text>
+  <text fill="#CFFAFE" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="600" letter-spacing="0.16em">
+    <tspan x="286" y="239.548">SIMPLE INVOICING FOR SOUTH AFRICAN BUSINESSES</tspan>
+  </text>
+  <text fill="white" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="500" letter-spacing="0em">
+    <tspan x="121" y="340.34">Create invoices, manage clients, track expenses,</tspan>
+    <tspan x="121" y="383.34">and get paid faster with The Invoice Pro.</tspan>
+  </text>
+  <rect x="121" y="438" width="224" height="58" rx="29" fill="#14B8A6" />
+  <text fill="white" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="0em">
+    <tspan x="163" y="475.184">Start Free Trial</tspan>
+  </text>
+  <rect x="732" y="172" width="303" height="236" rx="24" fill="white" fill-opacity="0.08" stroke="white" stroke-opacity="0.15" />
+  <rect x="762" y="212" width="243" height="18" rx="9" fill="#99F6E4" fill-opacity="0.95" />
+  <rect x="762" y="250" width="182" height="14" rx="7" fill="white" fill-opacity="0.88" />
+  <rect x="762" y="281" width="220" height="14" rx="7" fill="white" fill-opacity="0.72" />
+  <rect x="762" y="312" width="203" height="14" rx="7" fill="white" fill-opacity="0.56" />
+  <rect x="762" y="352" width="112" height="26" rx="13" fill="#14B8A6" />
+  <rect x="880" y="352" width="92" height="26" rx="13" fill="white" fill-opacity="0.14" />
+  <rect x="848" y="433" width="214" height="55" rx="20" fill="white" fill-opacity="0.08" />
+  <text fill="#E2E8F0" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="600" letter-spacing="0em">
+    <tspan x="892" y="468.456">Invoices, clients,</tspan>
+    <tspan x="894" y="493.456">expenses, compliance</tspan>
+  </text>
+  <defs>
+    <linearGradient id="paint0_linear" x1="64" y1="53" x2="1094.5" y2="636.5" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F766E" />
+      <stop offset="0.5" stop-color="#155E75" />
+      <stop offset="1" stop-color="#0F172A" />
+    </linearGradient>
+  </defs>
+</svg>
