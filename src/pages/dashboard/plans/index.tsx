@@ -290,7 +290,20 @@ export function PlansPage() {
           const isPopular = !!(plan.is_popular || plan.isPopular);
           const requiresCard = planRequiresCard(plan);
           const autoRenew = !!plan.auto_renew;
+          const canStartPlan = canStartTrialWithoutCard(plan);
           const isCurrentPlan = subscription?.plan_id === plan.id && getCurrentSubscriptionState(subscription) !== "expired";
+          const isPlanInactive = !isCurrentPlan && !canStartPlan;
+          const ctaLabel = isCurrentPlan
+            ? "Current Plan"
+            : isPlanInactive
+              ? "Coming Soon"
+              : subscription
+                ? subscriptionActionLoading === "change"
+                  ? "Updating..."
+                  : "Change Plan"
+                : subscriptionActionLoading === "start" && canStartPlan
+                  ? "Starting trial..."
+                  : getPlanCta(plan);
 
           return (
             <Card
@@ -325,10 +338,26 @@ export function PlansPage() {
                   </span>
                   <span className="text-sm text-muted-foreground"> / {plan.billing_cycle}</span>
                 </div>
+                {(trialDays > 0 || requiresCard) && (
+                  <div className="pt-1">
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-xs font-normal",
+                        canStartPlan ? "border-green-600 text-green-700" : "border-orange-500 text-orange-600",
+                      )}>
+                      {canStartPlan
+                        ? `${trialDays}-day trial available`
+                        : requiresCard
+                          ? "Card-required signup temporarily unavailable"
+                          : "Paid signup temporarily unavailable"}
+                    </Badge>
+                  </div>
+                )}
                 {requiresCard && (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-                    Card required via {paymentProviderLabel}.
-                    {trialDays > 0 && autoRenew
+                    {isPlanInactive ? "This plan is temporarily inactive in the dashboard." : `Card required via ${paymentProviderLabel}.`}
+                    {!isPlanInactive && trialDays > 0 && autoRenew
                       ? ` Starts with a ${trialDays}-day trial, then auto-renews unless cancelled before renewal.`
                       : ""}
                   </div>
@@ -350,6 +379,9 @@ export function PlansPage() {
                   className="w-full"
                   variant={isPopular ? "default" : "outline"}
                   onClick={() => {
+                    if (isPlanInactive) {
+                      return;
+                    }
                     if (!subscription && canStartTrialWithoutCard(plan)) {
                       void handleStartTrialWithoutCard(plan);
                       return;
@@ -370,16 +402,8 @@ export function PlansPage() {
                     }
                     openPlanDialog(plan);
                   }}
-                  disabled={isCurrentPlan || subscriptionActionLoading !== null}>
-                  {isCurrentPlan
-                    ? "Current Plan"
-                    : subscription
-                      ? subscriptionActionLoading === "change"
-                        ? "Updating..."
-                        : "Change Plan"
-                      : subscriptionActionLoading === "start" && canStartTrialWithoutCard(plan)
-                        ? "Starting trial..."
-                        : getPlanCta(plan)}
+                  disabled={isCurrentPlan || isPlanInactive || subscriptionActionLoading !== null}>
+                  {ctaLabel}
                 </Button>
               </CardContent>
             </Card>
