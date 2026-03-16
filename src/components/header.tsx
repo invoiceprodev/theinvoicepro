@@ -3,24 +3,35 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 
 const navigationLinks = [
-  { name: "Home", href: "#home" },
-  { name: "Pricing", href: "#pricing" },
-  { name: "Features", href: "#features" },
-  { name: "Contact", href: "#contact" },
+  { name: "Home", href: "/#home", type: "section" },
+  { name: "Pricing", href: "/#pricing", type: "section" },
+  { name: "About Us", href: "/about", type: "route" },
+  { name: "Services", href: "/services", type: "route" },
+  { name: "Blog", href: "/blog", type: "route" },
+  { name: "Features", href: "/#features", type: "section" },
+  { name: "Contact", href: "/#contact", type: "section" },
 ];
 
 export const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const location = useLocation();
 
   const handleNavClick = (href: string) => {
     setIsOpen(false);
-    // Smooth scroll to section
-    const element = document.querySelector(href);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    if (!href.startsWith("/#")) {
+      return;
+    }
+
+    const hash = href.slice(1);
+    if (location.pathname === "/") {
+      const element = document.querySelector(hash);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
     }
   };
 
@@ -30,30 +41,32 @@ export const Header = () => {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <div className="flex items-center">
-            <a
-              href="#home"
-              onClick={(e) => {
-                e.preventDefault();
-                handleNavClick("#home");
-              }}
+            <Link
+              to="/"
               className="text-xl md:text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent transition-all duration-300 hover:scale-105 hover:from-primary/90 hover:to-primary/50 active:scale-95">
               InvoicePro
-            </a>
+            </Link>
           </div>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-6">
             {navigationLinks.map((link) => (
-              <a
-                key={link.name}
-                href={link.href}
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleNavClick(link.href);
-                }}
-                className="text-sm font-medium text-muted-foreground hover:text-primary transition-all duration-300 relative after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-primary after:transition-all after:duration-300 hover:after:w-full active:scale-95">
-                {link.name}
-              </a>
+              link.type === "route" ? (
+                <Link
+                  key={link.name}
+                  to={link.href}
+                  className="text-sm font-medium text-muted-foreground hover:text-primary transition-all duration-300 relative after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-primary after:transition-all after:duration-300 hover:after:w-full active:scale-95">
+                  {link.name}
+                </Link>
+              ) : (
+                <a
+                  key={link.name}
+                  href={link.href}
+                  onClick={() => handleNavClick(link.href)}
+                  className="text-sm font-medium text-muted-foreground hover:text-primary transition-all duration-300 relative after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-primary after:transition-all after:duration-300 hover:after:w-full active:scale-95">
+                  {link.name}
+                </a>
+              )
             ))}
           </nav>
 
@@ -99,33 +112,57 @@ export const Header = () => {
                 {/* Mobile Navigation Links */}
                 <nav className="flex flex-col gap-1">
                   {navigationLinks.map((link, index) => (
-                    <a
-                      key={link.name}
-                      href={link.href}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleNavClick(link.href);
-                      }}
-                      className={cn(
-                        "group text-lg font-medium text-foreground/80 hover:text-primary",
-                        "transition-all duration-300 py-3 px-4 rounded-lg",
-                        "hover:bg-primary/5 hover:translate-x-1",
-                        "active:scale-95",
-                      )}
-                      style={{
-                        animation: isOpen ? `slideInFromRight 0.3s ease-out ${index * 0.1}s backwards` : "none",
-                      }}>
-                      <span className="flex items-center justify-between">
-                        {link.name}
-                        <svg
-                          className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </span>
-                    </a>
+                    link.type === "route" ? (
+                      <Link
+                        key={link.name}
+                        to={link.href}
+                        onClick={() => setIsOpen(false)}
+                        className={cn(
+                          "group text-lg font-medium text-foreground/80 hover:text-primary",
+                          "transition-all duration-300 py-3 px-4 rounded-lg",
+                          "hover:bg-primary/5 hover:translate-x-1",
+                          "active:scale-95",
+                        )}
+                        style={{
+                          animation: isOpen ? `slideInFromRight 0.3s ease-out ${index * 0.1}s backwards` : "none",
+                        }}>
+                        <span className="flex items-center justify-between">
+                          {link.name}
+                          <svg
+                            className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </span>
+                      </Link>
+                    ) : (
+                      <a
+                        key={link.name}
+                        href={link.href}
+                        onClick={() => handleNavClick(link.href)}
+                        className={cn(
+                          "group text-lg font-medium text-foreground/80 hover:text-primary",
+                          "transition-all duration-300 py-3 px-4 rounded-lg",
+                          "hover:bg-primary/5 hover:translate-x-1",
+                          "active:scale-95",
+                        )}
+                        style={{
+                          animation: isOpen ? `slideInFromRight 0.3s ease-out ${index * 0.1}s backwards` : "none",
+                        }}>
+                        <span className="flex items-center justify-between">
+                          {link.name}
+                          <svg
+                            className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </span>
+                      </a>
+                    )
                   ))}
                 </nav>
 

@@ -42,6 +42,10 @@ import CardSetupSuccess from "./pages/auth/card-setup-success";
 import { AuthCallbackPage, PublicOnlyRoute } from "@/pages/auth/callback";
 import { PricingPage } from "@/pages/services/pricing";
 import { SignupPage } from "@/pages/services/signup";
+import { AboutPage } from "@/pages/about/index";
+import { ServicesPage } from "@/pages/services/index";
+import { BlogPage } from "@/pages/blog/index";
+import { BlogArticlePage } from "@/pages/blog/article";
 import { PrivacyPolicyPage } from "@/pages/legal/privacy";
 import { TermsOfServicePage } from "@/pages/legal/terms";
 import { RefundPolicyPage } from "@/pages/legal/refund-policy";
@@ -272,12 +276,16 @@ function CustomerApp() {
           ]}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/services" element={<ServicesPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="/terms" element={<TermsOfServicePage />} />
             <Route path="/refund-policy" element={<RefundPolicyPage />} />
             <Route path="/cookie-policy" element={<CookiePolicyPage />} />
             <Route path="/acceptable-use" element={<AcceptableUsePolicyPage />} />
+            <Route path="/blog" element={<BlogPage />} />
+            <Route path="/blog/:slug" element={<BlogArticlePage />} />
             <Route path="/services/pricing" element={<PricingPage />} />
             <Route path="/services/signup" element={<SignupPage />} />
 
