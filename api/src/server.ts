@@ -5,6 +5,12 @@ import { verifyAccessToken, type AuthenticatedUser } from "./auth.js";
 import { buildTrialSubscriptionCheckout, verifyPayFastSignature } from "./payfast.js";
 import { initializePaystackSubscriptionCheckout, isPaystackConfigured, verifyPaystackTransaction, verifyPaystackWebhookSignature } from "./paystack.js";
 import {
+  getPayPalSubscriptionDetails,
+  initializePayPalSubscriptionCheckout,
+  isPayPalConfigured,
+  verifyPayPalWebhookSignature,
+} from "./paypal.js";
+import {
   isResendConfigured,
   sendExpenseReceiptEmail,
   sendFooterSubscriptionEmail,
@@ -490,6 +496,97 @@ async function applyPaystackChargeToSubscription(input: {
   return { subscription: updatedSubscription, paymentId };
 }
 
+async function recordPayPalSubscriptionPayment(input: {
+  subscriptionId: string;
+  userId: string;
+  amount: number;
+  currency: string;
+  reference: string;
+  status: "completed" | "failed";
+}) {
+  const { data: existingPayment } = await adminSupabase
+    .from("payments")
+    .select("id")
+    .eq("subscription_id", input.subscriptionId)
+    .eq("transaction_reference", input.reference)
+    .maybeSingle();
+
+  if (existingPayment?.id) {
+    return existingPayment.id;
+  }
+
+  const { data: payment, error } = await adminSupabase
+    .from("payments")
+    .insert({
+      subscription_id: input.subscriptionId,
+      user_id: input.userId,
+      amount: input.amount,
+      currency: input.currency || "ZAR",
+      payment_method: "paypal",
+      status: input.status,
+      transaction_reference: input.reference,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to record PayPal payment: ${error.message}`);
+  }
+
+  return payment?.id || null;
+}
+
+async function applyPayPalSubscriptionAuthorization(input: {
+  subscriptionId: string;
+  paypalSubscriptionId: string;
+  amount?: number | null;
+  currency?: string | null;
+  recordPayment?: boolean;
+}) {
+  const { data: subscription, error: subscriptionError } = await adminSupabase
+    .from("subscriptions")
+    .select("*")
+    .eq("id", input.subscriptionId)
+    .single();
+
+  if (subscriptionError || !subscription?.id) {
+    throw new Error(subscriptionError?.message || "Subscription not found for PayPal authorization");
+  }
+
+  const updatePayload: Record<string, unknown> = {
+    subscription_token: input.paypalSubscriptionId,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (subscription.status !== "trial") {
+    updatePayload.status = "active";
+  }
+
+  const { data: updatedSubscription, error: updateError } = await adminSupabase
+    .from("subscriptions")
+    .update(updatePayload)
+    .eq("id", subscription.id)
+    .select("*")
+    .single();
+
+  if (updateError || !updatedSubscription?.id) {
+    throw new Error(updateError?.message || "Failed to update subscription with PayPal authorization");
+  }
+
+  if (input.recordPayment && Number(input.amount || 0) > 0) {
+    await recordPayPalSubscriptionPayment({
+      subscriptionId: subscription.id,
+      userId: subscription.user_id,
+      amount: Number(input.amount || 0),
+      currency: input.currency || "ZAR",
+      reference: input.paypalSubscriptionId,
+      status: "completed",
+    });
+  }
+
+  return { subscription: updatedSubscription };
+}
+
 app.use(
   cors({
     origin: [apiConfig.customerAppUrl, apiConfig.adminAppUrl],
@@ -498,6 +595,7 @@ app.use(
 );
 app.use("/paystack/webhook", express.raw({ type: "application/json" }));
 app.use("/payfast/webhook", express.urlencoded({ extended: false }));
+app.use("/paypal/webhook", express.json({ limit: "1mb" }));
 app.use(express.json({ limit: "5mb" }));
 
 app.get("/health", (_req, res) => {
@@ -685,10 +783,64 @@ app.post("/payfast/webhook", async (req: Request, res: Response) => {
   }
 });
 
+app.post("/paypal/webhook", async (req: Request, res: Response) => {
+  const payload = (req.body || {}) as Record<string, unknown>;
+
+  try {
+    const valid = await verifyPayPalWebhookSignature({
+      headers: {
+        transmissionId: req.headers["paypal-transmission-id"]?.toString() || null,
+        transmissionTime: req.headers["paypal-transmission-time"]?.toString() || null,
+        transmissionSig: req.headers["paypal-transmission-sig"]?.toString() || null,
+        certUrl: req.headers["paypal-cert-url"]?.toString() || null,
+        authAlgo: req.headers["paypal-auth-algo"]?.toString() || null,
+      },
+      body: payload,
+    });
+
+    if (!valid) {
+      res.status(400).send("Invalid signature");
+      return;
+    }
+
+    const eventType = typeof payload.event_type === "string" ? payload.event_type : "";
+    const resource = (payload.resource || {}) as Record<string, unknown>;
+    const paypalSubscriptionId =
+      typeof resource.id === "string"
+        ? resource.id
+        : typeof resource.billing_agreement_id === "string"
+          ? resource.billing_agreement_id
+          : typeof resource.subscription_id === "string"
+            ? resource.subscription_id
+            : "";
+
+    if (!paypalSubscriptionId) {
+      res.status(200).send("OK");
+      return;
+    }
+
+    if (eventType.startsWith("BILLING.SUBSCRIPTION.")) {
+      const details = await getPayPalSubscriptionDetails(paypalSubscriptionId);
+      if (details.custom_id) {
+        await applyPayPalSubscriptionAuthorization({
+          subscriptionId: details.custom_id,
+          paypalSubscriptionId: details.id,
+        });
+      }
+    }
+
+    res.status(200).send("OK");
+  } catch (error) {
+    console.error("[PayPal webhook] processing failed", error);
+    res.status(200).send("OK");
+  }
+});
+
 app.use(async (req: AuthedRequest, res: Response, next: NextFunction) => {
   if (
     req.path === "/health" ||
     req.path === "/paystack/webhook" ||
+    req.path === "/paypal/webhook" ||
     (apiConfig.isDevelopment && req.path.startsWith("/emails/previews"))
   ) {
     next();
@@ -1781,7 +1933,7 @@ app.post("/subscription/change-plan", async (req: AuthedRequest, res: Response) 
     }
 
     const hasReusableBillingAuthorization = Boolean(
-      subscription.payfast_token || subscription.paystack_authorization_code,
+      subscription.payfast_token || subscription.paystack_authorization_code || subscription.subscription_token,
     );
 
     if (Boolean(plan.requires_card) && !hasReusableBillingAuthorization) {
@@ -2682,6 +2834,160 @@ app.post("/subscriptions/:id/paystack-checkout", async (req: AuthedRequest, res:
   } catch (error) {
     console.error("[API] failed to initialize Paystack checkout", error);
     res.status(500).json({ error: getErrorMessage(error, "Failed to initialize Paystack checkout") });
+  }
+});
+
+app.post("/subscriptions/:id/paypal-checkout", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+  const body = (req.body || {}) as { planId?: string };
+
+  if (!isPayPalConfigured()) {
+    res.status(500).json({ error: "PayPal is not configured on the API." });
+    return;
+  }
+
+  try {
+    const requesterProfile = await getProfileForUser(user);
+    const isAdmin = isAdminUser(user);
+
+    let subscriptionQuery = adminSupabase.from("subscriptions").select("*").eq("id", req.params.id);
+    if (!isAdmin) {
+      subscriptionQuery = subscriptionQuery.eq("user_id", requesterProfile.id);
+    }
+
+    const { data: subscription, error: subscriptionError } = await subscriptionQuery.single();
+    if (subscriptionError || !subscription?.id) {
+      res.status(subscriptionError?.code === "PGRST116" ? 404 : 500).json({
+        error: subscriptionError?.message || "Subscription not found",
+      });
+      return;
+    }
+
+    const { data: plan, error: planError } = await adminSupabase
+      .from("plans")
+      .select("*")
+      .eq("id", body.planId || subscription.plan_id)
+      .single();
+
+    if (planError || !plan?.id) {
+      res.status(planError?.code === "PGRST116" ? 404 : 500).json({
+        error: planError?.message || "Plan not found for subscription",
+      });
+      return;
+    }
+
+    const { data: ownerProfile, error: ownerProfileError } = await adminSupabase
+      .from("profiles")
+      .select("*")
+      .eq("id", subscription.user_id)
+      .single();
+
+    if (ownerProfileError || !ownerProfile?.id || !ownerProfile.business_email) {
+      res.status(ownerProfileError?.code === "PGRST116" ? 404 : 500).json({
+        error: ownerProfileError?.message || "Subscription owner profile email is required",
+      });
+      return;
+    }
+
+    const checkout = await initializePayPalSubscriptionCheckout({
+      email: ownerProfile.business_email,
+      fullName: ownerProfile.full_name || "Customer",
+      amount: Number(plan.price || 0),
+      currency: String(plan.currency || "ZAR"),
+      subscriptionId: subscription.id,
+      planId: plan.id,
+      planName: String(plan.name || "InvoicePro"),
+      userId: ownerProfile.id,
+      trialDays: Number(plan.trial_days || 0),
+      billingCycle: plan.billing_cycle === "yearly" ? "yearly" : "monthly",
+    });
+
+    res.json({
+      data: {
+        provider: "paypal",
+        approvalUrl: checkout.approvalUrl,
+        paypalSubscriptionId: checkout.paypalSubscriptionId,
+      },
+    });
+  } catch (error) {
+    console.error("[API] failed to initialize PayPal checkout", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to initialize PayPal checkout") });
+  }
+});
+
+app.post("/subscriptions/:id/paypal-verify", async (req: AuthedRequest, res: Response) => {
+  const user = req.user!;
+  const body = (req.body || {}) as { paypalSubscriptionId?: string; planId?: string | null };
+
+  if (!body.paypalSubscriptionId) {
+    res.status(400).json({ error: "paypalSubscriptionId is required" });
+    return;
+  }
+
+  try {
+    const profile = await getProfileForUser(user);
+    const isAdmin = isAdminUser(user);
+
+    let subscriptionQuery = adminSupabase.from("subscriptions").select("*").eq("id", req.params.id);
+    if (!isAdmin) {
+      subscriptionQuery = subscriptionQuery.eq("user_id", profile.id);
+    }
+
+    const { data: subscription, error: subscriptionError } = await subscriptionQuery.single();
+    if (subscriptionError || !subscription?.id) {
+      res.status(subscriptionError?.code === "PGRST116" ? 404 : 500).json({
+        error: subscriptionError?.message || "Subscription not found",
+      });
+      return;
+    }
+
+    const details = await getPayPalSubscriptionDetails(body.paypalSubscriptionId);
+    if (details.custom_id && details.custom_id !== subscription.id) {
+      res.status(400).json({ error: "PayPal subscription does not match this subscription" });
+      return;
+    }
+
+    if (body.planId) {
+      const { data: plan, error: planError } = await adminSupabase
+        .from("plans")
+        .select("*")
+        .eq("id", body.planId)
+        .eq("is_active", true)
+        .single();
+
+      if (planError || !plan?.id) {
+        res.status(404).json({ error: planError?.message || "Selected plan not found" });
+        return;
+      }
+
+      const { error: updatePlanError } = await adminSupabase
+        .from("subscriptions")
+        .update({
+          plan_id: plan.id,
+          auto_renew: Boolean(plan.auto_renew),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", subscription.id);
+
+      if (updatePlanError) {
+        res.status(500).json({ error: updatePlanError.message });
+        return;
+      }
+    }
+
+    const { data: activePlan } = await adminSupabase.from("plans").select("*").eq("id", body.planId || subscription.plan_id).maybeSingle();
+    const result = await applyPayPalSubscriptionAuthorization({
+      subscriptionId: subscription.id,
+      paypalSubscriptionId: details.id,
+      amount: Number(activePlan?.price || 0),
+      currency: String(activePlan?.currency || "ZAR"),
+      recordPayment: subscription.status !== "trial",
+    });
+
+    res.json({ data: result.subscription });
+  } catch (error) {
+    console.error("[API] failed to verify PayPal subscription", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to verify PayPal subscription") });
   }
 });
 

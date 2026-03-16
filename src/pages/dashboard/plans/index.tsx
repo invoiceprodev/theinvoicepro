@@ -61,7 +61,9 @@ export function PlansPage() {
   }, [result?.data]);
   const plansErrorMessage =
     query.error instanceof Error ? query.error.message : "Failed to load subscription plans from the live catalog.";
-  const hasSavedPaymentMethod = Boolean(subscription?.payfast_token || subscription?.paystack_authorization_code);
+  const hasSavedPaymentMethod = Boolean(
+    subscription?.payfast_token || subscription?.paystack_authorization_code || subscription?.subscription_token,
+  );
 
   function openPlanDialog(plan: Plan) {
     setSelectedPlanCheckout(plan);

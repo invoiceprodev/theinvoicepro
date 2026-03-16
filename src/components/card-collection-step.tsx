@@ -21,11 +21,13 @@ interface CardCollectionStepProps {
 export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCollectionStepProps) => {
   const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingProvider, setProcessingProvider] = useState<"paystack" | "payfast" | "paypal" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [subscriptionCreated, setSubscriptionCreated] = useState(false);
   const [debugPayload, setDebugPayload] = useState<Record<string, string | boolean> | null>(null);
   const [debugUrl, setDebugUrl] = useState<string | null>(null);
   const paymentProvider = (import.meta.env.VITE_PAYMENT_PROVIDER || "paystack").toLowerCase();
+  const hasPayPalOption = Boolean(import.meta.env.VITE_PAYPAL_CLIENT_ID);
   const showPayFastDebug = import.meta.env.DEV;
   const allowTrialBypass = canStartTrialWithoutCard(plan);
 
@@ -49,8 +51,16 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
     return subscription;
   };
 
-  const handleSetupCard = async () => {
+  const getProviderLabel = (provider: string) => {
+    if (provider === "paypal") return "PayPal";
+    if (provider === "paystack") return "Paystack";
+    return "PayFast";
+  };
+
+  const handleSetupCard = async (providerOverride?: "paystack" | "payfast" | "paypal") => {
+    const provider = providerOverride || (paymentProvider as "paystack" | "payfast");
     setIsProcessing(true);
+    setProcessingProvider(provider);
     setError(null);
     setDebugUrl(null);
 
@@ -59,7 +69,22 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
 
       setSubscriptionCreated(true);
 
-      if (paymentProvider === "paystack") {
+      if (provider === "paypal") {
+        const payment = await apiRequest<{
+          data: {
+            approvalUrl: string;
+            paypalSubscriptionId: string;
+          };
+        }>(`/subscriptions/${subscription.id}/paypal-checkout`, {
+          method: "POST",
+          body: JSON.stringify({ planId: plan.id }),
+        });
+
+        window.location.href = payment.data.approvalUrl;
+        return;
+      }
+
+      if (provider === "paystack") {
         const payment = await apiRequest<{
           data: {
             authorizationUrl: string;
@@ -95,6 +120,7 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to set up card authorization. Please try again.");
       setIsProcessing(false);
+      setProcessingProvider(null);
     }
   };
 
@@ -162,7 +188,7 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
                 <CheckCircle2 className="w-8 h-8 text-green-600" />
               </div>
             </div>
-            <CardTitle>Redirecting to {paymentProvider === "paystack" ? "Paystack" : "PayFast"}</CardTitle>
+            <CardTitle>Redirecting to {getProviderLabel(processingProvider || paymentProvider)}</CardTitle>
             <CardDescription>We are opening secure card setup for your {plan.name} plan.</CardDescription>
           </CardHeader>
         </Card>
@@ -222,7 +248,7 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
                       </p>
                       {plan.auto_renew && (
                         <p className="text-xs text-muted-foreground mt-2">
-                          This trial auto-renews through {paymentProvider === "paystack" ? "Paystack" : "PayFast"} after the trial period.
+                          This trial auto-renews through {getProviderLabel(processingProvider || paymentProvider)} after the trial period.
                         </p>
                       )}
                     </>
@@ -244,7 +270,7 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
               <Alert>
                 <AlertTitle>No card required for this trial</AlertTitle>
                 <AlertDescription>
-                  Starter/Trial can begin immediately without card setup. The {paymentProvider === "paystack" ? "Paystack" : "PayFast"} flow
+                  Starter/Trial can begin immediately without card setup. The {getProviderLabel(processingProvider || paymentProvider)} flow
                   remains available below if you still want to attach billing details now.
                 </AlertDescription>
               </Alert>
@@ -253,12 +279,12 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
             <div className="flex items-start gap-3 text-xs text-muted-foreground">
               <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <p>
-                Your payment information is securely processed by {paymentProvider === "paystack" ? "Paystack" : "PayFast"}. We never
+                Your payment information is securely processed by {getProviderLabel(processingProvider || paymentProvider)}. We never
                 store your card details on our servers.
               </p>
             </div>
 
-            {paymentProvider === "payfast" && showPayFastDebug && debugPayload ? (
+            {(processingProvider || paymentProvider) === "payfast" && showPayFastDebug && debugPayload ? (
               <div className="rounded-lg border bg-muted/40 p-4 text-xs">
                 <p className="font-semibold text-foreground mb-2">PayFast debug payload</p>
                 <div className="grid gap-1 text-muted-foreground">
@@ -280,21 +306,39 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
           </CardContent>
 
           <CardFooter className="flex flex-col gap-3">
+            {hasPayPalOption ? (
+              <div className="grid w-full grid-cols-2 gap-3">
+                <Button
+                  onClick={() => void handleSetupCard("paystack")}
+                  disabled={isProcessing}
+                  size="lg"
+                  variant="outline"
+                  className="w-full">
+                  {isProcessing && processingProvider === "paystack" ? "Redirecting..." : "Continue to Paystack"}
+                </Button>
+                <Button onClick={() => void handleSetupCard("paypal")} disabled={isProcessing} size="lg" className="w-full">
+                  {isProcessing && processingProvider === "paypal" ? "Redirecting..." : "Continue to PayPal"}
+                </Button>
+              </div>
+            ) : null}
+
             {allowTrialBypass && trialDays > 0 ? (
               <Button onClick={handleActivateTrialBypass} disabled={isProcessing} size="lg" className="w-full">
                 {isProcessing ? "Starting trial..." : "Start Trial"}
               </Button>
             ) : null}
 
-            <Button onClick={handleSetupCard} disabled={isProcessing} size="lg" className="w-full">
-              {isProcessing
-                ? `Redirecting to ${paymentProvider === "paystack" ? "Paystack" : "PayFast"}...`
+            {!hasPayPalOption ? (
+              <Button onClick={() => void handleSetupCard()} disabled={isProcessing} size="lg" className="w-full">
+                {isProcessing
+                ? `Redirecting to ${getProviderLabel(processingProvider || paymentProvider)}...`
                 : trialDays > 0
                   ? "Start Trial With Card"
-                  : `Continue to ${paymentProvider === "paystack" ? "Paystack" : "PayFast"}`}
-            </Button>
+                  : `Continue to ${getProviderLabel(processingProvider || paymentProvider)}`}
+              </Button>
+            ) : null}
 
-            {paymentProvider === "payfast" && showPayFastDebug ? (
+            {(processingProvider || paymentProvider) === "payfast" && showPayFastDebug ? (
               <Button onClick={handleInspectPayload} variant="outline" size="sm" className="w-full" disabled={isProcessing}>
                 Inspect PayFast Payload
               </Button>
@@ -305,7 +349,7 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
             </Button>
 
             <p className="text-xs text-center text-muted-foreground">
-              By continuing, you authorise {paymentProvider === "paystack" ? "Paystack" : "PayFast"} to set up recurring billing
+              By continuing, you authorise {getProviderLabel(processingProvider || paymentProvider)} to set up recurring billing
               {trialDays > 0 ? ` after your ${trialDays}-day trial` : ""}.
             </p>
           </CardFooter>

@@ -77,10 +77,8 @@ const trustedByLogos = [
 ];
 
 const paymentMethods = [
-  { name: "PayPal", color: "bg-blue-600" },
-  { name: "Stripe", color: "bg-purple-600" },
   { name: "Paystack", color: "bg-emerald-600" },
-  { name: "PayFast", color: "bg-orange-600" },
+  { name: "PayPal", color: "bg-blue-600" },
 ];
 
 const currencySymbols: Record<string, string> = {

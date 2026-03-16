@@ -35,9 +35,10 @@ export default function CardSetupSuccess() {
 
     const processCardSetup = async () => {
       try {
-        const subscriptionId = searchParams.get("subscription_id");
+        const subscriptionId = searchParams.get("app_subscription_id") || searchParams.get("subscription_id");
         const payfastToken = searchParams.get("token");
         const paystackReference = searchParams.get("reference");
+        const paypalSubscriptionId = searchParams.get("subscription_id");
         const provider = (searchParams.get("provider") || import.meta.env.VITE_PAYMENT_PROVIDER || "paystack").toLowerCase();
         const selectedPlan = getSelectedPlanCheckout();
 
@@ -58,6 +59,20 @@ export default function CardSetupSuccess() {
             method: "POST",
             body: JSON.stringify({
               reference: paystackReference,
+              planId: selectedPlan?.id || searchParams.get("plan_id") || null,
+            }),
+          });
+        } else if (provider === "paypal") {
+          if (!paypalSubscriptionId) {
+            setStatus("error");
+            setMessage("Missing PayPal subscription ID. Please try again.");
+            return;
+          }
+
+          await apiRequest(`/subscriptions/${subscriptionId}/paypal-verify`, {
+            method: "POST",
+            body: JSON.stringify({
+              paypalSubscriptionId,
               planId: selectedPlan?.id || searchParams.get("plan_id") || null,
             }),
           });

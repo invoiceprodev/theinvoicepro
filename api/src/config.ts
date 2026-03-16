@@ -45,6 +45,11 @@ export const apiConfig = {
   paystackSecretKey: process.env.PAYSTACK_SECRET_KEY || "",
   paystackWebhookSecret: process.env.PAYSTACK_WEBHOOK_SECRET || process.env.PAYSTACK_SECRET_KEY || "",
   paystackCallbackUrl: process.env.PAYSTACK_CALLBACK_URL || "",
+  paypalClientId: process.env.PAYPAL_CLIENT_ID || "",
+  paypalClientSecret: process.env.PAYPAL_CLIENT_SECRET || "",
+  paypalWebhookId: process.env.PAYPAL_WEBHOOK_ID || "",
+  paypalMode: (process.env.PAYPAL_MODE || "sandbox").toLowerCase(),
+  paypalCallbackUrl: process.env.PAYPAL_CALLBACK_URL || "",
   supabaseBrandingBucket: process.env.SUPABASE_BRANDING_BUCKET || "company-branding",
   trialBypassEnabled:
     (process.env.NODE_ENV !== "production") &&

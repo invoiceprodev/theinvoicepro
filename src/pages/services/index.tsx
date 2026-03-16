@@ -26,7 +26,7 @@ const services = [
   },
   {
     title: "Subscription Billing",
-    description: "Run card-required subscription flows and recurring billing through PayFast with clearer plan controls.",
+    description: "Run card-required subscription flows and recurring billing through Paystack, with PayPal available as a supported payment option.",
     outcome: "A cleaner recurring revenue workflow for paid plans and renewals.",
     icon: CreditCard,
   },

@@ -235,7 +235,7 @@ export function getCurrentSubscriptionState(subscription?: Subscription | null):
     const planName = String(subscription.plan?.name || "").toLowerCase();
     const starterStylePlan = planName.includes("starter") || planName.includes("trial") || planName === "basic";
     const canRunTrialWithoutCard = Boolean(subscription.plan?.trial_days) && starterStylePlan;
-    return subscription.payfast_token || subscription.paystack_authorization_code || canRunTrialWithoutCard
+    return subscription.payfast_token || subscription.paystack_authorization_code || subscription.subscription_token || canRunTrialWithoutCard
       ? "trial_active"
       : "trial_pending";
   }
