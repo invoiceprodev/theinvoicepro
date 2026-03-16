@@ -36,7 +36,7 @@ export default function CardSetupSuccess() {
     const processCardSetup = async () => {
       try {
         const subscriptionId = searchParams.get("subscription_id");
-        const payfastToken = searchParams.get("token") || searchParams.get("pf_payment_id");
+        const payfastToken = searchParams.get("token");
         const paystackReference = searchParams.get("reference");
         const provider = (searchParams.get("provider") || import.meta.env.VITE_PAYMENT_PROVIDER || "paystack").toLowerCase();
         const selectedPlan = getSelectedPlanCheckout();
@@ -62,13 +62,15 @@ export default function CardSetupSuccess() {
             }),
           });
         } else {
-          await apiRequest(`/subscriptions/${subscriptionId}/payfast-token`, {
-            method: "POST",
-            body: JSON.stringify({
-              payfastToken: payfastToken || null,
-              planId: selectedPlan?.id || null,
-            }),
-          });
+          if (payfastToken) {
+            await apiRequest(`/subscriptions/${subscriptionId}/payfast-token`, {
+              method: "POST",
+              body: JSON.stringify({
+                payfastToken,
+                planId: selectedPlan?.id || searchParams.get("plan_id") || null,
+              }),
+            });
+          }
         }
 
         const currentSubscription = await apiRequest<{ data: Subscription | null }>("/subscription/current");

@@ -638,7 +638,7 @@ app.post("/payfast/webhook", async (req: Request, res: Response) => {
   const payload = (req.body || {}) as Record<string, string>;
   const paymentStatus = String(payload.payment_status || "").toUpperCase();
   const subscriptionId = payload.custom_str2 || "";
-  const paymentId = payload.pf_payment_id || payload.token || null;
+  const recurringToken = payload.token || null;
 
   try {
     if (!verifyPayFastSignature(payload)) {
@@ -653,6 +653,7 @@ app.post("/payfast/webhook", async (req: Request, res: Response) => {
     console.log("[PayFast webhook] received", {
       m_payment_id: payload.m_payment_id,
       pf_payment_id: payload.pf_payment_id,
+      token_present: Boolean(payload.token),
       payment_status: paymentStatus,
       subscription_id: subscriptionId,
     });
@@ -662,8 +663,8 @@ app.post("/payfast/webhook", async (req: Request, res: Response) => {
         updated_at: new Date().toISOString(),
       };
 
-      if (paymentId) {
-        updatePayload.payfast_token = paymentId;
+      if (recurringToken) {
+        updatePayload.payfast_token = recurringToken;
       }
 
       if (paymentStatus === "COMPLETE") {
@@ -2551,13 +2552,19 @@ app.post("/subscriptions/trial-setup", async (req: AuthedRequest, res: Response)
 app.post("/subscriptions/:id/payfast-token", async (req: AuthedRequest, res: Response) => {
   const user = req.user!;
   const body = (req.body || {}) as { payfastToken?: string | null; planId?: string | null };
+  const payfastToken = typeof body.payfastToken === "string" ? body.payfastToken.trim() : "";
+
+  if (!payfastToken) {
+    res.status(400).json({ error: "Missing PayFast recurring token" });
+    return;
+  }
 
   try {
     const profile = await getProfileForUser(user);
     const isAdmin = isAdminUser(user);
 
     let updatePayload: Record<string, unknown> = {
-      payfast_token: body.payfastToken || null,
+      payfast_token: payfastToken,
       updated_at: new Date().toISOString(),
     };
 
@@ -2867,6 +2874,7 @@ app.post("/subscriptions/:id/payfast-checkout", async (req: AuthedRequest, res: 
       userName: ownerProfile.full_name || "Customer",
       amount: Number(plan.price || 0),
       subscriptionId: subscription.id,
+      planId: plan.id,
       planName: String(plan.name || "InvoicePro"),
       trialDays: Number(plan.trial_days || 0),
       billingCycle: plan.billing_cycle === "yearly" ? "yearly" : "monthly",
@@ -2940,6 +2948,7 @@ app.get("/subscriptions/:id/payfast-debug", async (req: AuthedRequest, res: Resp
       userName: ownerProfile.full_name || "Customer",
       amount: Number(plan.price || 0),
       subscriptionId: subscription.id,
+      planId: plan.id,
       planName: String(plan.name || "InvoicePro"),
       trialDays: Number(plan.trial_days || 0),
       billingCycle: plan.billing_cycle === "yearly" ? "yearly" : "monthly",

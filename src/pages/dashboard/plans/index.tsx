@@ -30,6 +30,10 @@ function getPlanPriority(plan: Plan) {
 }
 
 function getPlanCta(plan: Plan) {
+  if (planRequiresCard(plan)) {
+    return "Get Started";
+  }
+
   if ((plan.trial_days || 0) > 0) {
     return "Start Trial";
   }
@@ -292,7 +296,7 @@ export function PlansPage() {
           const autoRenew = !!plan.auto_renew;
           const canStartPlan = canStartTrialWithoutCard(plan);
           const isCurrentPlan = subscription?.plan_id === plan.id && getCurrentSubscriptionState(subscription) !== "expired";
-          const isPlanInactive = !isCurrentPlan && !canStartPlan;
+          const isPlanInactive = !isCurrentPlan && !canStartPlan && !requiresCard;
           const ctaLabel = isCurrentPlan
             ? "Current Plan"
             : isPlanInactive
@@ -349,7 +353,7 @@ export function PlansPage() {
                       {canStartPlan
                         ? `${trialDays}-day trial available`
                         : requiresCard
-                          ? "Card-required signup temporarily unavailable"
+                          ? `Card required via ${paymentProviderLabel}`
                           : "Paid signup temporarily unavailable"}
                     </Badge>
                   </div>

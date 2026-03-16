@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils";
 import { mockPlans } from "@/data/plans";
 import type { Plan } from "@/types";
 import { setSelectedPlanCheckout } from "@/lib/plan-selection";
-import { canStartTrialWithoutCard } from "@/lib/trial-bypass";
+import { canStartTrialWithoutCard, planRequiresCard } from "@/lib/trial-bypass";
 
 const testimonials = [
   {
@@ -330,10 +330,15 @@ export const LandingPage = () => {
             <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
               {pricingPlans.map((tier, index) => {
                 const trialDays = Number(tier.trial_days || 0);
-                const requiresCard = Boolean(tier.requires_card);
+                const requiresCard = planRequiresCard(tier);
                 const isPopular = !!(tier.is_popular || tier.isPopular);
                 const canStartPublicTrial = canStartTrialWithoutCard(tier);
-                const cta = canStartPublicTrial ? "Start Trial" : "Coming Soon";
+                const canStartSignup = canStartPublicTrial || requiresCard;
+                const cta = canStartPublicTrial
+                  ? "Start Trial"
+                  : requiresCard
+                  ? "Get Started"
+                  : "Coming Soon";
 
                 return (
                   <Card
@@ -401,7 +406,7 @@ export const LandingPage = () => {
                             {canStartPublicTrial
                               ? `${trialDays}-day trial available`
                               : requiresCard
-                              ? "Card-required signup temporarily unavailable"
+                              ? "Card setup required via PayFast"
                               : "Paid signup temporarily unavailable"}
                           </Badge>
                         </div>
@@ -435,7 +440,7 @@ export const LandingPage = () => {
                         )}
                         variant={isPopular ? "default" : "outline"}
                         onClick={() => beginPlanSignup(tier)}
-                        disabled={!canStartPublicTrial}
+                        disabled={!canStartSignup}
                       >
                         {cta}
                       </Button>

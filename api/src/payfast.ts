@@ -9,6 +9,7 @@ interface TrialCheckoutInput {
   userName: string;
   amount: number;
   subscriptionId: string;
+  planId: string;
   planName: string;
   trialDays: number;
   billingCycle: BillingCycle;
@@ -48,6 +49,16 @@ function getTrialEndDate(trialDays: number) {
   return trialEndDate.toISOString().split("T")[0];
 }
 
+function getPayFastProcessUrl() {
+  if (apiConfig.payfastProcessUrl) {
+    return apiConfig.payfastProcessUrl;
+  }
+
+  return apiConfig.payfastMode === "live"
+    ? "https://www.payfast.co.za/eng/process"
+    : "https://sandbox.payfast.co.za/eng/process";
+}
+
 export function buildTrialSubscriptionCheckout(input: TrialCheckoutInput) {
   if (!apiConfig.payfastMerchantId || !apiConfig.payfastMerchantKey) {
     throw new Error("PayFast credentials are not configured on the API.");
@@ -55,7 +66,7 @@ export function buildTrialSubscriptionCheckout(input: TrialCheckoutInput) {
 
   const merchantPaymentId = `TRIAL_${input.userId}_${Date.now()}`;
   const billingDate = getTrialEndDate(input.trialDays);
-  const returnUrl = `${apiConfig.customerAppUrl}/auth/card-setup/success?user_id=${input.userId}&subscription_id=${input.subscriptionId}`;
+  const returnUrl = `${apiConfig.customerAppUrl}/auth/card-setup/success?provider=payfast&user_id=${input.userId}&subscription_id=${input.subscriptionId}&plan_id=${input.planId}`;
   const cancelUrl = `${apiConfig.customerAppUrl}/auth/card-setup?user_id=${input.userId}&email=${encodeURIComponent(input.userEmail)}&name=${encodeURIComponent(input.userName)}&error=cancelled`;
   const notifyUrl = apiConfig.payfastNotifyUrl || `${apiConfig.apiBaseUrl}/payfast/webhook`;
 
@@ -88,7 +99,7 @@ export function buildTrialSubscriptionCheckout(input: TrialCheckoutInput) {
   };
 
   const signature = buildSignature(paymentData);
-  const payfastUrl = apiConfig.payfastMode === "live" ? "https://www.payfast.co.za/eng/process" : "https://sandbox.payfast.co.za/eng/process";
+  const payfastUrl = getPayFastProcessUrl();
   const formFields = {
     ...paymentData,
     signature,

@@ -24,8 +24,12 @@ PAYFAST_MERCHANT_ID=your_merchant_id
 PAYFAST_MERCHANT_KEY=your_merchant_key
 PAYFAST_PASSPHRASE=your_passphrase_here
 PAYFAST_MODE=sandbox
+PAYFAST_PROCESS_URL=
 PAYFAST_NOTIFY_URL=https://api.theinvoicepro.co.za/payfast/webhook
 ```
+
+Leave `PAYFAST_PROCESS_URL` blank to auto-select by `PAYFAST_MODE`.
+Use `https://www.payfast.co.za/eng/process` for live and `https://sandbox.payfast.co.za/eng/process` for sandbox if you need to override it explicitly.
 
 Do not expose PayFast merchant credentials in frontend `VITE_*` variables.
 

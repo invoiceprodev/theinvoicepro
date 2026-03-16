@@ -36,6 +36,7 @@ export const apiConfig = {
   adminAppUrl: process.env.ADMIN_APP_URL || "http://127.0.0.1:5173/admin",
   apiBaseUrl: process.env.API_BASE_URL || process.env.VITE_API_URL || `http://127.0.0.1:${Number(process.env.PORT || 3000)}`,
   payfastNotifyUrl: process.env.PAYFAST_NOTIFY_URL || "",
+  payfastProcessUrl: process.env.PAYFAST_PROCESS_URL || "",
   payfastMerchantId: process.env.PAYFAST_MERCHANT_ID || "",
   payfastMerchantKey: process.env.PAYFAST_MERCHANT_KEY || "",
   payfastPassphrase: process.env.PAYFAST_PASSPHRASE || "",
