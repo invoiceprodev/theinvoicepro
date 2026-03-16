@@ -166,7 +166,7 @@ function buildPricingFaqJsonLd(siteUrl: string) {
         name: "Do I need a card to start using The Invoice Pro?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Starter plans can begin without card setup. Pro and Enterprise plans require card setup through PayFast.",
+          text: "Trial plans can begin without card setup. You can add a payment method later before renewal for eligible plans.",
         },
       },
       {

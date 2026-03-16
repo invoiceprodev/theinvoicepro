@@ -79,6 +79,7 @@ const trustedByLogos = [
 const paymentMethods = [
   { name: "PayPal", color: "bg-blue-600" },
   { name: "Stripe", color: "bg-purple-600" },
+  { name: "Paystack", color: "bg-emerald-600" },
   { name: "PayFast", color: "bg-orange-600" },
 ];
 
@@ -406,7 +407,7 @@ export const LandingPage = () => {
                             {canStartPublicTrial
                               ? `${trialDays}-day trial available`
                               : requiresCard
-                              ? "Card setup required via PayFast"
+                              ? "Card setup required before billing starts"
                               : "Paid signup temporarily unavailable"}
                           </Badge>
                         </div>

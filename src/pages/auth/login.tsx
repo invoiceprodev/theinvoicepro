@@ -77,7 +77,7 @@ export const LoginPage = () => {
             <CardDescription>Enter your email to access your account</CardDescription>
             {selectedPlanId && (
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-primary">
-                Sign in to continue with your selected plan and complete card setup.
+                Sign in to continue with your selected plan and start your trial.
               </div>
             )}
           </CardHeader>

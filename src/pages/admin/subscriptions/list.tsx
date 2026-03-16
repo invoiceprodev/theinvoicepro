@@ -70,6 +70,8 @@ export default function SubscriptionListPage() {
   } | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [payingSubscriptionId, setPayingSubscriptionId] = useState<string | null>(null);
+  const paymentProvider = (import.meta.env.VITE_PAYMENT_PROVIDER || "payfast").toLowerCase();
+  const paymentProviderLabel = paymentProvider === "paystack" ? "Paystack" : "PayFast";
 
   const { mutate: updateSubscription } = useUpdate();
   const { open: openNotification } = useNotification();
@@ -153,7 +155,7 @@ export default function SubscriptionListPage() {
     setPayingSubscriptionId(subscription.id);
 
     try {
-      const paymentWindow = window.open("", `payfast-${subscription.id}`, "width=800,height=600,scrollbars=yes");
+      const paymentWindow = window.open("", `payment-${subscription.id}`, "width=800,height=600,scrollbars=yes");
 
       if (!paymentWindow) {
         openNotification?.({
@@ -164,27 +166,43 @@ export default function SubscriptionListPage() {
         return;
       }
 
-      const response = await apiRequest<{
-        data: {
-          action: string;
-          fields: Record<string, string | number | boolean>;
-        };
-      }>(`/subscriptions/${subscription.id}/payfast-checkout`, {
-        method: "POST",
-      });
+      if (paymentProvider === "paystack") {
+        const response = await apiRequest<{
+          data: {
+            authorizationUrl: string;
+            reference: string;
+          };
+        }>(`/subscriptions/${subscription.id}/paystack-checkout`, {
+          method: "POST",
+          body: JSON.stringify({ planId: plan.id }),
+        });
 
-      submitPayFastForm(response.data.action, response.data.fields, paymentWindow.name);
+        paymentWindow.location.href = response.data.authorizationUrl;
+      } else {
+        const response = await apiRequest<{
+          data: {
+            action: string;
+            fields: Record<string, string | number | boolean>;
+          };
+        }>(`/subscriptions/${subscription.id}/payfast-checkout`, {
+          method: "POST",
+          body: JSON.stringify({ planId: plan.id }),
+        });
+
+        submitPayFastForm(response.data.action, response.data.fields, paymentWindow.name);
+      }
 
       openNotification?.({
         type: "success",
         message: "Payment Initiated",
-        description: `PayFast checkout opened for ${profile.full_name || profile.business_email || plan.name}.`,
+        description: `${paymentProviderLabel} checkout opened for ${profile.full_name || profile.business_email || plan.name}.`,
       });
     } catch (error) {
       openNotification?.({
         type: "error",
         message: "Payment Error",
-        description: error instanceof Error ? error.message : "Failed to open PayFast checkout.",
+        description:
+          error instanceof Error ? error.message : `Failed to open ${paymentProviderLabel} checkout.`,
       });
     } finally {
       setPayingSubscriptionId(null);
@@ -374,7 +392,7 @@ export default function SubscriptionListPage() {
       },
       }),
     ],
-    [isUpdating, payingSubscriptionId, planFilterOptions],
+    [isUpdating, payingSubscriptionId, paymentProviderLabel, planFilterOptions],
   );
 
   const table = useTable<Subscription>({

@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InputPassword } from "@/components/refine-ui/form/input-password";
 import { FileText, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { clearSelectedPlanCheckout, getSelectedPlanCheckout, setSelectedPlanCheckout } from "@/lib/plan-selection";
+import { getSelectedPlanCheckout, setSelectedPlanCheckout } from "@/lib/plan-selection";
 import { canStartTrialWithoutCard } from "@/lib/trial-bypass";
 import type { Plan } from "@/types";
 
@@ -54,24 +54,17 @@ export const RegisterPage = () => {
   });
 
   useEffect(() => {
-    if (selectedPlan && !canStartTrialWithoutCard(selectedPlan)) {
-      clearSelectedPlanCheckout();
-    }
-  }, [selectedPlan]);
-
-  useEffect(() => {
     if (!selectedPlanId || selectedPlan || !plansResult?.data?.length) {
       return;
     }
 
     const matchedPlan = (plansResult.data as Plan[]).find((plan) => plan.id === selectedPlanId);
-    if (matchedPlan && canStartTrialWithoutCard(matchedPlan)) {
+    if (matchedPlan) {
       setSelectedPlanCheckout(matchedPlan);
     }
   }, [plansResult, selectedPlan, selectedPlanId]);
 
-  const activeSelectedPlan =
-    selectedPlan && canStartTrialWithoutCard(selectedPlan) ? selectedPlan : null;
+  const activeSelectedPlan = selectedPlan && (!selectedPlanId || selectedPlan.id === selectedPlanId) ? selectedPlan : null;
 
   const onSubmit = (values: RegisterFormValues) => {
     register(values);
@@ -101,15 +94,17 @@ export const RegisterPage = () => {
                 {activeSelectedPlan.trial_days
                   ? ` with a ${activeSelectedPlan.trial_days}-day trial`
                   : ""}
+                {!canStartTrialWithoutCard(activeSelectedPlan) && activeSelectedPlan.requires_card
+                  ? " with secure card setup after account creation"
+                  : ""}
               </div>
             )}
             {selectedPlanId && !activeSelectedPlan ? (
               <Alert className="border-orange-200 bg-orange-50 text-orange-900">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Plan unavailable</AlertTitle>
+                <AlertTitle>Plan not found</AlertTitle>
                 <AlertDescription>
-                  Public signup is temporarily limited to trials that do not
-                  require card setup.
+                  We could not load the selected plan. Please go back and choose your plan again.
                 </AlertDescription>
               </Alert>
             ) : null}

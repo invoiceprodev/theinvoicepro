@@ -30,12 +30,11 @@ function getPlanPriority(plan: Plan) {
 }
 
 function getPlanCta(plan: Plan) {
-  if (planRequiresCard(plan)) {
-    return "Get Started";
-  }
-
   if ((plan.trial_days || 0) > 0) {
     return "Start Trial";
+  }
+  if (planRequiresCard(plan)) {
+    return "Get Started";
   }
   return "Buy Plan";
 }
@@ -210,8 +209,8 @@ export function PlansPage() {
       <div className="mb-10 text-center">
         <h1 className="mb-2 text-3xl font-bold tracking-tight">Subscription Plans</h1>
         <p className="text-base text-muted-foreground">
-          Plans are managed from admin and reflected here automatically. Starter/Trial starts with a 60-day trial, while
-          Pro and Enterprise continue through {paymentProviderLabel} card setup.
+          Plans are managed from admin and reflected here automatically. Starter/Trial can start immediately, while Pro
+          and Enterprise continue through {paymentProviderLabel} card setup.
         </p>
       </div>
 
@@ -225,17 +224,17 @@ export function PlansPage() {
               </CardDescription>
             </div>
             <Button variant="outline" size="sm" onClick={handleManagePaymentMethod} disabled={!subscription.plan}>
-              {hasSavedPaymentMethod ? "Update Payment Method" : "Set Up Card"}
+              {hasSavedPaymentMethod ? "Update Payment Method" : "Add Card for Renewal"}
             </Button>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            {subscriptionState === "trial_pending" ? (
-              <p>Your subscription record exists, but card setup is still incomplete. Complete setup to activate the plan.</p>
-            ) : null}
             {subscriptionState === "trial_active" ? (
               <p>
                 Your trial is active{subscription.trial_end_date ? ` until ${new Date(subscription.trial_end_date).toLocaleDateString()}` : ""}.
               </p>
+            ) : null}
+            {subscriptionState === "trial_active" && !hasSavedPaymentMethod ? (
+              <p>Add your payment method before the trial ends to keep the subscription renewing automatically.</p>
             ) : null}
             {subscriptionState === "active" ? (
               <p>
@@ -258,11 +257,6 @@ export function PlansPage() {
                 onClick={handleCancelAutoRenew}
                 disabled={subscriptionActionLoading !== null}>
                 {subscriptionActionLoading === "cancel" ? "Cancelling..." : "Cancel Plan"}
-              </Button>
-            ) : null}
-            {subscriptionState === "trial_pending" ? (
-              <Button variant="outline" size="sm" onClick={() => navigate("/auth/card-setup")}>
-                Continue Card Setup
               </Button>
             ) : null}
           </CardContent>
@@ -360,7 +354,13 @@ export function PlansPage() {
                 )}
                 {requiresCard && (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-                    {isPlanInactive ? "This plan is temporarily inactive in the dashboard." : `Card required via ${paymentProviderLabel}.`}
+                    {isPlanInactive
+                      ? "This plan is temporarily inactive in the dashboard."
+                      : trialDays > 0
+                        ? canStartPlan
+                          ? `Trial starts now without a card. Add ${paymentProviderLabel} billing before renewal.`
+                          : `Card required via ${paymentProviderLabel} before this trial can begin.`
+                        : `Card required via ${paymentProviderLabel}.`}
                     {!isPlanInactive && trialDays > 0 && autoRenew
                       ? ` Starts with a ${trialDays}-day trial, then auto-renews unless cancelled before renewal.`
                       : ""}
@@ -396,7 +396,7 @@ export function PlansPage() {
                       return;
                     }
                     if (subscription && !isCurrentPlan && subscriptionState !== "trial_pending") {
-                      if (planRequiresCard(plan)) {
+                      if (planRequiresCard(plan) && !canStartTrialWithoutCard(plan)) {
                         setSelectedPlanCheckout(plan);
                         navigate("/auth/card-setup");
                         return;
@@ -449,11 +449,13 @@ export function PlansPage() {
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
                     <p className="font-semibold flex items-center gap-2">
                       <CreditCard className="h-4 w-4" />
-                      Card required to {getPlanCta(dialog.plan).toLowerCase()}
+                      {dialog.plan.trial_days ? "Card recommended before renewal" : `Card required to ${getPlanCta(dialog.plan).toLowerCase()}`}
                     </p>
                     <p className="mt-1">
                       {dialog.plan.trial_days
-                        ? `Your card will be authorised now and charged only after ${dialog.plan.trial_days} days.`
+                        ? canStartTrialWithoutCard(dialog.plan)
+                          ? `Your ${dialog.plan.trial_days}-day trial starts immediately. Add your card before the trial ends to keep access uninterrupted.`
+                          : `Your card will be authorised now and charged only after ${dialog.plan.trial_days} days.`
                         : `Your card will be collected now and used for recurring billing through ${paymentProviderLabel}.`}
                     </p>
                     {dialog.plan.auto_renew && dialog.plan.trial_days ? (
@@ -462,13 +464,20 @@ export function PlansPage() {
                   </div>
 
                   <div className="space-y-3">
-                    <p className="text-sm text-muted-foreground">
-                      You will be redirected to secure {paymentProviderLabel} checkout to complete card setup for this plan.
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      By continuing, you authorise {paymentProviderLabel} to auto-renew this plan
-                      {dialog.plan.trial_days ? ` after ${dialog.plan.trial_days} days` : ""}.
-                    </p>
+                    {dialog.plan.trial_days && canStartTrialWithoutCard(dialog.plan) ? (
+                      <p className="text-sm text-muted-foreground">
+                        You can start this trial now and add secure {paymentProviderLabel} billing later from the dashboard.
+                      </p>
+                    ) : (
+                      <>
+                        <p className="text-sm text-muted-foreground">
+                          You will be redirected to secure {paymentProviderLabel} checkout to complete card setup for this plan.
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          By continuing, you authorise {paymentProviderLabel} to auto-renew this plan.
+                        </p>
+                      </>
+                    )}
                   </div>
                 </>
               ) : (dialog.plan.trial_days || 0) > 0 ? (

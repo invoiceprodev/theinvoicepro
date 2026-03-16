@@ -232,8 +232,12 @@ export function getCurrentSubscriptionState(subscription?: Subscription | null):
   }
 
   if (subscription.status === "trial") {
-    const requiresCard = Boolean(subscription.plan?.requires_card);
-    return subscription.payfast_token || subscription.paystack_authorization_code || !requiresCard ? "trial_active" : "trial_pending";
+    const planName = String(subscription.plan?.name || "").toLowerCase();
+    const starterStylePlan = planName.includes("starter") || planName.includes("trial") || planName === "basic";
+    const canRunTrialWithoutCard = Boolean(subscription.plan?.trial_days) && starterStylePlan;
+    return subscription.payfast_token || subscription.paystack_authorization_code || canRunTrialWithoutCard
+      ? "trial_active"
+      : "trial_pending";
   }
 
   if (subscription.status === "active") {

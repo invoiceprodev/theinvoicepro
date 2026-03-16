@@ -178,9 +178,9 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
             <div className="flex items-center gap-2 justify-center mb-2">
               <CreditCard className="w-6 h-6 text-primary" />
             </div>
-            <CardTitle className="text-2xl font-bold text-center">Start {plan.name}</CardTitle>
+            <CardTitle className="text-2xl font-bold text-center">Set Up Billing for {plan.name}</CardTitle>
             <CardDescription className="text-center">
-              {trialDays > 0 ? `Start your ${trialDays}-day free trial with card authorisation` : "Set up recurring billing"}
+              {trialDays > 0 ? `Add your card now or anytime before your ${trialDays}-day trial ends` : "Set up recurring billing"}
             </CardDescription>
           </CardHeader>
 
