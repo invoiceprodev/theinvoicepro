@@ -4,7 +4,7 @@ Customer invoicing SaaS with:
 - public marketing site
 - customer dashboard
 - admin dashboard
-- local API for Auth0-backed profile, subscription, email, and PayFast integration work
+- local API for Auth0-backed profile, subscription, email, Paystack, and PayFast integration work
 
 ## Current Architecture
 
@@ -13,7 +13,7 @@ Customer invoicing SaaS with:
 - Local API: `http://127.0.0.1:3000`
 - Database and storage: `Supabase`
 - Auth: `Auth0`
-- Billing: `PayFast`
+- Billing: `Paystack` primary, `PayFast` legacy/fallback
 - Email: `Resend`
 
 Production target:
@@ -35,6 +35,7 @@ Deployment guide:
 - Auth0 admin login and registration flow
 - host-aware admin routing on the admin subdomain
 - Auth0 user to Supabase `profiles` mapping through the API
+- admin access enforced from mapped `public.profiles.role`, not only Auth0 token claims
 - customer dashboard CRUD for clients, invoices, expenses
 - admin pricing, tenants, and subscriptions pages using live API-backed data
 - invoice email send with PDF attachment through Resend
@@ -46,6 +47,7 @@ Deployment guide:
 
 ## Known Caveats
 
+- Paystack is the active subscription checkout path under test and should be the frontend default provider
 - PayFast recurring sandbox is still blocked by merchant/account setup outside the app
 - PayFast live payments are currently blocked at the merchant-account level. Current PayFast error: `Merchant unable to receive payments due to invalid account details provided.`
 - When PayFast work resumes, start by fixing the PayFast merchant account details and live account verification before debugging app code or webhook handling
@@ -80,6 +82,7 @@ Important groups:
 - customer and admin Auth0 app vars
 - API URLs
 - Resend vars
+- Paystack vars
 - PayFast vars
 
 ### 3. Run required Supabase migrations
@@ -153,6 +156,16 @@ npm run dev
 - `npm run env:sync:vercel:admin` pushes production admin frontend envs from `.env`
 - `npm run env:sync:railway` pushes production API envs from `.env`
 
+## Email Previews
+
+For local email template review, run the API in development and open:
+
+- `http://127.0.0.1:3000/emails/previews`
+
+That preview index exposes the React-rendered API email templates used for Resend delivery. Text versions are available with:
+
+- `http://127.0.0.1:3000/emails/previews/<template>?format=text`
+
 ## Deployment Env Sync
 
 Use the CLIs for environment consistency instead of editing deployment vars by hand.
@@ -204,11 +217,30 @@ Admin app URLs:
 Admin production URLs:
 - callback: `https://admin.theinvoicepro.co.za/callback`
 - logout: `https://admin.theinvoicepro.co.za/login`
+- login: `https://admin.theinvoicepro.co.za/login`
 
 Notes:
 - verification email is enforced for customer signup
 - verification email is enforced for admin signup/login as well
 - the text shown on Auth0-hosted login comes from your Auth0 app and tenant branding
+- on the admin subdomain, routes resolve at `/login`, `/register`, `/callback`, and `/dashboard` without an extra `/admin` prefix
+- if an admin user exists in Auth0 but cannot access the admin portal, verify `public.profiles.role = 'admin'`
+
+## Production Reset
+
+To wipe tenant/app data before going live, use:
+- [`db/setup/PRODUCTION_CLEAN_START.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/setup/PRODUCTION_CLEAN_START.sql)
+
+Important:
+- this removes app data, `profiles`, and `auth.users`
+- it does not clear the `company-branding` bucket from SQL; delete those objects manually in Supabase Storage
+- after the wipe, create a fresh admin account and promote it with:
+
+```sql
+UPDATE public.profiles
+SET role = 'admin'
+WHERE business_email = 'your-admin-email@example.com';
+```
 
 ## Trial Flow
 

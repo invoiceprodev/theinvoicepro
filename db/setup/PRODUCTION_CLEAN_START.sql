@@ -3,7 +3,6 @@
 -- ============================================================
 -- Purpose:
 -- - remove all tenant data and app accounts
--- - clear stored company-branding objects
 -- - recreate the approved live plan catalog
 --
 -- Run this in Supabase SQL Editor only when you are ready to wipe
@@ -13,14 +12,12 @@
 -- - This deletes all profiles, clients, invoices, expenses,
 --   subscriptions, payments, history, and auth users.
 -- - After this runs, no admin account will exist.
+-- - Supabase blocks direct DELETEs from storage.objects.
+--   Empty the `company-branding` bucket manually after this script runs.
 -- - Create a fresh account and promote it to role = 'admin'
 --   before expecting admin.theinvoicepro.co.za to work.
 
 BEGIN;
-
--- Remove uploaded branding assets while keeping the bucket itself.
-DELETE FROM storage.objects
-WHERE bucket_id = 'company-branding';
 
 -- Remove dependent application data first.
 TRUNCATE TABLE
@@ -134,6 +131,10 @@ COMMIT;
 -- SELECT COUNT(*) FROM public.profiles;
 -- SELECT COUNT(*) FROM public.subscriptions;
 -- SELECT name, price, currency, is_active FROM public.plans ORDER BY price;
+
+-- Manual post-run step:
+-- - Supabase Dashboard -> Storage -> company-branding
+-- - Delete all objects in that bucket manually
 
 -- Promote your newly created admin account after signup:
 -- UPDATE public.profiles

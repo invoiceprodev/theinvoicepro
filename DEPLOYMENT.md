@@ -52,6 +52,11 @@ Have these ready before creating anything:
   - API key
   - verified sender domain
   - from address
+- Paystack:
+  - public key
+  - secret key
+  - webhook secret
+  - callback URL
 - PayFast:
   - merchant ID
   - merchant key
@@ -108,6 +113,7 @@ Admin application allowed URLs:
 - callback: `https://admin.theinvoicepro.co.za/callback`
 - logout: `https://admin.theinvoicepro.co.za/login`
 - web origin: `https://admin.theinvoicepro.co.za`
+- login URI: `https://admin.theinvoicepro.co.za/login`
 
 API:
 
@@ -118,6 +124,7 @@ Also confirm:
 - customer and admin apps are enabled for the database connection
 - email verification is enabled
 - tenant branding and application names are production-ready
+- admin users are promoted in `public.profiles.role`; Auth0 login alone is not sufficient for admin API access
 
 ## 4. Railway API
 
@@ -147,7 +154,7 @@ SUPABASE_BRANDING_BUCKET=company-branding
 RESEND_API_KEY=...
 RESEND_FROM_EMAIL=noreply@theinvoicepro.co.za
 
-PAYMENT_PROVIDER=payfast
+PAYMENT_PROVIDER=paystack
 PAYFAST_MERCHANT_ID=...
 PAYFAST_MERCHANT_KEY=...
 PAYFAST_PASSPHRASE=...
@@ -267,6 +274,22 @@ Verify in order:
 8. logo upload works through Supabase Storage
 9. plans page reflects live plans
 10. admin subdomain routes resolve at `/login`, `/register`, `/callback`, `/dashboard`
+11. admin-only API resources (`profiles`, `subscriptions`, `subscription_history`, `trial_conversions`, `payments`) load without `403`
+
+## 10. Production Reset
+
+To wipe the environment for a clean launch:
+
+- run [`db/setup/PRODUCTION_CLEAN_START.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/setup/PRODUCTION_CLEAN_START.sql) in Supabase SQL Editor
+- manually delete objects in the `company-branding` storage bucket
+- recreate your admin account
+- promote it with:
+
+```sql
+UPDATE public.profiles
+SET role = 'admin'
+WHERE business_email = 'your-admin-email@example.com';
+```
 
 ## 10. Current Deployment Caveat
 
