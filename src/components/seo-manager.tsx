@@ -11,6 +11,8 @@ const DEFAULT_DESCRIPTION =
 const BUSINESS_NAME = "The Invoice Pro";
 const SUPPORT_EMAIL = "support@theinvoicepro.co.za";
 const SOCIAL_IMAGE_ALT = "The Invoice Pro dashboard and invoicing platform";
+const GOOGLE_SITE_VERIFICATION = (import.meta.env.VITE_GOOGLE_SITE_VERIFICATION || "").trim();
+const BING_SITE_VERIFICATION = (import.meta.env.VITE_BING_SITE_VERIFICATION || "").trim();
 
 type SeoConfig = {
   title: string;
@@ -459,6 +461,18 @@ export function SeoManager() {
     upsertMeta('meta[name="author"]', { name: "author", content: BUSINESS_NAME });
     upsertMeta('meta[name="application-name"]', { name: "application-name", content: BUSINESS_NAME });
     upsertMeta('meta[name="apple-mobile-web-app-title"]', { name: "apple-mobile-web-app-title", content: BUSINESS_NAME });
+    if (GOOGLE_SITE_VERIFICATION) {
+      upsertMeta('meta[name="google-site-verification"]', {
+        name: "google-site-verification",
+        content: GOOGLE_SITE_VERIFICATION,
+      });
+    }
+    if (BING_SITE_VERIFICATION) {
+      upsertMeta('meta[name="msvalidate.01"]', {
+        name: "msvalidate.01",
+        content: BING_SITE_VERIFICATION,
+      });
+    }
     upsertMeta('meta[name="twitter:card"]', { name: "twitter:card", content: "summary_large_image" });
     upsertMeta('meta[name="twitter:title"]', { name: "twitter:title", content: seo.title });
     upsertMeta('meta[name="twitter:description"]', { name: "twitter:description", content: seo.description });
