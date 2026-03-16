@@ -25,7 +25,7 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
   const [subscriptionCreated, setSubscriptionCreated] = useState(false);
   const [debugPayload, setDebugPayload] = useState<Record<string, string | boolean> | null>(null);
   const [debugUrl, setDebugUrl] = useState<string | null>(null);
-  const paymentProvider = (import.meta.env.VITE_PAYMENT_PROVIDER || "payfast").toLowerCase();
+  const paymentProvider = (import.meta.env.VITE_PAYMENT_PROVIDER || "paystack").toLowerCase();
   const showPayFastDebug = import.meta.env.DEV;
   const allowTrialBypass = canStartTrialWithoutCard(plan);
 

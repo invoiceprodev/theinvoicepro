@@ -9,6 +9,8 @@ export function VerifyEmailPage() {
   const email = params.get("email");
   const planId = params.get("plan");
   const isAdmin = params.get("next") === "admin";
+  const paymentProvider = (import.meta.env.VITE_PAYMENT_PROVIDER || "paystack").toLowerCase();
+  const paymentProviderLabel = paymentProvider === "paystack" ? "Paystack" : "PayFast";
   const returnPath = isAdmin ? getAdminRoute("/login") : `/login${planId ? `?plan=${encodeURIComponent(planId)}` : ""}`;
 
   return (
@@ -32,7 +34,7 @@ export function VerifyEmailPage() {
           {!isAdmin && planId ? (
             <p>
               Your selected plan has been saved. After you confirm your email and sign in, you will continue to secure card
-              setup to start your trial.
+              setup with {paymentProviderLabel}.
             </p>
           ) : null}
           <p>

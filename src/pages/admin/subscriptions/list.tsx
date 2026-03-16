@@ -70,7 +70,7 @@ export default function SubscriptionListPage() {
   } | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [payingSubscriptionId, setPayingSubscriptionId] = useState<string | null>(null);
-  const paymentProvider = (import.meta.env.VITE_PAYMENT_PROVIDER || "payfast").toLowerCase();
+  const paymentProvider = (import.meta.env.VITE_PAYMENT_PROVIDER || "paystack").toLowerCase();
   const paymentProviderLabel = paymentProvider === "paystack" ? "Paystack" : "PayFast";
 
   const { mutate: updateSubscription } = useUpdate();
