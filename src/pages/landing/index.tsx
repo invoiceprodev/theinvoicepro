@@ -68,12 +68,10 @@ const testimonials = [
 ];
 
 const trustedByLogos = [
-  { name: "TechCorp", color: "from-blue-600 to-blue-400" },
-  { name: "DesignHub", color: "from-purple-600 to-purple-400" },
-  { name: "StartupX", color: "from-green-600 to-green-400" },
-  { name: "Creative Co", color: "from-orange-600 to-orange-400" },
-  { name: "BuildIt", color: "from-red-600 to-red-400" },
-  { name: "MarketPro", color: "from-indigo-600 to-indigo-400" },
+  { name: "Three J Media" },
+  { name: "Talent Obsession" },
+  { name: "Adoracion" },
+  { name: "MKH Projects" },
 ];
 
 const paymentMethods = [
@@ -270,21 +268,16 @@ export const LandingPage = () => {
           <p className="text-center text-sm text-muted-foreground mb-8 font-medium">
             TRUSTED BY LEADING COMPANIES
           </p>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 items-center">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {trustedByLogos.map((logo, index) => (
               <div
                 key={logo.name}
-                className="flex items-center justify-center transition-all duration-300 hover:scale-110 hover:-translate-y-1"
+                className="flex items-center justify-center transition-all duration-300 hover:-translate-y-1"
                 style={{
                   animation: `fadeIn 0.5s ease-out ${index * 0.1}s backwards`,
                 }}
               >
-                <div
-                  className={cn(
-                    "px-6 py-3 rounded-lg bg-gradient-to-r font-bold text-white text-sm shadow-md hover:shadow-lg transition-shadow",
-                    logo.color,
-                  )}
-                >
+                <div className="w-full rounded-xl border-2 border-slate-800 bg-white px-6 py-4 text-center font-bold text-slate-900 shadow-sm transition-shadow hover:shadow-md">
                   {logo.name}
                 </div>
               </div>
@@ -552,7 +545,7 @@ export const LandingPage = () => {
                 Ready to Get Started?
               </h2>
               <p className="text-lg md:text-xl mb-8 text-primary-foreground/90 max-w-2xl mx-auto">
-                Join thousands of businesses that trust InvoicePro for their
+                Join hundreds of businesses that trust InvoicePro for their
                 invoicing needs. Start your free trial today.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">

@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { getProfileBridgeSnapshot, subscribeProfileBridge } from "@/lib/profile-bridge";
+import { useEffect } from "react";
 
 const DEFAULT_FAVICON = "/favicon.ico";
 
@@ -16,17 +15,11 @@ function ensureLink(rel: string) {
 }
 
 export function BrandingFaviconSync() {
-  const [profileSnapshot, setProfileSnapshot] = useState(getProfileBridgeSnapshot());
-
-  useEffect(() => subscribeProfileBridge(setProfileSnapshot), []);
-
   useEffect(() => {
-    const href = profileSnapshot.profile?.logo_url || DEFAULT_FAVICON;
-
-    ensureLink("icon").href = href;
-    ensureLink("shortcut icon").href = href;
-    ensureLink("apple-touch-icon").href = href;
-  }, [profileSnapshot.profile?.logo_url]);
+    ensureLink("icon").href = DEFAULT_FAVICON;
+    ensureLink("shortcut icon").href = DEFAULT_FAVICON;
+    ensureLink("apple-touch-icon").href = DEFAULT_FAVICON;
+  }, []);
 
   return null;
 }

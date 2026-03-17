@@ -16,6 +16,7 @@ import { useSidebar, SidebarTrigger } from "@/components/ui/sidebar"
 import { LogOutIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getProfileBridgeSnapshot, subscribeProfileBridge } from "@/lib/profile-bridge"
+import { getDashboardBranding } from "@/lib/dashboard-branding"
 
 export const Header = () => {
   const { isMobile } = useSidebar()
@@ -56,8 +57,12 @@ function MobileHeader() {
   React.useEffect(() => subscribeProfileBridge(setProfileSnapshot), [])
 
   const defaultTitleText = typeof title.text === "string" ? title.text : "InvoicePro"
-  const companyName = profileSnapshot.profile?.company_name?.trim() || defaultTitleText
-  const logoUrl = profileSnapshot.profile?.logo_url || null
+  const { companyName, logoUrl } = getDashboardBranding({
+    pathname: window.location.pathname,
+    hostname: window.location.hostname,
+    defaultTitleText,
+    profile: profileSnapshot.profile,
+  })
   const sidebarOpen = isMobile ? openMobile : open
 
   return (

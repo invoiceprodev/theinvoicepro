@@ -95,6 +95,13 @@ const defaultCompanyInfo: CompanyInfo = {
   taxId: "",
 };
 
+const LOGO_ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"] as const;
+const LOGO_MAX_FILE_SIZE_BYTES = 500 * 1024;
+const LOGO_MIN_WIDTH = 600;
+const LOGO_MIN_HEIGHT = 200;
+const LOGO_MIN_ASPECT_RATIO = 2.5;
+const LOGO_MAX_ASPECT_RATIO = 3.5;
+
 function serializeBusinessAddress(info: CompanyInfo) {
   return [info.street, info.city, info.state, info.zip, info.country].map((value) => value.trim()).join("\n");
 }
@@ -119,6 +126,75 @@ function getCompanyInfoFromProfile(profile?: Profile | null): CompanyInfo {
     registrationNumber: profile?.registration_number || "",
     taxId: "",
   };
+}
+
+async function getImageDimensions(file: File) {
+  if (file.type === "image/svg+xml") {
+    const svg = await file.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(svg, "image/svg+xml");
+    const root = doc.documentElement;
+
+    if (!root || root.nodeName.toLowerCase() !== "svg") {
+      throw new Error("Invalid SVG file.");
+    }
+
+    const widthAttr = root.getAttribute("width");
+    const heightAttr = root.getAttribute("height");
+    const viewBoxAttr = root.getAttribute("viewBox");
+
+    const parseDimension = (value: string | null) => {
+      if (!value) return null;
+      const match = value.trim().match(/^([0-9]+(?:\.[0-9]+)?)/);
+      return match ? Number(match[1]) : null;
+    };
+
+    const width = parseDimension(widthAttr);
+    const height = parseDimension(heightAttr);
+
+    if (width && height) {
+      return { width, height };
+    }
+
+    if (viewBoxAttr) {
+      const parts = viewBoxAttr
+        .trim()
+        .split(/[\s,]+/)
+        .map((part) => Number(part));
+
+      if (parts.length === 4 && parts.every((part) => Number.isFinite(part))) {
+        return { width: parts[2], height: parts[3] };
+      }
+    }
+
+    throw new Error("SVG logo must include width/height or a viewBox.");
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
+      image.onerror = () => reject(new Error("Failed to read the selected image."));
+      image.src = objectUrl;
+    });
+
+    return dimensions;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+function validateLogoDimensions(width: number, height: number) {
+  if (width < LOGO_MIN_WIDTH || height < LOGO_MIN_HEIGHT) {
+    throw new Error(`Use a horizontal logo at least ${LOGO_MIN_WIDTH}x${LOGO_MIN_HEIGHT}px.`);
+  }
+
+  const aspectRatio = width / height;
+  if (aspectRatio < LOGO_MIN_ASPECT_RATIO || aspectRatio > LOGO_MAX_ASPECT_RATIO) {
+    throw new Error("Use a horizontal logo with an aspect ratio close to 3:1.");
+  }
 }
 
 function CompanyTab() {
@@ -154,7 +230,7 @@ function CompanyTab() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!["image/png", "image/jpeg", "image/webp", "image/svg+xml"].includes(file.type)) {
+    if (!LOGO_ALLOWED_TYPES.includes(file.type as (typeof LOGO_ALLOWED_TYPES)[number])) {
       toast.error("Unsupported logo format", {
         description: "Use PNG, JPG, WEBP, or SVG.",
       });
@@ -162,9 +238,9 @@ function CompanyTab() {
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
+    if (file.size > LOGO_MAX_FILE_SIZE_BYTES) {
       toast.error("Logo file too large", {
-        description: "Use an image up to 2MB.",
+        description: "Use an image up to 500KB.",
       });
       e.target.value = "";
       return;
@@ -172,6 +248,9 @@ function CompanyTab() {
 
     try {
       setIsUploadingLogo(true);
+      const { width, height } = await getImageDimensions(file);
+      validateLogoDimensions(width, height);
+
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (event) => resolve(String(event.target?.result || ""));
@@ -185,6 +264,8 @@ function CompanyTab() {
           dataUrl,
           fileName: file.name,
           contentType: file.type,
+          width,
+          height,
         }),
       });
 
@@ -283,7 +364,7 @@ function CompanyTab() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Company Logo</CardTitle>
-          <CardDescription>Upload your company logo. It will appear on all invoices.</CardDescription>
+          <CardDescription>Upload one horizontal logo for your dashboard and invoices.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-4">
@@ -311,7 +392,7 @@ function CompanyTab() {
                   Remove
                 </Button>
               )}
-              <p className="text-xs text-muted-foreground">PNG, JPG up to 2MB</p>
+              <p className="text-xs text-muted-foreground">Horizontal only. PNG, JPG, WEBP, or SVG up to 500KB. Min 600x200px.</p>
             </div>
           </div>
         </CardContent>

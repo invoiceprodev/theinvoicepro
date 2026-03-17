@@ -28,7 +28,11 @@ type AuthedRequest = Request & { user?: AuthenticatedUser };
 
 const app = express();
 const BRANDING_ALLOWED_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml"]);
-const BRANDING_MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
+const BRANDING_MAX_UPLOAD_BYTES = 500 * 1024;
+const BRANDING_MIN_WIDTH = 600;
+const BRANDING_MIN_HEIGHT = 200;
+const BRANDING_MIN_ASPECT_RATIO = 2.5;
+const BRANDING_MAX_ASPECT_RATIO = 3.5;
 
 function getUserRoles(user: AuthenticatedUser) {
   return Array.isArray(user.roles) ? user.roles : [];
@@ -63,6 +67,21 @@ function decodeDataUrl(input: string) {
     mimeType: match[1],
     buffer: Buffer.from(match[2], "base64"),
   };
+}
+
+function validateBrandingDimensions(width: number, height: number) {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    throw new Error("Logo dimensions are required.");
+  }
+
+  if (width < BRANDING_MIN_WIDTH || height < BRANDING_MIN_HEIGHT) {
+    throw new Error(`Logo must be at least ${BRANDING_MIN_WIDTH}x${BRANDING_MIN_HEIGHT}px.`);
+  }
+
+  const aspectRatio = width / height;
+  if (aspectRatio < BRANDING_MIN_ASPECT_RATIO || aspectRatio > BRANDING_MAX_ASPECT_RATIO) {
+    throw new Error("Logo must be horizontal with an aspect ratio close to 3:1.");
+  }
 }
 
 async function ensureBrandingBucket() {
@@ -1513,6 +1532,8 @@ app.post("/settings/company/logo", async (req: AuthedRequest, res: Response) => 
   try {
     const profile = await getProfileForUser(user);
     const dataUrl = typeof body.dataUrl === "string" ? body.dataUrl : "";
+    const width = Number(body.width ?? 0);
+    const height = Number(body.height ?? 0);
     if (!dataUrl) {
       res.status(400).json({ error: "Missing logo file data." });
       return;
@@ -1525,9 +1546,11 @@ app.post("/settings/company/logo", async (req: AuthedRequest, res: Response) => 
     }
 
     if (buffer.byteLength > BRANDING_MAX_UPLOAD_BYTES) {
-      res.status(400).json({ error: "Logo file is too large. Maximum size is 2MB." });
+      res.status(400).json({ error: "Logo file is too large. Maximum size is 500KB." });
       return;
     }
+
+    validateBrandingDimensions(width, height);
 
     await ensureBrandingBucket();
 
