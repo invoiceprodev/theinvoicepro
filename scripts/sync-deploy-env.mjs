@@ -33,6 +33,10 @@ function requireKeys(source, keys) {
   }
 }
 
+function withOptionalValues(values) {
+  return Object.fromEntries(Object.entries(values).filter(([, value]) => value));
+}
+
 function getTargetConfig(target, source) {
   if (target === "railway") {
     requireKeys(source, [
@@ -50,7 +54,7 @@ function getTargetConfig(target, source) {
 
     return {
       platform: "railway",
-      values: {
+      values: withOptionalValues({
         PORT: source.PORT || "3000",
         API_BASE_URL: PROD.apiUrl,
         CUSTOMER_APP_URL: PROD.customerAppUrl,
@@ -67,7 +71,12 @@ function getTargetConfig(target, source) {
         PAYFAST_PASSPHRASE: source.PAYFAST_PASSPHRASE,
         PAYFAST_MODE: source.PAYFAST_MODE || "live",
         PAYFAST_NOTIFY_URL: source.PAYFAST_NOTIFY_URL || PROD.payfastNotifyUrl,
-      },
+        PAYPAL_CLIENT_ID: source.PAYPAL_CLIENT_ID,
+        PAYPAL_CLIENT_SECRET: source.PAYPAL_CLIENT_SECRET,
+        PAYPAL_WEBHOOK_ID: source.PAYPAL_WEBHOOK_ID,
+        PAYPAL_MODE: source.PAYPAL_MODE,
+        PAYPAL_CALLBACK_URL: source.PAYPAL_CALLBACK_URL,
+      }),
     };
   }
 
@@ -84,7 +93,7 @@ function getTargetConfig(target, source) {
     return {
       platform: "vercel",
       projectIdEnv: "VERCEL_CUSTOMER_PROJECT_ID",
-      values: {
+      values: withOptionalValues({
         VITE_APP_URL: PROD.customerAppUrl,
         VITE_API_URL: PROD.apiUrl,
         VITE_SUPABASE_URL: source.VITE_SUPABASE_URL,
@@ -92,12 +101,13 @@ function getTargetConfig(target, source) {
         VITE_AUTH0_ROLE_CLAIM: source.VITE_AUTH0_ROLE_CLAIM || PROD.auth0RoleClaim,
         VITE_AUTH_MODE: source.VITE_AUTH_MODE || "auth0",
         VITE_PAYMENT_PROVIDER: source.VITE_PAYMENT_PROVIDER || "payfast",
+        VITE_PAYPAL_CLIENT_ID: source.VITE_PAYPAL_CLIENT_ID,
         VITE_CUSTOMER_AUTH0_DOMAIN: source.VITE_CUSTOMER_AUTH0_DOMAIN,
         VITE_CUSTOMER_AUTH0_CLIENT_ID: source.VITE_CUSTOMER_AUTH0_CLIENT_ID,
         VITE_CUSTOMER_AUTH0_AUDIENCE: source.VITE_CUSTOMER_AUTH0_AUDIENCE || PROD.auth0Audience,
         VITE_CUSTOMER_AUTH0_REDIRECT_URI: `${PROD.customerAppUrl}/auth/callback`,
         VITE_CUSTOMER_AUTH0_CONNECTION: source.VITE_CUSTOMER_AUTH0_CONNECTION,
-      },
+      }),
     };
   }
 
@@ -114,7 +124,7 @@ function getTargetConfig(target, source) {
     return {
       platform: "vercel",
       projectIdEnv: "VERCEL_ADMIN_PROJECT_ID",
-      values: {
+      values: withOptionalValues({
         VITE_APP_URL: PROD.adminAppUrl,
         VITE_API_URL: PROD.apiUrl,
         VITE_SUPABASE_URL: source.VITE_SUPABASE_URL,
@@ -127,7 +137,7 @@ function getTargetConfig(target, source) {
         VITE_ADMIN_AUTH0_AUDIENCE: source.VITE_ADMIN_AUTH0_AUDIENCE || PROD.auth0Audience,
         VITE_ADMIN_AUTH0_REDIRECT_URI: `${PROD.adminAppUrl}/callback`,
         VITE_ADMIN_AUTH0_CONNECTION: source.VITE_ADMIN_AUTH0_CONNECTION,
-      },
+      }),
     };
   }
 
