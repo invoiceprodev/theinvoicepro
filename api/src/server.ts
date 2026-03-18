@@ -859,6 +859,7 @@ app.use(async (req: AuthedRequest, res: Response, next: NextFunction) => {
   if (
     req.path === "/health" ||
     req.path === "/paystack/webhook" ||
+    req.path === "/payfast/webhook" ||
     req.path === "/paypal/webhook" ||
     (apiConfig.isDevelopment && req.path.startsWith("/emails/previews"))
   ) {

@@ -28,6 +28,7 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
   const [debugUrl, setDebugUrl] = useState<string | null>(null);
   const paymentProvider = (import.meta.env.VITE_PAYMENT_PROVIDER || "paystack").toLowerCase();
   const hasPayPalOption = Boolean(import.meta.env.VITE_PAYPAL_CLIENT_ID);
+  const showProviderChoice = hasPayPalOption && paymentProvider === "paypal";
   const showPayFastDebug = import.meta.env.DEV;
   const allowTrialBypass = canStartTrialWithoutCard(plan);
 
@@ -306,7 +307,7 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
           </CardContent>
 
           <CardFooter className="flex flex-col gap-3">
-            {hasPayPalOption ? (
+            {showProviderChoice ? (
               <div className="grid w-full grid-cols-2 gap-3">
                 <Button
                   onClick={() => void handleSetupCard("paystack")}
@@ -328,7 +329,7 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
               </Button>
             ) : null}
 
-            {!hasPayPalOption ? (
+            {!showProviderChoice ? (
               <Button onClick={() => void handleSetupCard()} disabled={isProcessing} size="lg" className="w-full">
                 {isProcessing
                 ? `Redirecting to ${getProviderLabel(processingProvider || paymentProvider)}...`
