@@ -871,6 +871,11 @@ type TeamInviteForm = {
   role: TeamMemberRole;
 };
 
+type TeamMembersResponse = {
+  data: TeamMember[];
+  available?: boolean;
+};
+
 const defaultTeamInviteForm: TeamInviteForm = {
   fullName: "",
   email: "",
@@ -889,6 +894,7 @@ function GeneralTab() {
   const [invitePending, setInvitePending] = useState(false);
   const [updatingMemberId, setUpdatingMemberId] = useState<string | null>(null);
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [teamAccessAvailable, setTeamAccessAvailable] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -896,15 +902,15 @@ function GeneralTab() {
     async function loadTeamMembers() {
       try {
         setTeamLoading(true);
-        const response = await apiRequest<{ data: TeamMember[] }>("/settings/users");
+        const response = await apiRequest<TeamMembersResponse>("/settings/users");
         if (!cancelled) {
           setTeamMembers(response.data || []);
+          setTeamAccessAvailable(response.available !== false);
         }
       } catch (error) {
         if (!cancelled) {
-          toast.error("Failed to load team members", {
-            description: error instanceof Error ? error.message : "Unable to load team members.",
-          });
+          setTeamAccessAvailable(false);
+          setTeamMembers([]);
         }
       } finally {
         if (!cancelled) {
@@ -1109,6 +1115,16 @@ function GeneralTab() {
           <CardDescription>Add users who should be part of your workspace.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
+          {!teamAccessAvailable && (
+            <Alert>
+              <AlertTitle>Team access not available yet</AlertTitle>
+              <AlertDescription>
+                This workspace is missing the `team_members` database table, so team access controls are currently
+                disabled on this environment.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-medium">Seats used</p>
@@ -1140,6 +1156,7 @@ function GeneralTab() {
                   placeholder="Jane Smith"
                   value={inviteForm.fullName}
                   onChange={handleInviteInputChange("fullName")}
+                  disabled={!teamAccessAvailable}
                 />
               </div>
               <div className="space-y-1.5">
@@ -1150,11 +1167,12 @@ function GeneralTab() {
                   placeholder="jane@example.com"
                   value={inviteForm.email}
                   onChange={handleInviteInputChange("email")}
+                  disabled={!teamAccessAvailable}
                 />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="team-role">Role</Label>
-                <Select value={inviteForm.role} onValueChange={handleInviteFieldChange("role")}>
+                <Select value={inviteForm.role} onValueChange={handleInviteFieldChange("role")} disabled={!teamAccessAvailable}>
                   <SelectTrigger id="team-role">
                     <SelectValue />
                   </SelectTrigger>
@@ -1166,7 +1184,7 @@ function GeneralTab() {
               </div>
             </div>
             <div className="flex justify-end">
-              <Button onClick={handleInviteUser} disabled={invitePending || !canAddTeamMember}>
+              <Button onClick={handleInviteUser} disabled={invitePending || !canAddTeamMember || !teamAccessAvailable}>
                 <UserPlus className="mr-2 h-4 w-4" />
                 {invitePending ? "Adding user..." : "Add User"}
               </Button>
@@ -1181,6 +1199,10 @@ function GeneralTab() {
 
             {teamLoading ? (
               <p className="text-sm text-muted-foreground">Loading team members…</p>
+            ) : !teamAccessAvailable ? (
+              <p className="text-sm text-muted-foreground">
+                Team member management is unavailable until the `team_members` table is deployed.
+              </p>
             ) : teamMembers.length === 0 ? (
               <p className="text-sm text-muted-foreground">No additional users have been added yet.</p>
             ) : (

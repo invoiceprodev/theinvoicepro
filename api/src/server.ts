@@ -131,6 +131,46 @@ function getNextDocumentNumber(existingNumbers: string[], prefix: string) {
   return `${prefix}${String(highest + 1).padStart(4, "0")}`;
 }
 
+function getDocumentNumberPrefix(value: string) {
+  const match = String(value || "").trim().match(/^(.*?)(\d+)$/);
+  return match ? match[1] : null;
+}
+
+function isInvoiceNumberDuplicateError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { code?: string; message?: string };
+  return (
+    candidate.code === "23505" &&
+    String(candidate.message || "").includes("invoices_invoice_number_key")
+  );
+}
+
+function isMissingTeamMembersTableError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { code?: string; message?: string };
+  const message = String(candidate.message || "");
+  return (
+    candidate.code === "PGRST205" ||
+    message.includes("Could not find the table 'public.team_members' in the schema cache")
+  );
+}
+
+async function getNextAvailableDocumentNumber(prefix: string) {
+  const { data, error } = await adminSupabase
+    .from("invoices")
+    .select("invoice_number")
+    .ilike("invoice_number", `${prefix}%`);
+
+  if (error) {
+    throw error;
+  }
+
+  return getNextDocumentNumber(
+    (data || []).map((record) => String(record.invoice_number || "")),
+    prefix,
+  );
+}
+
 function sanitizeInvoiceItem(item: unknown) {
   const row = (item || {}) as Record<string, unknown>;
   const quantity = Number(row.quantity ?? 0);
@@ -1639,11 +1679,15 @@ app.get("/settings/users", async (req: AuthedRequest, res: Response) => {
       .order("created_at", { ascending: true });
 
     if (error) {
+      if (isMissingTeamMembersTableError(error)) {
+        res.json({ data: [], available: false });
+        return;
+      }
       res.status(500).json({ error: error.message });
       return;
     }
 
-    res.json({ data: data || [] });
+    res.json({ data: data || [], available: true });
   } catch (error) {
     console.error("[API] failed to load team members", error);
     res.status(500).json({ error: getErrorMessage(error, "Failed to load team members") });
@@ -1692,6 +1736,10 @@ app.post("/settings/users", async (req: AuthedRequest, res: Response) => {
       .single();
 
     if (error) {
+      if (isMissingTeamMembersTableError(error)) {
+        res.status(503).json({ error: "Team access is not available yet because the team_members table has not been deployed." });
+        return;
+      }
       res.status(500).json({ error: error.message });
       return;
     }
@@ -1737,6 +1785,10 @@ app.patch("/settings/users/:id", async (req: AuthedRequest, res: Response) => {
       .single();
 
     if (error) {
+      if (isMissingTeamMembersTableError(error)) {
+        res.status(503).json({ error: "Team access is not available yet because the team_members table has not been deployed." });
+        return;
+      }
       res.status(500).json({ error: error.message });
       return;
     }
@@ -1760,6 +1812,10 @@ app.delete("/settings/users/:id", async (req: AuthedRequest, res: Response) => {
       .eq("owner_profile_id", profile.id);
 
     if (error) {
+      if (isMissingTeamMembersTableError(error)) {
+        res.status(503).json({ error: "Team access is not available yet because the team_members table has not been deployed." });
+        return;
+      }
       res.status(500).json({ error: error.message });
       return;
     }
@@ -1843,7 +1899,7 @@ app.get("/subscription/usage", async (req: AuthedRequest, res: Response) => {
       return;
     }
 
-    if (teamMembersError) {
+    if (teamMembersError && !isMissingTeamMembersTableError(teamMembersError)) {
       res.status(500).json({ error: teamMembersError.message });
       return;
     }
@@ -1852,7 +1908,7 @@ app.get("/subscription/usage", async (req: AuthedRequest, res: Response) => {
       data: {
         savedClients: clientsCount || 0,
         invoicesThisMonth: invoicesCount || 0,
-        teamMembers: (teamMembersCount || 0) + 1,
+        teamMembers: ((isMissingTeamMembersTableError(teamMembersError) ? 0 : teamMembersCount) || 0) + 1,
       },
     });
   } catch (error) {
@@ -2278,19 +2334,65 @@ app.post("/invoices", async (req: AuthedRequest, res: Response) => {
     }
 
     const { lineItems, ...invoicePayload } = payload;
-    const invoiceInsertPayload = {
-      ...invoicePayload,
-      user_id: client.user_id,
-    };
-    const { data: invoice, error: invoiceError } = await adminSupabase
-      .from("invoices")
-      .insert(invoiceInsertPayload)
-      .select("*")
-      .single();
+    const documentPrefix = getDocumentNumberPrefix(invoicePayload.invoice_number);
+
+    let invoice: Record<string, unknown> | null = null;
+    let invoiceError: unknown = null;
+    let invoiceNumber = invoicePayload.invoice_number;
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const invoiceInsertPayload = {
+        ...invoicePayload,
+        invoice_number: invoiceNumber,
+        user_id: client.user_id,
+      };
+
+      const insertResult = await adminSupabase
+        .from("invoices")
+        .insert(invoiceInsertPayload)
+        .select("*")
+        .single();
+
+      invoice = insertResult.data as Record<string, unknown> | null;
+      invoiceError = insertResult.error;
+
+      if (!invoiceError && invoice?.id) {
+        break;
+      }
+
+      if (!isInvoiceNumberDuplicateError(invoiceError) || !documentPrefix) {
+        break;
+      }
+
+      invoiceNumber = await getNextAvailableDocumentNumber(documentPrefix);
+    }
 
     if (invoiceError || !invoice?.id) {
-      console.error("[API] failed to insert invoice", { invoiceError, invoiceInsertPayload, auth0UserId: user.sub });
-      res.status(500).json({ error: invoiceError?.message || "Failed to create invoice" });
+      console.error("[API] failed to insert invoice", {
+        invoiceError,
+        invoicePayload: {
+          ...invoicePayload,
+          invoice_number: invoiceNumber,
+          user_id: client.user_id,
+        },
+        auth0UserId: user.sub,
+      });
+
+      if (isInvoiceNumberDuplicateError(invoiceError)) {
+        res.status(409).json({
+          error: documentPrefix
+            ? "Invoice number changed while you were creating this invoice. Please try again."
+            : "That invoice number already exists. Use a different invoice number.",
+        });
+        return;
+      }
+
+      res.status(500).json({
+        error:
+          invoiceError && typeof invoiceError === "object" && "message" in invoiceError
+            ? String((invoiceError as { message?: unknown }).message || "Failed to create invoice")
+            : "Failed to create invoice",
+      });
       return;
     }
 

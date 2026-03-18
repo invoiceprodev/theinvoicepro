@@ -121,8 +121,7 @@ interface RevenueBarChartProps {
 }
 
 function RevenueBarChart({ invoices }: RevenueBarChartProps) {
-  // Use March 2024 as reference to match mock data dates
-  const referenceDate = new Date(2024, 2, 1); // March 2024
+  const referenceDate = new Date();
   const months = getLast6Months(referenceDate);
 
   const revenueByMonth: Record<string, number> = {};
@@ -305,8 +304,7 @@ interface ClientGrowthLineChartProps {
 }
 
 function ClientGrowthLineChart({ clients }: ClientGrowthLineChartProps) {
-  // Use Oct 2023 – Mar 2024 window (6 months ending March 2024)
-  const referenceDate = new Date(2024, 2, 1);
+  const referenceDate = new Date();
   const months = getLast6Months(referenceDate);
 
   // Count clients added per month
@@ -635,18 +633,18 @@ function QuickActions() {
       onClick: () => create("clients"),
     },
     {
-      label: "Add Product",
-      description: "Add to your catalog",
+      label: "Manage Plans",
+      description: "View billing and plan details",
       icon: <CreditCard className="h-5 w-5 text-amber-500" />,
       iconBg: "bg-amber-100 dark:bg-amber-950",
-      onClick: () => create("products"),
+      onClick: () => list("plans"),
     },
     {
-      label: "View Reports",
-      description: "Analytics & insights",
+      label: "Track Expenses",
+      description: "Review costs and payouts",
       icon: <BarChart2 className="h-5 w-5 text-emerald-500" />,
       iconBg: "bg-emerald-100 dark:bg-emerald-950",
-      onClick: () => list("reports"),
+      onClick: () => list("expenses"),
     },
   ];
 
