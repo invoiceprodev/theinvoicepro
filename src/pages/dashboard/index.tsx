@@ -32,7 +32,8 @@ import {
   Line,
 } from "recharts";
 import type { Invoice, Client } from "@/types";
-import { normalizeClientStatus, normalizeInvoiceStatus } from "@/types";
+import { getCurrentSubscriptionState, normalizeClientStatus, normalizeInvoiceStatus } from "@/types";
+import { useSubscriptionState } from "@/hooks/use-subscription-state";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-ZA", {
@@ -385,96 +386,94 @@ function ClientGrowthLineChart({ clients }: ClientGrowthLineChartProps) {
   );
 }
 
-// Hardcoded subscription plan mock data (Phase 10 plans)
-const PLAN_COLORS: Record<string, string> = {
-  Basic: "var(--chart-3)",
-  Pro: "var(--chart-1)",
-  Enterprise: "var(--chart-5)",
-};
+function formatPlanStateLabel(state: ReturnType<typeof getCurrentSubscriptionState>) {
+  switch (state) {
+    case "trial_pending":
+      return "Trial Pending";
+    case "trial_active":
+      return "Trial Active";
+    case "active":
+      return "Active";
+    case "cancelled":
+      return "Cancelled";
+    case "expired":
+      return "Expired";
+    case "none":
+    default:
+      return "No Plan";
+  }
+}
 
-const SUBSCRIPTION_MOCK_DATA = [
-  { plan: "Basic", subscribers: 8 },
-  { plan: "Pro", subscribers: 14 },
-  { plan: "Enterprise", subscribers: 5 },
-];
+function CurrentPlanCard() {
+  const { list } = useNavigation();
+  const { loading, subscription, state } = useSubscriptionState();
 
-function SubscriptionPlanChart() {
-  const total = SUBSCRIPTION_MOCK_DATA.reduce((s, d) => s + d.subscribers, 0);
+  const planName = subscription?.plan?.name || "No active plan";
+  const price = subscription?.plan
+    ? new Intl.NumberFormat("en-ZA", {
+        style: "currency",
+        currency: subscription.plan.currency || "ZAR",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(subscription.plan.price)
+    : null;
+  const cycle = subscription?.plan?.billing_cycle || null;
+  const nextDate =
+    subscription?.renewal_date || subscription?.trial_end_date || subscription?.end_date || null;
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Subscription Plan Breakdown</CardTitle>
-        <CardDescription>Active subscribers by plan ({total} total)</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart
-            data={SUBSCRIPTION_MOCK_DATA}
-            margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
-            barCategoryGap="35%">
-            <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/50" />
-            <XAxis
-              dataKey="plan"
-              tick={{ fontSize: 11 }}
-              tickLine={false}
-              axisLine={false}
-              className="fill-muted-foreground"
-            />
-            <YAxis
-              allowDecimals={false}
-              tick={{ fontSize: 11 }}
-              tickLine={false}
-              axisLine={false}
-              width={32}
-              className="fill-muted-foreground"
-            />
-            <Tooltip
-              cursor={{ fill: "var(--muted)", opacity: 0.5 }}
-              content={({ active, payload, label }) => {
-                if (!active || !payload?.length) return null;
-                const count = payload[0].value as number;
-                const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-                return (
-                  <div className="border-border/50 bg-background rounded-lg border px-3 py-2 text-xs shadow-xl">
-                    <div className="flex items-center gap-1.5 font-medium mb-1">
-                      <span
-                        className="inline-block h-2 w-2 rounded-[2px]"
-                        style={{ backgroundColor: PLAN_COLORS[label] }}
-                      />
-                      {label}
-                    </div>
-                    <p className="text-muted-foreground">
-                      Subscribers: <span className="text-foreground font-mono font-medium">{count}</span>
-                    </p>
-                    <p className="text-muted-foreground">
-                      Share: <span className="text-foreground font-mono font-medium">{pct}%</span>
-                    </p>
-                  </div>
-                );
-              }}
-            />
-            <Bar dataKey="subscribers" radius={[4, 4, 0, 0]} maxBarSize={64}>
-              {SUBSCRIPTION_MOCK_DATA.map((entry) => (
-                <Cell key={entry.plan} fill={PLAN_COLORS[entry.plan]} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-        {/* Legend */}
-        <div className="flex justify-center gap-5 pt-3">
-          {SUBSCRIPTION_MOCK_DATA.map((entry) => (
-            <div key={entry.plan} className="flex items-center gap-1.5 text-xs">
-              <span
-                className="inline-block h-2.5 w-2.5 shrink-0 rounded-[2px]"
-                style={{ backgroundColor: PLAN_COLORS[entry.plan] }}
-              />
-              <span className="text-muted-foreground">
-                {entry.plan} <span className="text-foreground font-medium tabular-nums">({entry.subscribers})</span>
-              </span>
-            </div>
-          ))}
+      <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <CardTitle className="text-base">Current Plan</CardTitle>
+          <CardDescription>Your subscription status and next billing milestone</CardDescription>
         </div>
+        <Badge variant="secondary">{formatPlanStateLabel(state)}</Badge>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {loading ? (
+          <div className="flex h-[220px] items-center justify-center text-sm text-muted-foreground">
+            Loading current plan...
+          </div>
+        ) : (
+          <>
+            <div className="space-y-1">
+              <p className="text-2xl font-bold tracking-tight">{planName}</p>
+              <p className="text-sm text-muted-foreground">
+                {price && cycle ? `${price} / ${cycle}` : "Choose a plan to unlock subscription features"}
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Status</p>
+                <p className="mt-1 text-sm font-medium">{formatPlanStateLabel(state)}</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {state === "trial_active" || state === "trial_pending" ? "Trial Ends" : "Next Renewal"}
+                </p>
+                <p className="mt-1 text-sm font-medium">
+                  {nextDate ? new Date(nextDate).toLocaleDateString() : "Not scheduled"}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+              {state === "trial_pending" && "Your trial is waiting for activation. Open plans to continue setup."}
+              {state === "trial_active" &&
+                "Your trial is active. Add billing details before it ends if you want uninterrupted renewal."}
+              {state === "active" && "Your subscription is active and available for normal billing and renewal."}
+              {state === "cancelled" && "Your subscription has been cancelled and will end after the current term."}
+              {state === "expired" && "Your previous subscription has ended. Select a plan to resume access."}
+              {state === "none" && "You do not have an active subscription yet. Select a plan to get started."}
+            </p>
+
+            <Button variant="outline" onClick={() => list("plans")}>
+              Manage Plan
+            </Button>
+          </>
+        )}
       </CardContent>
     </Card>
   );
@@ -482,10 +481,10 @@ function SubscriptionPlanChart() {
 
 // ─── Recent Activity ───────────────────────────────────────────────────────────
 
-type ActivityType = "invoice_created" | "payment_received" | "client_added" | "plan_subscribed";
+type ActivityType = "invoice_created" | "invoice_paid" | "client_added";
 
 interface Activity {
-  id: number;
+  id: string;
   type: ActivityType;
   title: string;
   description: string;
@@ -494,16 +493,14 @@ interface Activity {
 
 const ACTIVITY_ICONS: Record<ActivityType, React.ReactNode> = {
   invoice_created: <FileText className="h-4 w-4 text-blue-500" />,
-  payment_received: <DollarSign className="h-4 w-4 text-emerald-500" />,
+  invoice_paid: <DollarSign className="h-4 w-4 text-emerald-500" />,
   client_added: <UserPlus className="h-4 w-4 text-violet-500" />,
-  plan_subscribed: <CreditCard className="h-4 w-4 text-amber-500" />,
 };
 
 const ACTIVITY_ICON_BG: Record<ActivityType, string> = {
   invoice_created: "bg-blue-100 dark:bg-blue-950",
-  payment_received: "bg-emerald-100 dark:bg-emerald-950",
+  invoice_paid: "bg-emerald-100 dark:bg-emerald-950",
   client_added: "bg-violet-100 dark:bg-violet-950",
-  plan_subscribed: "bg-amber-100 dark:bg-amber-950",
 };
 
 function getRelativeTime(date: Date): string {
@@ -520,67 +517,57 @@ function getRelativeTime(date: Date): string {
   return "just now";
 }
 
-const now = new Date();
-const RECENT_ACTIVITIES: Activity[] = [
-  {
-    id: 1,
-    type: "payment_received",
-    title: "Payment Received",
-    description: "Acme Corp paid invoice #INV-0042 — R4 200",
-    timestamp: new Date(now.getTime() - 1.5 * 60 * 60 * 1000),
-  },
-  {
-    id: 2,
-    type: "invoice_created",
-    title: "Invoice Created",
-    description: "Invoice #INV-0043 created for Globex LLC",
-    timestamp: new Date(now.getTime() - 3 * 60 * 60 * 1000),
-  },
-  {
-    id: 3,
-    type: "client_added",
-    title: "New Client Added",
-    description: "Initech Solutions was added to your client list",
-    timestamp: new Date(now.getTime() - 6 * 60 * 60 * 1000),
-  },
-  {
-    id: 4,
-    type: "plan_subscribed",
-    title: "Plan Subscribed",
-    description: "Umbrella Inc. subscribed to the Pro plan",
-    timestamp: new Date(now.getTime() - 10 * 60 * 60 * 1000),
-  },
-  {
-    id: 5,
-    type: "payment_received",
-    title: "Payment Received",
-    description: "Stark Industries paid invoice #INV-0039 — R12 500",
-    timestamp: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000),
-  },
-  {
-    id: 6,
-    type: "invoice_created",
-    title: "Invoice Created",
-    description: "Invoice #INV-0041 created for Wayne Enterprises",
-    timestamp: new Date(now.getTime() - 1.5 * 24 * 60 * 60 * 1000),
-  },
-  {
-    id: 7,
-    type: "client_added",
-    title: "New Client Added",
-    description: "Oscorp Industries was added to your client list",
-    timestamp: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
-  },
-  {
-    id: 8,
-    type: "plan_subscribed",
-    title: "Plan Subscribed",
-    description: "LexCorp subscribed to the Enterprise plan",
-    timestamp: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000),
-  },
-];
+function buildRecentActivities(invoices: Invoice[], clients: Client[]): Activity[] {
+  const clientNameById = new Map(clients.map((client) => [client.id, client.name]));
 
-function RecentActivityFeed() {
+  const invoiceActivities: Activity[] = invoices.flatMap((invoice) => {
+    const activities: Activity[] = [];
+    const clientName = clientNameById.get(invoice.client_id) || "a client";
+
+    if (invoice.created_at) {
+      activities.push({
+        id: `invoice-created-${invoice.id}`,
+        type: "invoice_created",
+        title: "Invoice Created",
+        description: `Invoice #${invoice.invoice_number} created for ${clientName}`,
+        timestamp: new Date(invoice.created_at),
+      });
+    }
+
+    if (normalizeInvoiceStatus(invoice.status) === "paid" && invoice.updated_at) {
+      activities.push({
+        id: `invoice-paid-${invoice.id}`,
+        type: "invoice_paid",
+        title: "Payment Received",
+        description: `${clientName} paid invoice #${invoice.invoice_number} - ${formatCurrency(invoice.total)}`,
+        timestamp: new Date(invoice.updated_at),
+      });
+    }
+
+    return activities;
+  });
+
+  const clientActivities: Activity[] = clients
+    .filter((client) => Boolean(client.created_at))
+    .map((client) => ({
+      id: `client-added-${client.id}`,
+      type: "client_added",
+      title: "New Client Added",
+      description: `${client.name} was added to your client list`,
+      timestamp: new Date(client.created_at),
+    }));
+
+  return [...invoiceActivities, ...clientActivities]
+    .filter((activity) => !Number.isNaN(activity.timestamp.getTime()))
+    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+    .slice(0, 8);
+}
+
+interface RecentActivityFeedProps {
+  activities: Activity[];
+}
+
+function RecentActivityFeed({ activities }: RecentActivityFeedProps) {
   return (
     <Card className="flex flex-col">
       <CardHeader>
@@ -588,8 +575,13 @@ function RecentActivityFeed() {
         <CardDescription>Latest actions across your account</CardDescription>
       </CardHeader>
       <CardContent className="flex-1">
-        <ul className="space-y-4">
-          {RECENT_ACTIVITIES.map((activity, index) => (
+        {activities.length === 0 ? (
+          <div className="flex h-full min-h-48 items-center justify-center text-sm text-muted-foreground">
+            No recent activity yet
+          </div>
+        ) : (
+          <ul className="space-y-4">
+            {activities.map((activity, index) => (
             <li key={activity.id}>
               <div className="flex items-start gap-3">
                 <div
@@ -604,10 +596,11 @@ function RecentActivityFeed() {
                   {getRelativeTime(activity.timestamp)}
                 </span>
               </div>
-              {index < RECENT_ACTIVITIES.length - 1 && <div className="mt-4 border-b border-border/50" />}
+              {index < activities.length - 1 && <div className="mt-4 border-b border-border/50" />}
             </li>
-          ))}
-        </ul>
+            ))}
+          </ul>
+        )}
       </CardContent>
     </Card>
   );
@@ -723,6 +716,7 @@ export function DashboardPage() {
   const inactiveClients = clients.filter((c: Client) => normalizeClientStatus(c.status) !== "Active").length;
 
   const isLoading = invoicesQuery.isLoading || clientsQuery.isLoading;
+  const recentActivities = buildRecentActivities(invoices, clients);
 
   if (isLoading) {
     return (
@@ -831,12 +825,12 @@ export function DashboardPage() {
         <RevenueBarChart invoices={invoices} />
         <StatusDonutChart invoices={invoices} />
         <ClientGrowthLineChart clients={clients} />
-        <SubscriptionPlanChart />
+        <CurrentPlanCard />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
-          <RecentActivityFeed />
+          <RecentActivityFeed activities={recentActivities} />
         </div>
         <div className="lg:col-span-1">
           <QuickActions />

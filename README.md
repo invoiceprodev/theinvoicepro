@@ -29,6 +29,29 @@ Current live deployment:
 Deployment guide:
 - [`DEPLOYMENT.md`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/DEPLOYMENT.md)
 
+## Resume Note
+
+Last checkpoint:
+- Paystack checkout is the live recurring billing path currently working through the app
+- PayPal subscription checkout option was added in code and pushed in commit `245db53`
+- public frontend payment-method copy now advertises `Paystack` and `PayPal`
+- customer frontend needed a redeploy previously to pick up billing-flow fixes
+
+Where we stopped:
+- PayPal is not fully tested yet
+- local `.env` PayPal values were still blank at pause time
+- the new SQL migration for PayPal token storage has not been run yet
+
+Required before resuming PayPal testing:
+- run [`db/migrations/PAYPAL_SUBSCRIPTION_TOKEN.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/PAYPAL_SUBSCRIPTION_TOKEN.sql)
+- set `VITE_PAYPAL_CLIENT_ID` locally and in the customer Vercel project
+- set `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYPAL_MODE`, and `PAYPAL_CALLBACK_URL` in the API environment
+- restart local API/frontend after env updates
+
+Local note:
+- local frontend came up on `http://127.0.0.1:5174` during the last session because `5173` was already in use
+- local API was started with `npm run api:start`
+
 ## What Works Now
 
 - Auth0 customer signup, email verification, login
@@ -48,6 +71,7 @@ Deployment guide:
 ## Known Caveats
 
 - Paystack is the active subscription checkout path under test and should be the frontend default provider
+- PayPal subscription checkout has been added in code but still needs env setup, SQL migration, and live/local verification
 - PayFast recurring sandbox is still blocked by merchant/account setup outside the app
 - PayFast live payments are currently blocked at the merchant-account level. Current PayFast error: `Merchant unable to receive payments due to invalid account details provided.`
 - When PayFast work resumes, start by fixing the PayFast merchant account details and live account verification before debugging app code or webhook handling
@@ -95,6 +119,7 @@ Important migrations:
 - [`db/migrations/AUTH0_PROFILE_DECOUPLING.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/AUTH0_PROFILE_DECOUPLING.sql)
 - [`db/migrations/PLAN_METADATA_ALIGNMENT.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/PLAN_METADATA_ALIGNMENT.sql)
 - [`db/migrations/EXPENSE_RECIPIENT_DETAILS.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/EXPENSE_RECIPIENT_DETAILS.sql)
+- [`db/migrations/PAYPAL_SUBSCRIPTION_TOKEN.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/PAYPAL_SUBSCRIPTION_TOKEN.sql)
 
 For a fresh project, also review:
 - [`db/supabase_full_setup.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/supabase_full_setup.sql)
@@ -249,8 +274,16 @@ Expected flow:
 2. create account
 3. confirm email
 4. log in
-5. complete card setup
-6. continue into the app with the active trial subscription
+5. trial starts without card for `Starter/Trial`
+6. add billing later if needed before renewal
+
+Card-required plans:
+1. choose `Pro` or `Enterprise`
+2. create account
+3. confirm email
+4. log in
+5. continue to billing setup
+6. complete Paystack now, or test PayPal after env + SQL setup is finished
 
 ## Branding
 
@@ -297,6 +330,7 @@ db/
 
 ## Recommended Next Production Work
 
-- complete PayFast recurring billing against a recurring-capable merchant setup
-- validate PayFast webhook handling on the live Railway API domain
-- verify card-required trial start and paid-plan checkout end-to-end in production-like mode
+- run the PayPal SQL migration and finish PayPal local/live testing
+- verify Paystack webhook handling on the live Railway API domain
+- verify Pro and Enterprise paid-plan checkout end-to-end in production-like mode
+- complete PayFast recurring billing against a recurring-capable merchant setup only if PayFast remains needed as a legacy fallback
