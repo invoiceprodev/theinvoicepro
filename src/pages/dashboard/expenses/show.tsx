@@ -29,6 +29,7 @@ import { Trash2 } from "lucide-react";
 import { getProfileBridgeSnapshot } from "@/lib/profile-bridge";
 import { downloadExpenseReceiptPDF } from "@/lib/pdf-generator";
 import { sendExpenseReceiptEmail } from "@/services/expense-email.service";
+import { useDashboardFeatureAccess } from "@/hooks/use-dashboard-feature-access";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -80,10 +81,16 @@ export function ExpenseShowPage() {
   const { list } = useNavigation();
   const [isSending, setIsSending] = useState(false);
   const businessProfile = getProfileBridgeSnapshot().profile;
+  const { hasAccess, showBlockedMessage } = useDashboardFeatureAccess();
 
   const symbol = getCurrencySymbol(expense?.currency ?? "ZAR");
 
   function handleDelete() {
+    if (!hasAccess) {
+      showBlockedMessage();
+      return;
+    }
+
     if (!expense) return;
     deleteExpense(
       { resource: "expenses", id: expense.id },
@@ -96,11 +103,21 @@ export function ExpenseShowPage() {
   }
 
   async function handleDownloadReceipt() {
+    if (!hasAccess) {
+      showBlockedMessage();
+      return;
+    }
+
     if (!expense) return;
     await downloadExpenseReceiptPDF(expense, businessProfile || undefined);
   }
 
   async function handleSendReceipt() {
+    if (!hasAccess) {
+      showBlockedMessage();
+      return;
+    }
+
     if (!expense) return;
     const recipientEmail = expense.recipient_email || expense.recipientEmail;
     if (!recipientEmail) {
@@ -142,7 +159,18 @@ export function ExpenseShowPage() {
             <Printer className="h-4 w-4 mr-2" />
             Download PDF
           </Button>
-          <Button variant="destructive" size="sm" onClick={() => setShowDeleteDialog(true)} disabled={!expense}>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => {
+              if (!hasAccess) {
+                showBlockedMessage();
+                return;
+              }
+
+              setShowDeleteDialog(true);
+            }}
+            disabled={!expense}>
             <Trash2 className="h-4 w-4 mr-2" />
             Delete
           </Button>

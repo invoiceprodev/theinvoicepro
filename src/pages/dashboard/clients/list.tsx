@@ -19,10 +19,14 @@ import { ChevronDown, FileText, Pencil } from "lucide-react";
 
 import type { Client } from "@/types";
 import { usePlanEntitlements } from "@/hooks/use-plan-entitlements";
+import { useDashboardFeatureAccess } from "@/hooks/use-dashboard-feature-access";
 
 export function ClientListPage() {
   const navigate = useNavigate();
-  const { canCreateClient, canUseQuotes } = usePlanEntitlements();
+  const { canCreateClient, canUseQuotes, hasFeatureAccess, showBlockedMessage } = {
+    ...usePlanEntitlements(),
+    ...useDashboardFeatureAccess(),
+  };
 
   const columns = useMemo<ColumnDef<Client>[]>(
     () => [
@@ -63,22 +67,48 @@ export function ClientListPage() {
                 <Pencil className="h-4 w-4" />
               </EditButton>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="outline" className="gap-1 h-7 px-2 text-xs">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 h-7 px-2 text-xs"
+                    type="button"
+                    onClick={(event) => {
+                      if (!hasFeatureAccess) {
+                        event.preventDefault();
+                        showBlockedMessage();
+                      }
+                    }}>
                     <FileText className="h-3.5 w-3.5" />
                     New Invoice
                     <ChevronDown className="h-3 w-3" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() => navigate(`/dashboard/invoices/create?clientId=${record.id}&type=invoice`)}>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                    onClick={() => {
+                      if (!hasFeatureAccess) {
+                        showBlockedMessage();
+                        return;
+                      }
+
+                      navigate(`/invoices/create?clientId=${record.id}&type=invoice`);
+                    }}>
                     Invoice
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     disabled={!canUseQuotes}
-                    onClick={() => canUseQuotes && navigate(`/dashboard/invoices/create?clientId=${record.id}&type=quote`)}>
+                    onClick={() => {
+                      if (!hasFeatureAccess) {
+                        showBlockedMessage();
+                        return;
+                      }
+
+                      if (canUseQuotes) {
+                        navigate(`/quotes/create?clientId=${record.id}`);
+                      }
+                    }}>
                     Quote
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -89,7 +119,7 @@ export function ClientListPage() {
         enableSorting: false,
       },
     ],
-    [navigate],
+    [canUseQuotes, hasFeatureAccess, navigate, showBlockedMessage],
   );
 
   const table = useTable<Client>({

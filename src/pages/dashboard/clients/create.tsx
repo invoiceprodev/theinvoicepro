@@ -3,6 +3,7 @@ import { type HttpError, useBack } from "@refinedev/core";
 import { useForm } from "@refinedev/react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { toast } from "sonner";
 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CreateView } from "@/components/refine-ui/views/create-view";
 import { usePlanEntitlements } from "@/hooks/use-plan-entitlements";
+import { useDashboardFeatureAccess } from "@/hooks/use-dashboard-feature-access";
 import type { Client } from "@/types";
 
 const clientFormSchema = z.object({
@@ -29,7 +31,8 @@ type ClientFormValues = z.infer<typeof clientFormSchema>;
 
 export const ClientCreatePage: React.FC = () => {
   const back = useBack();
-  const { entitlements, usage, canCreateClient } = usePlanEntitlements();
+  const { entitlements, usage, canCreateClient, hasFeatureAccess } = usePlanEntitlements();
+  const { showBlockedMessage } = useDashboardFeatureAccess();
 
   const {
     refineCore: { onFinish, formLoading },
@@ -55,6 +58,18 @@ export const ClientCreatePage: React.FC = () => {
   });
 
   function onSubmit(values: ClientFormValues) {
+    if (!hasFeatureAccess) {
+      showBlockedMessage();
+      return;
+    }
+
+    if (!canCreateClient) {
+      toast.error("Client limit reached", {
+        description: `Your plan allows ${entitlements.maxSavedClients} saved clients.`,
+      });
+      return;
+    }
+
     const addressParts = [values.street, values.city, values.state, values.zip, values.country]
       .filter(Boolean)
       .join(", ");
@@ -234,7 +249,7 @@ export const ClientCreatePage: React.FC = () => {
               <Button type="button" variant="outline" onClick={() => back()} disabled={formLoading}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={formLoading || !canCreateClient}>
+              <Button type="submit" disabled={formLoading}>
                 {formLoading ? "Creating..." : "Create Client"}
               </Button>
             </div>

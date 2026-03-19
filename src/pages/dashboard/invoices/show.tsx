@@ -8,6 +8,7 @@ import { ShowView, ShowViewHeader } from "@/components/refine-ui/views/show-view
 import { LoadingOverlay } from "@/components/refine-ui/layout/loading-overlay";
 import { EditButton } from "@/components/refine-ui/buttons/edit";
 import { ListButton } from "@/components/refine-ui/buttons/list";
+import { DeleteButton } from "@/components/refine-ui/buttons/delete";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +29,7 @@ import type { Invoice, Client, LineItem } from "@/types";
 import { formatInvoiceStatus, getCurrencySymbol, normalizeInvoiceStatus } from "@/types";
 import { useSendInvoiceEmail } from "@/hooks/use-send-invoice-email";
 import { useSubscriptionState } from "@/hooks/use-subscription-state";
+import { useDashboardFeatureAccess } from "@/hooks/use-dashboard-feature-access";
 import { getPlanEntitlements } from "@/lib/plan-entitlements";
 import { downloadInvoicePDF } from "@/lib/pdf-generator";
 import { getProfileBridgeSnapshot } from "@/lib/profile-bridge";
@@ -40,10 +42,17 @@ const statusColors: Record<string, string> = {
   pending: "bg-amber-500",
 };
 
-export function InvoiceShowPage() {
+interface InvoiceShowPageProps {
+  documentType?: "invoice" | "quote";
+}
+
+export function InvoiceShowPage({ documentType = "invoice" }: InvoiceShowPageProps) {
   const [showMarkPaidDialog, setShowMarkPaidDialog] = useState(false);
 
-  const { query } = useShow<Invoice>();
+  const resourceName = documentType === "quote" ? "quotes" : "invoices";
+  const { query } = useShow<Invoice>({
+    resource: resourceName,
+  });
   const invoice = query.data?.data;
   const businessProfile = getProfileBridgeSnapshot().profile;
 
@@ -52,6 +61,7 @@ export function InvoiceShowPage() {
   const invalidate = useInvalidate();
   const invoiceStatus = normalizeInvoiceStatus(invoice?.status);
   const { subscription } = useSubscriptionState();
+  const { hasAccess, showBlockedMessage } = useDashboardFeatureAccess();
   const entitlements = getPlanEntitlements(subscription?.plan);
 
   const { query: clientQuery } = useOne<Client>({
@@ -81,7 +91,7 @@ export function InvoiceShowPage() {
   const isLoading = query.isLoading || clientQuery.isLoading || lineItemsQuery.isLoading;
 
   const symbol = getCurrencySymbol(invoice?.currency || "ZAR");
-  const isQuote = String(invoice?.invoice_number || "").toUpperCase().startsWith("QUO-");
+  const isQuote = documentType === "quote" || String(invoice?.invoice_number || "").toUpperCase().startsWith("QUO-");
   const documentLabel = isQuote ? "Quote" : "Invoice";
 
   const discountType = (invoice as any)?.discountType || "percentage";
@@ -94,6 +104,11 @@ export function InvoiceShowPage() {
       : 0;
 
   function handleMarkAsPaid() {
+    if (!hasAccess) {
+      showBlockedMessage();
+      return;
+    }
+
     if (!invoice) return;
     updateInvoice(
       { resource: "invoices", id: invoice.id, values: { ...invoice, status: "paid" } },
@@ -107,6 +122,11 @@ export function InvoiceShowPage() {
   }
 
   async function handleDownloadPDF() {
+    if (!hasAccess) {
+      showBlockedMessage();
+      return;
+    }
+
     if (!invoice) return;
 
     await downloadInvoicePDF(invoice, businessProfile || undefined, {
@@ -115,6 +135,11 @@ export function InvoiceShowPage() {
   }
 
   async function handleSendInvoice() {
+    if (!hasAccess) {
+      showBlockedMessage();
+      return;
+    }
+
     if (!invoice || !client) {
       toast.error("Client email is required before sending this invoice.");
       return;
@@ -142,17 +167,24 @@ export function InvoiceShowPage() {
     <>
       <ShowView>
         <ShowViewHeader title={invoice?.invoice_number || `${documentLabel} Details`}>
-          <ListButton resource="invoices" />
+          <ListButton resource={resourceName} />
           <Button variant="outline" size="sm" onClick={handleSendInvoice} disabled={!invoice || !client || isSending}>
             <Send className="h-4 w-4 mr-2" />
             {isSending ? "Sending..." : isQuote ? "Send Quote" : "Send Email"}
           </Button>
-          {invoiceStatus !== "paid" && (
+          {!isQuote && invoiceStatus !== "paid" && (
             <Button
               variant="outline"
               size="sm"
               className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700"
-              onClick={() => setShowMarkPaidDialog(true)}
+              onClick={() => {
+                if (!hasAccess) {
+                  showBlockedMessage();
+                  return;
+                }
+
+                setShowMarkPaidDialog(true);
+              }}
               disabled={isUpdating}>
               <CheckCircle className="h-4 w-4 mr-2" />
               Mark as Paid
@@ -162,7 +194,10 @@ export function InvoiceShowPage() {
             <Printer className="h-4 w-4 mr-2" />
             Download PDF
           </Button>
-          <EditButton resource="invoices" recordItemId={invoice?.id} />
+          <EditButton resource={resourceName} recordItemId={invoice?.id} />
+          <DeleteButton resource={resourceName} recordItemId={invoice?.id} size="sm" variant="destructive">
+            Delete
+          </DeleteButton>
         </ShowViewHeader>
 
         <LoadingOverlay loading={isLoading}>

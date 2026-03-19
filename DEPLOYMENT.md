@@ -57,11 +57,12 @@ Have these ready before creating anything:
   - secret key
   - webhook secret
   - callback URL
-- PayFast:
-  - merchant ID
-  - merchant key
-  - passphrase
-  - recurring/tokenization enabled
+- PayPal:
+  - client ID
+  - client secret
+  - webhook ID
+  - mode
+  - callback URL
 - Domains:
   - `theinvoicepro.co.za`
   - `admin.theinvoicepro.co.za`
@@ -155,11 +156,6 @@ RESEND_API_KEY=...
 RESEND_FROM_EMAIL=noreply@theinvoicepro.co.za
 
 PAYMENT_PROVIDER=paystack
-PAYFAST_MERCHANT_ID=...
-PAYFAST_MERCHANT_KEY=...
-PAYFAST_PASSPHRASE=...
-PAYFAST_MODE=live
-PAYFAST_NOTIFY_URL=https://api.theinvoicepro.co.za/payfast/webhook
 
 PAYSTACK_PUBLIC_KEY=...
 PAYSTACK_SECRET_KEY=...
@@ -177,7 +173,8 @@ PAYPAL_CALLBACK_URL=https://theinvoicepro.co.za/auth/card-setup/success?provider
 After deploy, confirm:
 
 - `https://api.theinvoicepro.co.za/health` responds
-- `https://api.theinvoicepro.co.za/payfast/webhook` is reachable
+- Paystack checkout opens and returns to the customer app
+- PayPal checkout opens and returns to the customer app when enabled
 
 ## 5. Vercel Customer Frontend
 

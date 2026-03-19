@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { getSelectedPlanCheckout, setSelectedPlanCheckout } from "@/lib/plan-selection";
 import { canStartTrialWithoutCard } from "@/lib/trial-bypass";
 import type { Plan } from "@/types";
+import { getDefaultStarterPlan } from "@/lib/subscription-access";
 
 const registerSchema = z
   .object({
@@ -39,7 +40,7 @@ export const RegisterPage = () => {
     resource: "plans",
     pagination: { mode: "off" },
     queryOptions: {
-      enabled: Boolean(selectedPlanId && !selectedPlan),
+      enabled: !selectedPlan,
     },
   });
 
@@ -54,11 +55,15 @@ export const RegisterPage = () => {
   });
 
   useEffect(() => {
-    if (!selectedPlanId || selectedPlan || !plansResult?.data?.length) {
+    if (selectedPlan || !plansResult?.data?.length) {
       return;
     }
 
-    const matchedPlan = (plansResult.data as Plan[]).find((plan) => plan.id === selectedPlanId);
+    const plans = plansResult.data as Plan[];
+    const matchedPlan = selectedPlanId
+      ? plans.find((plan) => plan.id === selectedPlanId) ?? getDefaultStarterPlan(plans)
+      : getDefaultStarterPlan(plans);
+
     if (matchedPlan) {
       setSelectedPlanCheckout(matchedPlan);
     }

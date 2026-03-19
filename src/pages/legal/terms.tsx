@@ -5,7 +5,7 @@ export function TermsOfServicePage() {
     <LegalLayout
       title="Terms of Service"
       summary="These Terms govern your access to and use of The Invoice Pro platform and related services."
-      lastUpdated="March 12, 2026"
+      lastUpdated="March 19, 2026"
     >
       <section className="space-y-3">
         <h2 className="text-xl font-semibold text-foreground">
@@ -49,7 +49,7 @@ export function TermsOfServicePage() {
         <h2 className="text-xl font-semibold text-foreground">
           4. Subscription and Billing
         </h2>
-        <p>Subscriptions are billed through PayFast.</p>
+        <p>Subscriptions are billed through Paystack and PayPal.</p>
         <p>Subscriptions may be billed:</p>
         <ul className="list-disc space-y-1 pl-6">
           <li>monthly</li>

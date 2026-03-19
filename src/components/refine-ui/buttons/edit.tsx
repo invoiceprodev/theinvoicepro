@@ -4,6 +4,8 @@ import React from "react";
 import { type BaseKey, useEditButton } from "@refinedev/core";
 import { Button } from "@/components/ui/button";
 import { Pencil } from "lucide-react";
+import { useDashboardFeatureAccess } from "@/hooks/use-dashboard-feature-access";
+import { isSubscriptionGateExemptResource } from "@/lib/subscription-access";
 
 type EditButtonProps = {
   /**
@@ -44,11 +46,34 @@ export const EditButton = React.forwardRef<
       accessControl,
       meta,
     });
+    const { isBlocked, showBlockedMessage } = useDashboardFeatureAccess();
 
     const isDisabled = disabled || rest.disabled;
     const isHidden = hidden || rest.hidden;
+    const shouldGate = isBlocked && !isSubscriptionGateExemptResource(resource);
 
     if (isHidden) return null;
+
+    if (shouldGate) {
+      return (
+        <Button
+          {...rest}
+          ref={ref}
+          type="button"
+          onClick={(event) => {
+            event.preventDefault();
+            onClick?.(event);
+            showBlockedMessage();
+          }}>
+          {children ?? (
+            <div className="flex items-center gap-2 font-semibold">
+              <Pencil className="h-4 w-4" />
+              <span>{label}</span>
+            </div>
+          )}
+        </Button>
+      );
+    }
 
     return (
       <Button {...rest} ref={ref} disabled={isDisabled} asChild>

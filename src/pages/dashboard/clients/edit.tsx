@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { EditView } from "@/components/refine-ui/views/edit-view";
 import { LoadingOverlay } from "@/components/refine-ui/layout/loading-overlay";
 import type { Client } from "@/types";
+import { useDashboardFeatureAccess } from "@/hooks/use-dashboard-feature-access";
 
 const clientFormSchema = z.object({
   name: z.string().min(1, { message: "Full name is required" }),
@@ -40,6 +41,7 @@ function parseAddress(address: string = "") {
 
 export const ClientEditPage: React.FC = () => {
   const back = useBack();
+  const { hasAccess, showBlockedMessage } = useDashboardFeatureAccess();
 
   const {
     refineCore: { onFinish, formLoading, query },
@@ -72,6 +74,11 @@ export const ClientEditPage: React.FC = () => {
   }, [query?.data?.data]);
 
   function onSubmit(values: ClientFormValues) {
+    if (!hasAccess) {
+      showBlockedMessage();
+      return;
+    }
+
     const addressParts = [values.street, values.city, values.state, values.zip, values.country]
       .filter(Boolean)
       .join(", ");

@@ -4,7 +4,7 @@ Customer invoicing SaaS with:
 - public marketing site
 - customer dashboard
 - admin dashboard
-- local API for Auth0-backed profile, subscription, email, Paystack, and PayFast integration work
+- local API for Auth0-backed profile, subscription, email, Paystack, PayPal, and legacy PayFast integration work
 
 ## Current Architecture
 
@@ -13,7 +13,7 @@ Customer invoicing SaaS with:
 - Local API: `http://127.0.0.1:3000`
 - Database and storage: `Supabase`
 - Auth: `Auth0`
-- Billing: `Paystack` primary, `PayFast` legacy/fallback
+- Billing: `Paystack` primary with `PayPal` checkout enabled when configured
 - Email: `Resend`
 
 Production target:
@@ -31,22 +31,10 @@ Deployment guide:
 
 ## Resume Note
 
-Last checkpoint:
-- Paystack checkout is the live recurring billing path currently working through the app
-- PayPal subscription checkout option was added in code and pushed in commit `245db53`
-- public frontend payment-method copy now advertises `Paystack` and `PayPal`
-- customer frontend needed a redeploy previously to pick up billing-flow fixes
-
-Where we stopped:
-- PayPal is not fully tested yet
-- local `.env` PayPal values were still blank at pause time
-- the new SQL migration for PayPal token storage has not been run yet
-
-Required before resuming PayPal testing:
-- run [`db/migrations/PAYPAL_SUBSCRIPTION_TOKEN.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/PAYPAL_SUBSCRIPTION_TOKEN.sql)
-- set `VITE_PAYPAL_CLIENT_ID` locally and in the customer Vercel project
-- set `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYPAL_MODE`, and `PAYPAL_CALLBACK_URL` in the API environment
-- restart local API/frontend after env updates
+Current billing direction:
+- customer checkout defaults to `Paystack`
+- `PayPal` is shown alongside Paystack when `VITE_PAYPAL_CLIENT_ID` is configured
+- legacy `PayFast` code remains in the API for backward compatibility only
 
 Local note:
 - local frontend came up on `http://127.0.0.1:5174` during the last session because `5173` was already in use
@@ -66,15 +54,14 @@ Local note:
 - company branding in settings, persisted to profile and Supabase Storage
 - plan-aware signup flow
 - subscription state in dashboard plans page
+- quote CRUD routes and screens in the customer dashboard
 - Railway production API health at `https://api.theinvoicepro.co.za/health`
 
 ## Known Caveats
 
-- Paystack is the active subscription checkout path under test and should be the frontend default provider
-- PayPal subscription checkout has been added in code but still needs env setup, SQL migration, and live/local verification
-- PayFast recurring sandbox is still blocked by merchant/account setup outside the app
-- PayFast live payments are currently blocked at the merchant-account level. Current PayFast error: `Merchant unable to receive payments due to invalid account details provided.`
-- When PayFast work resumes, start by fixing the PayFast merchant account details and live account verification before debugging app code or webhook handling
+- Paystack is the default frontend checkout provider
+- PayPal checkout is available when its frontend and API env vars are set
+- legacy PayFast support still exists server-side, but it is no longer the recommended customer checkout path
 
 ## Stack
 
@@ -107,7 +94,7 @@ Important groups:
 - API URLs
 - Resend vars
 - Paystack vars
-- PayFast vars
+- PayPal vars
 
 ### 3. Run required Supabase migrations
 

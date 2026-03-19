@@ -10,6 +10,7 @@ const baseDataProvider = supabaseDataProvider(supabaseClient);
 // Helper to resolve resource name to actual table name
 const resolveResource = (resource: string) => {
   if (resource === "admin-plans" || resource === "tiers") return "plans";
+  if (resource === "quotes") return "invoices";
   return resource;
 };
 
@@ -66,6 +67,8 @@ const normalizeExpensePayload = (values: Record<string, unknown>) => ({
   notes: values.notes || "",
   vat_applicable: values.vat_applicable ?? values.vatApplicable ?? false,
 });
+
+const isQuoteRecord = (record: Record<string, unknown>) => String(record.invoice_number || "").toUpperCase().startsWith("QUO-");
 
 const normalizePlanPayload = (values: Record<string, unknown>) => ({
   name: String(values.name ?? "").trim(),
@@ -169,7 +172,12 @@ export const dataProvider: DataProvider = {
             `/${resource}?invoice_id=${encodeURIComponent(String(invoiceIdValue || ""))}`,
           );
         }
-        return await apiRequest<{ data: unknown[]; total: number }>(`/${resource}`);
+        const response = await apiRequest<{ data: unknown[]; total: number }>(`/${resource}`);
+        if (originalResource === "quotes") {
+          const quotes = (response.data as Array<Record<string, unknown>>).filter(isQuoteRecord);
+          return { data: quotes, total: quotes.length };
+        }
+        return response;
       }
       return await baseDataProvider.getList({ ...params, resource });
     } catch (error) {

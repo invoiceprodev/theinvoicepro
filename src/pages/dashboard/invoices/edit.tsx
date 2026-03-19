@@ -22,6 +22,7 @@ import { EditView } from "@/components/refine-ui/views/edit-view";
 import { LoadingOverlay } from "@/components/refine-ui/layout/loading-overlay";
 import { cn } from "@/lib/utils";
 import { CURRENCIES, getCurrencySymbol, type Currency, type Invoice, type Client } from "@/types";
+import { useDashboardFeatureAccess } from "@/hooks/use-dashboard-feature-access";
 
 const invoiceFormSchema = z.object({
   clientId: z.string().min(1, { message: "Please select a client" }),
@@ -44,11 +45,16 @@ const invoiceFormSchema = z.object({
 
 type InvoiceFormValues = z.infer<typeof invoiceFormSchema>;
 
-export const InvoiceEditPage: React.FC = () => {
+interface InvoiceEditPageProps {
+  documentType?: "invoice" | "quote";
+}
+
+export const InvoiceEditPage: React.FC<InvoiceEditPageProps> = ({ documentType = "invoice" }) => {
   const back = useBack();
   const [attachPdf, setAttachPdf] = useState(false);
   const { id } = useParams<{ id: string }>();
   const hydratedInvoiceIdRef = useRef<string | null>(null);
+  const { hasAccess, showBlockedMessage } = useDashboardFeatureAccess();
 
   const {
     refineCore: { onFinish, formLoading, query },
@@ -66,7 +72,7 @@ export const InvoiceEditPage: React.FC = () => {
       notes: "",
     },
     refineCoreProps: {
-      resource: "invoices",
+      resource: documentType === "quote" ? "quotes" : "invoices",
       action: "edit",
       id,
       redirect: "show",
@@ -102,6 +108,7 @@ export const InvoiceEditPage: React.FC = () => {
   const discountAmount =
     discountType === "percentage" ? (subtotal * discountValue) / 100 : Math.min(discountValue, subtotal);
   const total = Math.max(0, subtotal - discountAmount);
+  const isQuoteFlow = documentType === "quote";
 
   useEffect(() => {
     if (!invoice?.id || hydratedInvoiceIdRef.current === invoice.id) {
@@ -137,6 +144,11 @@ export const InvoiceEditPage: React.FC = () => {
   }, [invoice, form]);
 
   function onSubmit(values: InvoiceFormValues, overrideStatus?: "Draft" | "Sent") {
+    if (!hasAccess) {
+      showBlockedMessage();
+      return;
+    }
+
     const lineItemsData = values.lineItems.map((item) => ({
       description: item.description,
       quantity: Number(item.quantity),
@@ -178,8 +190,10 @@ export const InvoiceEditPage: React.FC = () => {
       <LoadingOverlay loading={isInvoiceLoading}>
         <div className="px-4 py-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold">Edit Invoice</h1>
-          <p className="text-sm text-muted-foreground">Update invoice information</p>
+          <h1 className="text-2xl font-bold">{isQuoteFlow ? "Edit Quote" : "Edit Invoice"}</h1>
+          <p className="text-sm text-muted-foreground">
+            {isQuoteFlow ? "Update quote information" : "Update invoice information"}
+          </p>
         </div>
 
         {invoiceLoadError ? (

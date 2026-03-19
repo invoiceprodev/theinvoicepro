@@ -25,6 +25,8 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { getProfileBridgeSnapshot, subscribeProfileBridge } from "@/lib/profile-bridge";
 import { getDashboardBranding } from "@/lib/dashboard-branding";
+import { useDashboardFeatureAccess } from "@/hooks/use-dashboard-feature-access";
+import { isSubscriptionGateExemptRoute } from "@/lib/subscription-access";
 
 export function Sidebar() {
   const { open } = useShadcnSidebar();
@@ -360,6 +362,8 @@ function SidebarButton({
   ...props
 }: SidebarButtonProps) {
   const Link = useLink();
+  const { isBlocked, showBlockedMessage } = useDashboardFeatureAccess();
+  const shouldGate = Boolean(item.route) && isBlocked && !isSubscriptionGateExemptRoute(item.route);
 
   const buttonContent = (
     <>
@@ -383,7 +387,7 @@ function SidebarButton({
 
   return (
     <Button
-      asChild={!!(asLink && item.route)}
+      asChild={!!(asLink && item.route && !shouldGate)}
       variant="ghost"
       size="lg"
       className={cn(
@@ -396,9 +400,17 @@ function SidebarButton({
         },
         className,
       )}
-      onClick={onClick}
+      onClick={(event) => {
+        if (shouldGate) {
+          event.preventDefault();
+          showBlockedMessage();
+          return;
+        }
+
+        onClick?.();
+      }}
       {...props}>
-      {asLink && item.route ? (
+      {asLink && item.route && !shouldGate ? (
         <Link to={item.route} className={cn("flex w-full items-center gap-2")}>
           {buttonContent}
         </Link>

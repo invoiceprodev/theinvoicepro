@@ -14,6 +14,7 @@ import { FileText, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSelectedPlanCheckout, setSelectedPlanCheckout } from "@/lib/plan-selection";
 import type { Plan } from "@/types";
+import { getDefaultStarterPlan } from "@/lib/subscription-access";
 
 const loginSchema = z.object({
   email: z.string().min(1, "Email is required").email("Please enter a valid email address"),
@@ -31,7 +32,7 @@ export const LoginPage = () => {
     resource: "plans",
     pagination: { mode: "off" },
     queryOptions: {
-      enabled: Boolean(selectedPlanId && !selectedPlan),
+      enabled: !selectedPlan,
     },
   });
 
@@ -44,11 +45,15 @@ export const LoginPage = () => {
   });
 
   useEffect(() => {
-    if (!selectedPlanId || selectedPlan || !plansResult?.data?.length) {
+    if (selectedPlan || !plansResult?.data?.length) {
       return;
     }
 
-    const matchedPlan = (plansResult.data as Plan[]).find((plan) => plan.id === selectedPlanId);
+    const plans = plansResult.data as Plan[];
+    const matchedPlan = selectedPlanId
+      ? plans.find((plan) => plan.id === selectedPlanId) ?? getDefaultStarterPlan(plans)
+      : getDefaultStarterPlan(plans);
+
     if (matchedPlan) {
       setSelectedPlanCheckout(matchedPlan);
     }

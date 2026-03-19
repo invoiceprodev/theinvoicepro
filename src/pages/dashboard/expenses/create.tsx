@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { CreateView } from "@/components/refine-ui/views/create-view";
 import type { Expense } from "@/types";
+import { useDashboardFeatureAccess } from "@/hooks/use-dashboard-feature-access";
 
 const expenseFormSchema = z.object({
   category: z.enum(["Pay Client", "Pay Salary", "Subscription", "Operating Cost", "Other"], {
@@ -40,6 +41,7 @@ type ExpenseFormValues = z.infer<typeof expenseFormSchema>;
 
 export const ExpenseCreatePage: React.FC = () => {
   const back = useBack();
+  const { hasAccess, showBlockedMessage } = useDashboardFeatureAccess();
 
   const {
     refineCore: { onFinish, formLoading },
@@ -68,6 +70,11 @@ export const ExpenseCreatePage: React.FC = () => {
   });
 
   function onSubmit(values: ExpenseFormValues) {
+    if (!hasAccess) {
+      showBlockedMessage();
+      return;
+    }
+
     onFinish({
       ...values,
       recipient_email: values.recipientEmail || "",

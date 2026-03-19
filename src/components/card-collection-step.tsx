@@ -26,9 +26,10 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
   const [subscriptionCreated, setSubscriptionCreated] = useState(false);
   const [debugPayload, setDebugPayload] = useState<Record<string, string | boolean> | null>(null);
   const [debugUrl, setDebugUrl] = useState<string | null>(null);
-  const paymentProvider = (import.meta.env.VITE_PAYMENT_PROVIDER || "paystack").toLowerCase();
+  const rawPaymentProvider = (import.meta.env.VITE_PAYMENT_PROVIDER || "paystack").toLowerCase();
+  const paymentProvider = rawPaymentProvider === "paypal" ? "paypal" : "paystack";
   const hasPayPalOption = Boolean(import.meta.env.VITE_PAYPAL_CLIENT_ID);
-  const showProviderChoice = hasPayPalOption && paymentProvider === "paypal";
+  const showProviderChoice = hasPayPalOption;
   const showPayFastDebug = import.meta.env.DEV;
   const allowTrialBypass = canStartTrialWithoutCard(plan);
 
@@ -59,7 +60,7 @@ export const CardCollectionStep = ({ userId, userEmail, userName, plan }: CardCo
   };
 
   const handleSetupCard = async (providerOverride?: "paystack" | "payfast" | "paypal") => {
-    const provider = providerOverride || (paymentProvider as "paystack" | "payfast");
+    const provider = providerOverride || paymentProvider;
     setIsProcessing(true);
     setProcessingProvider(provider);
     setError(null);

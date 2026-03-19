@@ -34,6 +34,7 @@ import {
 import type { Invoice, Client } from "@/types";
 import { getCurrentSubscriptionState, normalizeClientStatus, normalizeInvoiceStatus } from "@/types";
 import { useSubscriptionState } from "@/hooks/use-subscription-state";
+import { useDashboardFeatureAccess } from "@/hooks/use-dashboard-feature-access";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-ZA", {
@@ -616,6 +617,7 @@ interface QuickAction {
 
 function QuickActions() {
   const { list, create } = useNavigation();
+  const { isBlocked, showBlockedMessage } = useDashboardFeatureAccess();
 
   const actions: QuickAction[] = [
     {
@@ -660,7 +662,14 @@ function QuickActions() {
             key={action.label}
             variant="outline"
             className="h-auto w-full justify-between px-4 py-3 text-left hover:bg-muted/60"
-            onClick={action.onClick}>
+            onClick={() => {
+              if (isBlocked && action.label !== "Manage Plans") {
+                showBlockedMessage();
+                return;
+              }
+
+              action.onClick();
+            }}>
             <div className="flex items-center gap-3">
               <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${action.iconBg}`}>
                 {action.icon}

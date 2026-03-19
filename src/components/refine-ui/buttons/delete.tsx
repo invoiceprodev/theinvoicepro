@@ -12,6 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useDashboardFeatureAccess } from "@/hooks/use-dashboard-feature-access";
+import { isSubscriptionGateExemptResource } from "@/lib/subscription-access";
 
 type DeleteButtonProps = {
   /**
@@ -57,10 +59,12 @@ export const DeleteButton = React.forwardRef<
     accessControl,
     meta,
   });
+  const { isBlocked, showBlockedMessage } = useDashboardFeatureAccess();
   const [open, setOpen] = React.useState(false);
 
   const isDisabled = disabled || rest.disabled || loading;
   const isHidden = hidden || rest.hidden;
+  const shouldGate = isBlocked && !isSubscriptionGateExemptResource(resource);
 
   if (isHidden) return null;
 
@@ -74,6 +78,29 @@ export const DeleteButton = React.forwardRef<
       setOpen(false);
     }
   };
+
+  if (shouldGate) {
+    return (
+      <Button
+        variant="destructive"
+        {...rest}
+        ref={ref}
+        type="button"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          rest.onClick?.(event);
+          showBlockedMessage();
+        }}>
+        {children ?? (
+          <div className="flex items-center gap-2 font-semibold">
+            <Trash className="h-4 w-4" />
+            <span>{label}</span>
+          </div>
+        )}
+      </Button>
+    );
+  }
 
   return (
     <>

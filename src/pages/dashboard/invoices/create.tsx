@@ -19,6 +19,7 @@ import { CreateView } from "@/components/refine-ui/views/create-view";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { usePlanEntitlements } from "@/hooks/use-plan-entitlements";
+import { useDashboardFeatureAccess } from "@/hooks/use-dashboard-feature-access";
 import { CURRENCIES, getCurrencySymbol, type Client, type Currency } from "@/types";
 import { apiRequest } from "@/lib/api-client";
 
@@ -57,7 +58,11 @@ type LineItemRow = {
   unitPrice: number;
 };
 
-export const InvoiceCreatePage: React.FC = () => {
+interface InvoiceCreatePageProps {
+  documentType?: "invoice" | "quote";
+}
+
+export const InvoiceCreatePage: React.FC<InvoiceCreatePageProps> = ({ documentType = "invoice" }) => {
   const back = useBack();
   const invalidate = useInvalidate();
   const [searchParams] = useSearchParams();
@@ -66,8 +71,9 @@ export const InvoiceCreatePage: React.FC = () => {
   const [attachPdf, setAttachPdf] = useState(false);
   const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
   const [isNumberLoading, setIsNumberLoading] = useState(false);
-  const { entitlements, usage, canCreateClient, canCreateInvoice, canUseQuotes } = usePlanEntitlements();
-  const isQuoteFlow = searchParams.get("type") === "quote";
+  const { entitlements, usage, canCreateClient, canCreateInvoice, canUseQuotes, hasFeatureAccess } = usePlanEntitlements();
+  const { showBlockedMessage } = useDashboardFeatureAccess();
+  const isQuoteFlow = documentType === "quote" || searchParams.get("type") === "quote";
 
   const { result: clientsResult, query: clientsQuery } = useList<Client>({
     resource: "clients",
@@ -102,7 +108,7 @@ export const InvoiceCreatePage: React.FC = () => {
       lineItems: [{ description: "", quantity: 1, unitPrice: 0 }],
     },
     refineCoreProps: {
-      resource: "invoices",
+      resource: documentType === "quote" ? "quotes" : "invoices",
       action: "create",
       redirect: "list",
     },
@@ -171,6 +177,20 @@ export const InvoiceCreatePage: React.FC = () => {
   };
 
   function onSubmit(values: InvoiceFormValues, overrideStatus?: "Draft" | "Sent") {
+    if (!hasFeatureAccess) {
+      showBlockedMessage();
+      return;
+    }
+
+    if (!canCreateInvoice || (isQuoteFlow && !canUseQuotes)) {
+      toast.error(isQuoteFlow ? "Quote access is not available on your plan" : "Invoice limit reached", {
+        description: isQuoteFlow
+          ? "Choose a subscribed plan with quote access to continue."
+          : `Your plan allows ${entitlements.maxInvoicesPerMonth} invoices this month.`,
+      });
+      return;
+    }
+
     const computedLineItems = lineItems.map((item) => ({
       description: item.description,
       quantity: item.quantity,
@@ -222,6 +242,11 @@ export const InvoiceCreatePage: React.FC = () => {
   });
 
   const handleQuickCreateClient = clientQuickCreateForm.handleSubmit(async (values) => {
+    if (!hasFeatureAccess) {
+      showBlockedMessage();
+      return;
+    }
+
     if (!canCreateClient) {
       toast.error("Client limit reached", {
         description: `Your plan allows ${entitlements.maxSavedClients} saved clients.`,
@@ -582,13 +607,13 @@ export const InvoiceCreatePage: React.FC = () => {
                   type="button"
                   variant="secondary"
                   onClick={handleSaveAsDraft}
-                  disabled={formLoading || !canCreateInvoice || (isQuoteFlow && !canUseQuotes)}>
+                  disabled={formLoading}>
                   {formLoading ? "Saving..." : "Save as Draft"}
                 </Button>
                 <Button
                   type="button"
                   onClick={handleSendInvoice}
-                  disabled={formLoading || !canCreateInvoice || (isQuoteFlow && !canUseQuotes)}>
+                  disabled={formLoading}>
                   <Send className="h-4 w-4 mr-2" />
                   {formLoading ? "Sending..." : isQuoteFlow ? "Send Quote" : "Send Invoice"}
                 </Button>

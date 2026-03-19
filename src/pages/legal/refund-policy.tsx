@@ -5,14 +5,14 @@ export function RefundPolicyPage() {
     <LegalLayout
       title="Refund Policy"
       summary="This Refund Policy explains when subscription charges may be refunded for The Invoice Pro."
-      lastUpdated="March 12, 2026"
+      lastUpdated="March 19, 2026"
     >
       <section className="space-y-3">
         <h2 className="text-xl font-semibold text-foreground">
           Subscription Payments
         </h2>
         <p>The Invoice Pro operates on a subscription model.</p>
-        <p>Payments are processed via PayFast.</p>
+        <p>Payments are processed through Paystack and PayPal.</p>
       </section>
 
       <section className="space-y-3">

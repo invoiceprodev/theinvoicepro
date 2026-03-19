@@ -229,6 +229,17 @@ function CustomerApp() {
               },
             },
             {
+              name: "quotes",
+              list: "/quotes",
+              create: "/quotes/create",
+              show: "/quotes/:id",
+              edit: "/quotes/:id/edit",
+              meta: {
+                label: "Quotes",
+                icon: <FileText />,
+              },
+            },
+            {
               name: "clients",
               list: "/clients",
               create: "/clients/create",
@@ -342,6 +353,10 @@ function CustomerApp() {
               <Route path="/invoices/create" element={<InvoiceCreatePage />} />
               <Route path="/invoices/:id" element={<InvoiceShowPage />} />
               <Route path="/invoices/:id/edit" element={<InvoiceEditPage />} />
+              <Route path="/quotes" element={<InvoiceListPage documentType="quote" />} />
+              <Route path="/quotes/create" element={<InvoiceCreatePage documentType="quote" />} />
+              <Route path="/quotes/:id" element={<InvoiceShowPage documentType="quote" />} />
+              <Route path="/quotes/:id/edit" element={<InvoiceEditPage documentType="quote" />} />
               <Route path="/clients" element={<ClientListPage />} />
               <Route path="/clients/create" element={<ClientCreatePage />} />
               <Route path="/clients/:id/edit" element={<ClientEditPage />} />

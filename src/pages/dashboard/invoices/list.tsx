@@ -9,6 +9,7 @@ import { DataTable } from "@/components/refine-ui/data-table/data-table";
 import { ListView, ListViewHeader } from "@/components/refine-ui/views/list-view";
 import { ShowButton } from "@/components/refine-ui/buttons/show";
 import { EditButton } from "@/components/refine-ui/buttons/edit";
+import { DeleteButton } from "@/components/refine-ui/buttons/delete";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -31,6 +32,7 @@ import { DataTableSorter } from "@/components/refine-ui/data-table/data-table-so
 
 import type { Invoice, Client } from "@/types";
 import { formatInvoiceStatus, getCurrencySymbol, normalizeInvoiceStatus } from "@/types";
+import { useDashboardFeatureAccess } from "@/hooks/use-dashboard-feature-access";
 
 const statusColors: Record<string, string> = {
   draft: "bg-gray-500",
@@ -40,14 +42,21 @@ const statusColors: Record<string, string> = {
   pending: "bg-amber-500",
 };
 
-export function InvoiceListPage() {
+interface InvoiceListPageProps {
+  documentType?: "invoice" | "quote";
+}
+
+export function InvoiceListPage({ documentType = "invoice" }: InvoiceListPageProps) {
   const [markPaidTarget, setMarkPaidTarget] = useState<Invoice | null>(null);
   const { mutate: updateInvoice, mutation: updateMutation } = useUpdate<Invoice>();
   const invalidate = useInvalidate();
+  const { hasAccess, showBlockedMessage } = useDashboardFeatureAccess();
+  const resourceName = documentType === "quote" ? "quotes" : "invoices";
+  const pageTitle = documentType === "quote" ? "Quotes" : "Invoices / Quotes";
 
   const table = useTable<Invoice>({
     columns: [],
-    refineCoreProps: { resource: "invoices" },
+    refineCoreProps: { resource: documentType === "quote" ? "quotes" : "invoices" },
   });
 
   const invoicesData = table.refineCore.tableQuery.data?.data || [];
@@ -67,6 +76,11 @@ export function InvoiceListPage() {
   }, [clientsQuery.data]);
 
   function handleMarkAsPaid() {
+    if (!hasAccess) {
+      showBlockedMessage();
+      return;
+    }
+
     if (!markPaidTarget) return;
     updateInvoice(
       { resource: "invoices", id: markPaidTarget.id, values: { ...markPaidTarget, status: "paid" } },
@@ -152,7 +166,7 @@ export function InvoiceListPage() {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem className="p-0" onSelect={(e) => e.preventDefault()}>
                   <ShowButton
-                    resource="invoices"
+                    resource={resourceName}
                     recordItemId={record.id}
                     variant="ghost"
                     className="w-full justify-start">
@@ -162,7 +176,7 @@ export function InvoiceListPage() {
                 </DropdownMenuItem>
                 <DropdownMenuItem className="p-0" onSelect={(e) => e.preventDefault()}>
                   <EditButton
-                    resource="invoices"
+                    resource={resourceName}
                     recordItemId={record.id}
                     variant="ghost"
                     className="w-full justify-start">
@@ -170,10 +184,22 @@ export function InvoiceListPage() {
                     Edit
                   </EditButton>
                 </DropdownMenuItem>
-                {normalizeInvoiceStatus(record.status) !== "paid" && (
+                <DropdownMenuItem className="p-0" onSelect={(e) => e.preventDefault()}>
+                  <DeleteButton resource={resourceName} recordItemId={record.id} variant="ghost" className="w-full justify-start">
+                    Delete
+                  </DeleteButton>
+                </DropdownMenuItem>
+                {documentType !== "quote" && normalizeInvoiceStatus(record.status) !== "paid" && (
                   <DropdownMenuItem
                     className="text-green-600 focus:text-green-700 cursor-pointer"
-                    onSelect={() => setMarkPaidTarget(record)}>
+                    onSelect={() => {
+                      if (!hasAccess) {
+                        showBlockedMessage();
+                        return;
+                      }
+
+                      setMarkPaidTarget(record);
+                    }}>
                     <CheckCircle className="mr-2 h-4 w-4" />
                     Mark as Paid
                   </DropdownMenuItem>
@@ -184,18 +210,18 @@ export function InvoiceListPage() {
         },
       },
     ],
-    [clientsMap, setMarkPaidTarget],
+    [clientsMap, documentType, hasAccess, resourceName, setMarkPaidTarget, showBlockedMessage],
   );
 
   const tableWithColumns = useTable<Invoice>({
     columns,
-    refineCoreProps: { resource: "invoices" },
+    refineCoreProps: { resource: resourceName },
   });
 
   return (
     <>
       <ListView>
-        <ListViewHeader title="Invoices / Quotes" />
+        <ListViewHeader title={pageTitle} />
         <DataTable table={tableWithColumns} />
       </ListView>
 

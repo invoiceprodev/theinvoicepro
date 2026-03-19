@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api-client";
 import { getPlanEntitlements } from "@/lib/plan-entitlements";
 import { useSubscriptionState } from "@/hooks/use-subscription-state";
+import { hasDashboardFeatureAccess } from "@/lib/subscription-access";
 
 interface UsageSnapshot {
   savedClients: number;
@@ -11,6 +12,7 @@ interface UsageSnapshot {
 
 export function usePlanEntitlements() {
   const { loading: subscriptionLoading, subscription, state } = useSubscriptionState();
+  const hasFeatureAccess = hasDashboardFeatureAccess(state);
   const [usage, setUsage] = useState<UsageSnapshot>({ savedClients: 0, invoicesThisMonth: 0, teamMembers: 1 });
   const [usageLoading, setUsageLoading] = useState(false);
 
@@ -55,10 +57,13 @@ export function usePlanEntitlements() {
     loading: subscriptionLoading || usageLoading,
     usage,
     entitlements,
-    canCreateClient: entitlements.maxSavedClients == null || usage.savedClients < entitlements.maxSavedClients,
+    hasFeatureAccess,
+    canCreateClient:
+      hasFeatureAccess && (entitlements.maxSavedClients == null || usage.savedClients < entitlements.maxSavedClients),
     canCreateInvoice:
-      entitlements.maxInvoicesPerMonth == null || usage.invoicesThisMonth < entitlements.maxInvoicesPerMonth,
-    canAddTeamMember: entitlements.maxTeamMembers == null || usage.teamMembers < entitlements.maxTeamMembers,
-    canUseQuotes: entitlements.quotesEnabled,
+      hasFeatureAccess && (entitlements.maxInvoicesPerMonth == null || usage.invoicesThisMonth < entitlements.maxInvoicesPerMonth),
+    canAddTeamMember:
+      hasFeatureAccess && (entitlements.maxTeamMembers == null || usage.teamMembers < entitlements.maxTeamMembers),
+    canUseQuotes: hasFeatureAccess && entitlements.quotesEnabled,
   };
 }

@@ -5,7 +5,7 @@ export function PrivacyPolicyPage() {
     <LegalLayout
       title="Privacy Policy"
       summary="This Privacy Policy explains how we collect, use, and protect your personal information when you use The Invoice Pro platform."
-      lastUpdated="March 12, 2026"
+      lastUpdated="March 19, 2026"
     >
       <section className="space-y-3">
         <h2 className="text-xl font-semibold text-foreground">1. Introduction</h2>
@@ -45,7 +45,7 @@ export function PrivacyPolicyPage() {
           <li>Transaction records</li>
         </ul>
         <p className="font-medium text-foreground">Payment Information</p>
-        <p>Payments are processed securely through PayFast.</p>
+        <p>Payments are processed securely through Paystack and PayPal.</p>
         <p>We do not store card details on our servers.</p>
         <p className="font-medium text-foreground">
           Automatically Collected Information
@@ -82,7 +82,7 @@ export function PrivacyPolicyPage() {
         <ul className="list-disc space-y-1 pl-6">
           <li>Auth0 for authentication</li>
           <li>Supabase for database services</li>
-          <li>PayFast for payments</li>
+          <li>Paystack and PayPal for payments</li>
           <li>Railway for backend infrastructure</li>
           <li>Vercel for application deployment</li>
           <li>Resend for transactional emails</li>

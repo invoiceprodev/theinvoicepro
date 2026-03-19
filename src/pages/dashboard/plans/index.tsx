@@ -46,8 +46,8 @@ export function PlansPage() {
   const [subscriptionActionLoading, setSubscriptionActionLoading] = useState<"cancel" | "change" | "start" | null>(null);
   const { open: openNotification } = useNotification();
   const { loading: subscriptionLoading, subscription, state: subscriptionState } = useSubscriptionState();
-  const paymentProvider = (import.meta.env.VITE_PAYMENT_PROVIDER || "paystack").toLowerCase();
-  const paymentProviderLabel = paymentProvider === "paystack" ? "Paystack" : "PayFast";
+  const hasPayPalOption = Boolean(import.meta.env.VITE_PAYPAL_CLIENT_ID);
+  const paymentProviderLabel = hasPayPalOption ? "Paystack or PayPal" : "Paystack";
 
   const { result, query } = useList<Plan>({
     resource: "plans",

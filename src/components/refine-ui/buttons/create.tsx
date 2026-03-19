@@ -4,6 +4,8 @@ import React from "react";
 import { type BaseKey, useCreateButton } from "@refinedev/core";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useDashboardFeatureAccess } from "@/hooks/use-dashboard-feature-access";
+import { isSubscriptionGateExemptResource } from "@/lib/subscription-access";
 
 type CreateButtonProps = {
   /**
@@ -34,11 +36,34 @@ export const CreateButton = React.forwardRef<
     accessControl,
     meta,
   });
+  const { isBlocked, showBlockedMessage } = useDashboardFeatureAccess();
 
   const isDisabled = disabled || rest.disabled;
   const isHidden = hidden || rest.hidden;
+  const shouldGate = isBlocked && !isSubscriptionGateExemptResource(resource?.toString());
 
   if (isHidden) return null;
+
+  if (shouldGate) {
+    return (
+      <Button
+        {...rest}
+        ref={ref}
+        type="button"
+        onClick={(event) => {
+          event.preventDefault();
+          onClick?.(event);
+          showBlockedMessage();
+        }}>
+        {children ?? (
+          <div className="flex items-center gap-2 font-semibold">
+            <Plus className="w-4 h-4" />
+            <span>{label ?? "Create"}</span>
+          </div>
+        )}
+      </Button>
+    );
+  }
 
   return (
     <Button {...rest} ref={ref} disabled={isDisabled} asChild>

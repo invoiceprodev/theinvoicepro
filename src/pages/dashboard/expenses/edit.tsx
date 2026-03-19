@@ -15,6 +15,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { EditView } from "@/components/refine-ui/views/edit-view";
 import { LoadingOverlay } from "@/components/refine-ui/layout/loading-overlay";
 import type { Expense } from "@/types";
+import { useDashboardFeatureAccess } from "@/hooks/use-dashboard-feature-access";
 
 const expenseFormSchema = z.object({
   category: z.enum(["Pay Client", "Pay Salary", "Subscription", "Operating Cost", "Other"], {
@@ -41,6 +42,7 @@ type ExpenseFormValues = z.infer<typeof expenseFormSchema>;
 
 export const ExpenseEditPage: React.FC = () => {
   const back = useBack();
+  const { hasAccess, showBlockedMessage } = useDashboardFeatureAccess();
 
   const {
     refineCore: { onFinish, formLoading, query },
@@ -90,6 +92,11 @@ export const ExpenseEditPage: React.FC = () => {
   }, [form, query?.data?.data]);
 
   function onSubmit(values: ExpenseFormValues) {
+    if (!hasAccess) {
+      showBlockedMessage();
+      return;
+    }
+
     onFinish({
       ...values,
       recipient_email: values.recipientEmail || "",
