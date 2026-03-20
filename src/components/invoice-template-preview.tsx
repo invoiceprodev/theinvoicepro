@@ -206,11 +206,11 @@ export function InvoiceTemplatePreview({
 
           {TEMPLATE_OPTIONS.map((template) => (
             <TabsContent key={template.id} value={template.id} className="mt-4">
-              <div className="rounded-2xl border bg-background shadow-sm">
+              <div className={cn("rounded-2xl border bg-background shadow-sm", template.id === "classic" && "rounded-none")}>
                 <div
                   className={cn(
                     "space-y-6 rounded-2xl p-5 md:p-8",
-                    template.id === "classic" && "bg-white",
+                    template.id === "classic" && "rounded-none bg-white",
                     template.id === "studio" &&
                       "bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.14),transparent_35%),linear-gradient(180deg,#f8fbff_0%,#ffffff_70%)]",
                     template.id === "executive" &&
@@ -325,8 +325,8 @@ function ClassicPreview({
           <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">{documentLabel}</div>
           <BrandIdentity
             businessProfile={businessProfile}
-            logoClassName="h-16 w-16 border-slate-200 p-3"
-            initialsClassName="h-16 w-16 bg-slate-900"
+            logoClassName="h-16 w-16 rounded-none border-slate-200 p-3"
+            initialsClassName="h-16 w-16 rounded-none bg-slate-900"
           />
           <div className="space-y-1 text-sm text-muted-foreground">
             <p>{businessProfile?.business_phone || "+27 00 000 0000"}</p>
@@ -334,7 +334,7 @@ function ClassicPreview({
           </div>
         </div>
 
-        <div className="min-w-[220px] rounded-2xl border bg-muted/30 p-4">
+        <div className="min-w-[220px] border bg-muted/30 p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-sm text-muted-foreground">{documentLabel} Number</p>
@@ -361,12 +361,14 @@ function ClassicPreview({
           title={client?.name || "Client name"}
           subtitle={client?.company}
           lines={[client?.email, client?.phone, client?.address]}
+          className="rounded-none"
         />
         <PreviewPartyBlock
           label="From"
           title={businessProfile?.company_name || "Your business"}
           subtitle={businessProfile?.registration_number ? `Reg ${businessProfile.registration_number}` : undefined}
           lines={[businessProfile?.business_email, businessProfile?.business_phone, businessProfile?.business_address]}
+          className="rounded-none"
         />
       </div>
 
@@ -379,9 +381,10 @@ function ClassicPreview({
         discountType={discountType}
         discount={discount}
         total={total}
+        className="rounded-none"
       />
 
-      {notes ? <PreviewNotes notes={notes} /> : null}
+      {notes ? <PreviewNotes notes={notes} className="rounded-none" /> : null}
     </>
   );
 }
@@ -623,7 +626,7 @@ function PreviewItemsTable({
     <div
       className={cn(
         "overflow-hidden rounded-2xl border",
-        variant === "classic" && "border-border",
+        variant === "classic" && "rounded-none border-border",
         variant === "studio" && "border-sky-100 bg-white/90 shadow-sm",
         variant === "executive" && "border-slate-200 bg-white",
       )}>
