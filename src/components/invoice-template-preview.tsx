@@ -92,6 +92,53 @@ function getInitials(value?: string) {
   return parts.map((part) => part[0]?.toUpperCase() || "").join("");
 }
 
+function BrandIdentity({
+  businessProfile,
+  className,
+  logoClassName,
+  initialsClassName,
+  detailsClassName,
+  detailTextClassName,
+}: {
+  businessProfile?: Partial<Profile> | null;
+  className?: string;
+  logoClassName?: string;
+  initialsClassName?: string;
+  detailsClassName?: string;
+  detailTextClassName?: string;
+}) {
+  const companyName = businessProfile?.company_name || "Your Business";
+
+  return (
+    <div className={cn("flex items-center gap-4", className)}>
+      {businessProfile?.logo_url ? (
+        <div className={cn("flex shrink-0 items-center justify-center overflow-hidden rounded-2xl border bg-background/70", logoClassName)}>
+          <img
+            src={businessProfile.logo_url}
+            alt={`${companyName} logo`}
+            className="h-full w-full object-contain"
+          />
+        </div>
+      ) : (
+        <div
+          className={cn(
+            "flex shrink-0 items-center justify-center rounded-2xl bg-sky-500 text-lg font-semibold text-white shadow-sm",
+            initialsClassName,
+          )}>
+          {getInitials(companyName)}
+        </div>
+      )}
+
+      <div className={cn("space-y-1 min-w-0", detailsClassName)}>
+        <p className={cn("truncate text-lg font-semibold", detailTextClassName)}>{companyName}</p>
+        {businessProfile?.business_email ? (
+          <p className={cn("truncate text-sm text-muted-foreground", detailTextClassName)}>{businessProfile.business_email}</p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export function InvoiceTemplatePreview({
   documentType = "invoice",
   invoiceNumber,
@@ -274,11 +321,14 @@ function ClassicPreview({
   return (
     <>
       <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-        <div className="space-y-2">
+        <div className="space-y-4">
           <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">{documentLabel}</div>
-          <div className="text-3xl font-semibold tracking-tight">{businessProfile?.company_name || "Your Business Name"}</div>
+          <BrandIdentity
+            businessProfile={businessProfile}
+            logoClassName="h-16 w-16 border-slate-200 p-3"
+            initialsClassName="h-16 w-16 bg-slate-900"
+          />
           <div className="space-y-1 text-sm text-muted-foreground">
-            <p>{businessProfile?.business_email || "billing@yourbusiness.com"}</p>
             <p>{businessProfile?.business_phone || "+27 00 000 0000"}</p>
             <p>{businessProfile?.business_address || "Business address will appear here"}</p>
           </div>
@@ -356,10 +406,12 @@ function StudioPreview({
   return (
     <>
       <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-500 text-lg font-semibold text-white shadow-sm">
-            {getInitials(businessProfile?.company_name)}
-          </div>
+        <div className="space-y-3">
+          <BrandIdentity
+            businessProfile={businessProfile}
+            logoClassName="h-16 w-16 border-sky-100 bg-white/90 p-3"
+            initialsClassName="h-16 w-16 bg-sky-500"
+          />
           <div className="space-y-1">
             <div className="text-xs font-semibold uppercase tracking-[0.32em] text-sky-700">Template Preview</div>
             <div className="text-3xl font-semibold tracking-tight">{documentLabel}</div>
@@ -402,9 +454,15 @@ function StudioPreview({
         </div>
         <div className="rounded-[28px] border border-slate-200 bg-slate-950 p-5 text-white shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">Brand Block</p>
+          <div className="mt-4">
+            <BrandIdentity
+              businessProfile={businessProfile}
+              logoClassName="h-14 w-14 border-white/10 bg-white/5 p-2"
+              initialsClassName="h-14 w-14 bg-white/10"
+              detailTextClassName="text-white"
+            />
+          </div>
           <div className="mt-4 space-y-1">
-            <p className="text-lg font-semibold">{businessProfile?.company_name || "Your Business Name"}</p>
-            <p className="text-sm text-slate-300">{businessProfile?.business_email || "billing@yourbusiness.com"}</p>
             <p className="text-sm text-slate-300">{businessProfile?.business_phone || "+27 00 000 0000"}</p>
             <p className="text-sm text-slate-300">{businessProfile?.business_address || "Business address will appear here"}</p>
           </div>
@@ -450,12 +508,15 @@ function ExecutivePreview({
     <>
       <div className="rounded-[28px] bg-slate-950 p-6 text-white shadow-sm">
         <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-          <div className="space-y-3">
+          <div className="space-y-4">
             <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-400">Enterprise Template</p>
-            <div className="space-y-1">
-              <p className="text-3xl font-semibold">{documentLabel}</p>
-              <p className="text-slate-300">{businessProfile?.company_name || "Your Business Name"}</p>
-            </div>
+            <BrandIdentity
+              businessProfile={businessProfile}
+              logoClassName="h-16 w-16 border-white/10 bg-white/5 p-3"
+              initialsClassName="h-16 w-16 bg-white/10"
+              detailTextClassName="text-white"
+            />
+            <p className="text-3xl font-semibold">{documentLabel}</p>
           </div>
           <div className="grid gap-3 md:text-right">
             <div>
