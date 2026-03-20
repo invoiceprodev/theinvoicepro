@@ -18,8 +18,10 @@ import { Label } from "@/components/ui/label";
 import { CreateView } from "@/components/refine-ui/views/create-view";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { InvoiceTemplatePreview } from "@/components/invoice-template-preview";
 import { usePlanEntitlements } from "@/hooks/use-plan-entitlements";
 import { useDashboardFeatureAccess } from "@/hooks/use-dashboard-feature-access";
+import { getProfileBridgeSnapshot, subscribeProfileBridge } from "@/lib/profile-bridge";
 import { CURRENCIES, getCurrencySymbol, type Client, type Currency } from "@/types";
 import { apiRequest } from "@/lib/api-client";
 
@@ -71,6 +73,7 @@ export const InvoiceCreatePage: React.FC<InvoiceCreatePageProps> = ({ documentTy
   const [attachPdf, setAttachPdf] = useState(false);
   const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
   const [isNumberLoading, setIsNumberLoading] = useState(false);
+  const [businessProfile, setBusinessProfile] = useState(getProfileBridgeSnapshot().profile);
   const { entitlements, usage, canCreateClient, canCreateInvoice, canUseQuotes, hasFeatureAccess } = usePlanEntitlements();
   const { showBlockedMessage } = useDashboardFeatureAccess();
   const isQuoteFlow = documentType === "quote" || searchParams.get("type") === "quote";
@@ -114,6 +117,18 @@ export const InvoiceCreatePage: React.FC<InvoiceCreatePageProps> = ({ documentTy
     },
   });
 
+  const watchedClientId = form.watch("clientId");
+  const watchedInvoiceNumber = form.watch("invoiceNumber");
+  const watchedInvoiceDate = form.watch("invoiceDate");
+  const watchedDueDate = form.watch("dueDate");
+  const watchedStatus = form.watch("status");
+  const watchedNotes = form.watch("notes");
+
+  const selectedClient = useMemo(
+    () => (clientsResult?.data || []).find((client) => client.id === String(watchedClientId || "")) || null,
+    [clientsResult?.data, watchedClientId],
+  );
+
   useEffect(() => {
     let cancelled = false;
 
@@ -145,6 +160,12 @@ export const InvoiceCreatePage: React.FC<InvoiceCreatePageProps> = ({ documentTy
       cancelled = true;
     };
   }, [form, isQuoteFlow]);
+
+  useEffect(() => {
+    return subscribeProfileBridge((next) => {
+      setBusinessProfile(next.profile);
+    });
+  }, []);
 
   const selectedCurrency = (form.watch("currency") || "ZAR") as Currency;
   const symbol = getCurrencySymbol(selectedCurrency);
@@ -581,6 +602,21 @@ export const InvoiceCreatePage: React.FC<InvoiceCreatePageProps> = ({ documentTy
                 )}
               />
             </div>
+
+            <InvoiceTemplatePreview
+              documentType={isQuoteFlow ? "quote" : "invoice"}
+              invoiceNumber={watchedInvoiceNumber}
+              invoiceDate={watchedInvoiceDate}
+              dueDate={watchedDueDate}
+              currency={selectedCurrency}
+              status={watchedStatus}
+              discountType={discountType}
+              discount={discountValue}
+              notes={watchedNotes}
+              lineItems={lineItems}
+              client={selectedClient}
+              businessProfile={businessProfile}
+            />
 
             {/* Action Buttons */}
             <div className="flex flex-col gap-4 pt-4">

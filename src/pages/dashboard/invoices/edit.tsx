@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { type HttpError, useBack } from "@refinedev/core";
+import { type HttpError, useBack, useOne } from "@refinedev/core";
 import { useForm } from "@refinedev/react-hook-form";
 import { useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,8 +18,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { InvoiceTemplatePreview } from "@/components/invoice-template-preview";
 import { EditView } from "@/components/refine-ui/views/edit-view";
 import { LoadingOverlay } from "@/components/refine-ui/layout/loading-overlay";
+import { getProfileBridgeSnapshot, subscribeProfileBridge } from "@/lib/profile-bridge";
 import { cn } from "@/lib/utils";
 import { CURRENCIES, getCurrencySymbol, type Currency, type Invoice, type Client } from "@/types";
 import { useDashboardFeatureAccess } from "@/hooks/use-dashboard-feature-access";
@@ -52,6 +54,7 @@ interface InvoiceEditPageProps {
 export const InvoiceEditPage: React.FC<InvoiceEditPageProps> = ({ documentType = "invoice" }) => {
   const back = useBack();
   const [attachPdf, setAttachPdf] = useState(false);
+  const [businessProfile, setBusinessProfile] = useState(getProfileBridgeSnapshot().profile);
   const { id } = useParams<{ id: string }>();
   const hydratedInvoiceIdRef = useRef<string | null>(null);
   const { hasAccess, showBlockedMessage } = useDashboardFeatureAccess();
@@ -82,11 +85,20 @@ export const InvoiceEditPage: React.FC<InvoiceEditPageProps> = ({ documentType =
   const invoice = query?.data?.data;
   const isInvoiceLoading = query?.isLoading || false;
   const invoiceLoadError = query?.error;
+  const watchedClientId = form.watch("clientId");
+  const watchedInvoiceDate = form.watch("invoiceDate");
+  const watchedDueDate = form.watch("dueDate");
+  const watchedNotes = form.watch("notes");
 
   const { options: clientOptions } = useSelect<Client>({
     resource: "clients",
     optionValue: "id",
     optionLabel: "name",
+  });
+  const { query: selectedClientQuery } = useOne<Client>({
+    resource: "clients",
+    id: watchedClientId || "",
+    queryOptions: { enabled: !!watchedClientId },
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -142,6 +154,12 @@ export const InvoiceEditPage: React.FC<InvoiceEditPageProps> = ({ documentType =
     });
     hydratedInvoiceIdRef.current = invoice.id;
   }, [invoice, form]);
+
+  useEffect(() => {
+    return subscribeProfileBridge((next) => {
+      setBusinessProfile(next.profile);
+    });
+  }, []);
 
   function onSubmit(values: InvoiceFormValues, overrideStatus?: "Draft" | "Sent") {
     if (!hasAccess) {
@@ -500,6 +518,25 @@ export const InvoiceEditPage: React.FC<InvoiceEditPageProps> = ({ documentType =
                   <FormMessage />
                 </FormItem>
               )}
+            />
+
+            <InvoiceTemplatePreview
+              documentType={isQuoteFlow ? "quote" : "invoice"}
+              invoiceNumber={invoice?.invoice_number || invoice?.invoiceNumber}
+              invoiceDate={watchedInvoiceDate}
+              dueDate={watchedDueDate}
+              currency={selectedCurrency}
+              status={invoice?.status}
+              discountType={discountType}
+              discount={discountValue}
+              notes={watchedNotes}
+              lineItems={(lineItems || []).map((item) => ({
+                description: item.description,
+                quantity: Number(item.quantity) || 0,
+                unitPrice: Number(item.unitPrice) || 0,
+              }))}
+              client={selectedClientQuery.data?.data || invoice?.client || null}
+              businessProfile={businessProfile}
             />
 
             {/* Action Buttons */}
