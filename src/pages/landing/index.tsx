@@ -218,14 +218,15 @@ export const LandingPage = () => {
             </Badge>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent">
-              Professional Invoicing
+              Turn Your Hustle Into A
               <br />
-              Made Simple
+              Real Business.
             </h1>
 
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              Create, send, and track invoices in minutes. Get paid faster with
-              automated reminders and multi-currency support.
+              Create professional invoices, accept payments, and track your
+              income — all in one simple platform built for South African
+              businesses.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
@@ -234,7 +235,7 @@ export const LandingPage = () => {
                 onClick={handleHeroStartTrial}
                 className="w-full sm:w-auto text-base px-8 transition-all duration-300 hover:scale-105 hover:shadow-lg active:scale-95"
               >
-                Start Free Trial <ArrowRight className="ml-2 h-4 w-4" />
+                Get Started Free <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
 
@@ -266,7 +267,7 @@ export const LandingPage = () => {
       <section className="py-12 border-y bg-muted/30">
         <div className="container mx-auto px-4">
           <p className="text-center text-sm text-muted-foreground mb-8 font-medium">
-            TRUSTED BY LEADING COMPANIES
+            TRUSTED BY COMPANIES LIKE
           </p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {trustedByLogos.map((logo, index) => (
@@ -291,7 +292,7 @@ export const LandingPage = () => {
         <div className="container mx-auto px-4">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
             <h2 className="text-3xl md:text-5xl font-bold tracking-tight">
-              Simple, Transparent Pricing
+              No paperwork. No accounting stress. Just get paid.
             </h2>
             <p className="text-lg text-muted-foreground">
               Choose the perfect plan for your business. Plans are managed
@@ -454,7 +455,7 @@ export const LandingPage = () => {
         <div className="container mx-auto px-4">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
             <h2 className="text-3xl md:text-5xl font-bold tracking-tight">
-              Loved by Businesses Worldwide
+              Still sending invoices on WhatsApp or Excel?
             </h2>
             <p className="text-lg text-muted-foreground">
               See what our customers have to say about their experience with
@@ -557,7 +558,7 @@ export const LandingPage = () => {
                   disabled={publicTrialPlans.length === 0}
                 >
                   <>
-                    Start Free Trial <ArrowRight className="ml-2 h-4 w-4" />
+                    Start For Free <ArrowRight className="ml-2 h-4 w-4" />
                   </>
                 </Button>
                 <Button
@@ -566,7 +567,7 @@ export const LandingPage = () => {
                   asChild
                   className="text-base px-8 bg-white/10 hover:bg-white/20 border-white/30 text-white transition-all duration-300 hover:scale-105 active:scale-95"
                 >
-                  <a href="mailto:support@theinvoicepro.co.za">Contact Sales</a>
+                  <a href="mailto:hello@theinvoicepro.co.za">Contact Sales</a>
                 </Button>
               </div>
             </CardContent>
