@@ -209,7 +209,10 @@ export const LandingPage = () => {
       <Header />
 
       {/* Hero Section */}
-      <section id="home" className="relative overflow-hidden bg-slate-950 py-20 text-white md:py-32">
+      <section
+        id="home"
+        className="relative overflow-hidden bg-slate-950 py-20 text-white md:py-32"
+      >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.18),transparent_34%),radial-gradient(circle_at_80%_20%,rgba(59,130,246,0.14),transparent_30%),linear-gradient(135deg,#020617_0%,#0f172a_55%,#111827_100%)]" />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,23,0.82)_0%,rgba(2,6,23,0.58)_42%,rgba(15,23,42,0.18)_100%)]" />
         <div className="absolute inset-y-0 right-0 hidden w-1/2 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.14),transparent_45%),radial-gradient(circle_at_bottom,rgba(56,189,248,0.14),transparent_42%)] lg:block" />
@@ -221,7 +224,7 @@ export const LandingPage = () => {
                 className="border border-white/10 bg-white/8 px-4 py-1 text-sm text-white backdrop-blur hover:bg-white/8"
               >
                 <Zap className="mr-1 inline h-3 w-3" />
-                Trusted by 10,000+ businesses worldwide
+                Trusted by Influencers and start up businesses alike.
               </Badge>
 
               <div className="space-y-6">
@@ -253,13 +256,17 @@ export const LandingPage = () => {
                   <div className="mb-2 flex items-center justify-center lg:justify-start">
                     <Shield className="h-8 w-8 text-emerald-400" />
                   </div>
-                  <p className="text-sm font-medium text-white">Bank-Level Security</p>
+                  <p className="text-sm font-medium text-white">
+                    Bank-Level Security
+                  </p>
                 </div>
                 <div className="text-center transition-all duration-300 hover:scale-105 lg:text-left">
                   <div className="mb-2 flex items-center justify-center lg:justify-start">
                     <TrendingUp className="h-8 w-8 text-sky-400" />
                   </div>
-                  <p className="text-sm font-medium text-white">Fast Payments</p>
+                  <p className="text-sm font-medium text-white">
+                    Fast Payments
+                  </p>
                 </div>
                 <div className="text-center transition-all duration-300 hover:scale-105 lg:text-left">
                   <div className="mb-2 flex items-center justify-center lg:justify-start">
@@ -278,157 +285,158 @@ export const LandingPage = () => {
                   <div className="absolute -left-[4px] top-40 hidden h-16 w-[3px] rounded-full bg-white/18 lg:block" />
                   <div className="absolute -right-[4px] top-32 hidden h-20 w-[3px] rounded-full bg-white/18 lg:block" />
                   <div className="rounded-[2.85rem] border border-white/6 bg-slate-950 p-2">
-                  <div className="mx-auto mb-2 flex h-7 w-32 items-center justify-center rounded-full bg-black shadow-inner">
-                    <div className="absolute h-2.5 w-2.5 rounded-full bg-slate-800" />
-                    <div className="h-1.5 w-14 rounded-full bg-slate-800" />
-                  </div>
-                  <div className="overflow-hidden rounded-[2.2rem] bg-white">
-                    <div className="border-b border-slate-200 bg-white px-4 py-3">
-                      <div className="mb-3 flex items-center justify-between text-slate-500">
-                        <span className="text-xs font-semibold">9:41</span>
-                        <div className="flex items-center gap-1.5 text-[10px]">
-                          <span>5G</span>
-                          <span className="h-2.5 w-6 rounded-full border border-slate-400" />
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 shadow-sm">
-                        <Globe className="h-3.5 w-3.5 text-sky-600" />
-                        <span className="font-medium">theinvoicepro.co.za</span>
-                      </div>
+                    <div className="mx-auto mb-2 flex h-7 w-32 items-center justify-center rounded-full bg-black shadow-inner">
+                      <div className="absolute h-2.5 w-2.5 rounded-full bg-slate-800" />
+                      <div className="h-1.5 w-14 rounded-full bg-slate-800" />
                     </div>
-
-                    <div className="space-y-3 p-4">
-                      <div className="border border-slate-300 bg-white">
-                        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-                          <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                            Invoice
-                          </p>
-                          <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                            Contact
-                          </p>
-                        </div>
-
-                        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-3">
-                          <div>
-                            <p className="text-[13px] font-medium text-slate-900">
-                              Lerato Catering PTY LTD
-                            </p>
-                            <p className="mt-1 text-[10px] text-slate-500">
-                              Cape Town, South Africa
-                            </p>
-                          </div>
-                          <div className="text-right text-[10px] text-slate-500">
-                            <p>Client Ref 40.187</p>
-                            <p className="mt-1">10:09</p>
+                    <div className="overflow-hidden rounded-[2.2rem] bg-white">
+                      <div className="border-b border-slate-200 bg-white px-4 py-3">
+                        <div className="mb-3 flex items-center justify-between text-slate-500">
+                          <span className="text-xs font-semibold">9:41</span>
+                          <div className="flex items-center gap-1.5 text-[10px]">
+                            <span>5G</span>
+                            <span className="h-2.5 w-6 rounded-full border border-slate-400" />
                           </div>
                         </div>
-
-                        <div className="px-4 py-3">
-                          <div className="rounded-xl border border-slate-300 bg-white p-3">
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <p className="text-[12px] font-semibold text-slate-900">
-                                  Lerato Catering
-                                </p>
-                                <p className="text-[12px] font-semibold text-slate-900">
-                                  PTY LTD
-                                </p>
-                                <p className="mt-1 text-[10px] text-slate-500">
-                                  Company
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-[10px] text-slate-500">
-                                  INV-2025-0042
-                                </p>
-                                <p className="mt-1 text-[10px] text-slate-500">
-                                  30 Apr 2025
-                                </p>
-                              </div>
-                            </div>
-                          </div>
+                        <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 shadow-sm">
+                          <Globe className="h-3.5 w-3.5 text-sky-600" />
+                          <span className="font-medium">
+                            theinvoicepro.co.za
+                          </span>
                         </div>
-
-                        <div className="border-t border-slate-200 px-4 py-3">
-                          <div className="grid grid-cols-[1.2fr_0.9fr_0.9fr] items-center gap-2 text-[10px] text-slate-500">
-                            <p className="font-semibold text-slate-900">
+                      </div>
+                      <div className="space-y-3 p-4">
+                        <div className="border border-slate-300 bg-white">
+                          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+                            <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
                               Invoice
                             </p>
-                            <p className="text-center">Subtotal</p>
-                            <p className="text-right">100%</p>
+                            <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                              Contact
+                            </p>
+                          </div>
+
+                          <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-3">
+                            <div>
+                              <p className="text-[13px] font-medium text-slate-900">
+                                Lerato Catering PTY LTD
+                              </p>
+                              <p className="mt-1 text-[10px] text-slate-500">
+                                Cape Town, South Africa
+                              </p>
+                            </div>
+                            <div className="text-right text-[10px] text-slate-500">
+                              <p>Client Ref 40.187</p>
+                              <p className="mt-1">10:09</p>
+                            </div>
+                          </div>
+
+                          <div className="px-4 py-3">
+                            <div className="rounded-xl border border-slate-300 bg-white p-3">
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-[12px] font-semibold text-slate-900">
+                                    Lerato Catering
+                                  </p>
+                                  <p className="text-[12px] font-semibold text-slate-900">
+                                    PTY LTD
+                                  </p>
+                                  <p className="mt-1 text-[10px] text-slate-500">
+                                    Company
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-[10px] text-slate-500">
+                                    INV-2025-0042
+                                  </p>
+                                  <p className="mt-1 text-[10px] text-slate-500">
+                                    30 Apr 2025
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="border-t border-slate-200 px-4 py-3">
+                            <div className="grid grid-cols-[1.2fr_0.9fr_0.9fr] items-center gap-2 text-[10px] text-slate-500">
+                              <p className="font-semibold text-slate-900">
+                                Invoice
+                              </p>
+                              <p className="text-center">Subtotal</p>
+                              <p className="text-right">100%</p>
+                            </div>
+                          </div>
+
+                          <div className="px-4 pb-2">
+                            <div className="grid grid-cols-[1.35fr_0.85fr_0.8fr] gap-0 text-[10px]">
+                              <div className="border-b border-slate-300 py-2 text-slate-900">
+                                The Company
+                              </div>
+                              <div className="border-b border-l border-slate-300 py-2 pl-2 text-slate-500">
+                                New design
+                              </div>
+                              <div className="border-b border-l border-slate-300 py-2 pl-2 text-right text-slate-500">
+                                R 12k
+                              </div>
+                              <div className="border-b border-slate-300 py-2 text-slate-900">
+                                Cliquot
+                              </div>
+                              <div className="border-b border-l border-slate-300 py-2 pl-2 text-slate-500">
+                                SEO
+                              </div>
+                              <div className="border-b border-l border-slate-300 py-2 pl-2 text-right text-slate-500">
+                                R 3.5k
+                              </div>
+                              <div className="border-b border-slate-300 py-2 text-slate-900">
+                                Consulting
+                              </div>
+                              <div className="border-b border-l border-slate-300 py-2 pl-2 text-slate-500">
+                                4 hours
+                              </div>
+                              <div className="border-b border-l border-slate-300 py-2 pl-2 text-right text-slate-500">
+                                R 3.4k
+                              </div>
+                              <div className="border-b border-slate-300 py-2 text-slate-900">
+                                Adjustment
+                              </div>
+                              <div className="border-b border-l border-slate-300 py-2 pl-2 text-slate-500">
+                                VAT
+                              </div>
+                              <div className="border-b border-l border-slate-300 py-2 pl-2 text-right text-slate-500">
+                                R 2.8k
+                              </div>
+                            </div>
                           </div>
                         </div>
 
-                        <div className="px-4 pb-2">
-                          <div className="grid grid-cols-[1.35fr_0.85fr_0.8fr] gap-0 text-[10px]">
-                            <div className="border-b border-slate-300 py-2 text-slate-900">
-                              The Company
+                        <div className="space-y-3 px-1">
+                          <div className="flex items-start justify-between text-[11px]">
+                            <div>
+                              <p className="uppercase tracking-[0.16em] text-slate-500">
+                                Total due
+                              </p>
+                              <p className="mt-1 text-[18px] font-semibold text-slate-900">
+                                R 21,235.00
+                              </p>
                             </div>
-                            <div className="border-b border-l border-slate-300 py-2 pl-2 text-slate-500">
-                              New design
-                            </div>
-                            <div className="border-b border-l border-slate-300 py-2 pl-2 text-right text-slate-500">
-                              R 12k
-                            </div>
-                            <div className="border-b border-slate-300 py-2 text-slate-900">
-                              Cliquot
-                            </div>
-                            <div className="border-b border-l border-slate-300 py-2 pl-2 text-slate-500">
-                              SEO
-                            </div>
-                            <div className="border-b border-l border-slate-300 py-2 pl-2 text-right text-slate-500">
-                              R 3.5k
-                            </div>
-                            <div className="border-b border-slate-300 py-2 text-slate-900">
-                              Consulting
-                            </div>
-                            <div className="border-b border-l border-slate-300 py-2 pl-2 text-slate-500">
-                              4 hours
-                            </div>
-                            <div className="border-b border-l border-slate-300 py-2 pl-2 text-right text-slate-500">
-                              R 3.4k
-                            </div>
-                            <div className="border-b border-slate-300 py-2 text-slate-900">
-                              Adjustment
-                            </div>
-                            <div className="border-b border-l border-slate-300 py-2 pl-2 text-slate-500">
-                              VAT
-                            </div>
-                            <div className="border-b border-l border-slate-300 py-2 pl-2 text-right text-slate-500">
-                              R 2.8k
+                            <div className="text-right text-[10px] text-slate-500">
+                              <p>Invoice terms</p>
+                              <p className="mt-1 font-medium text-slate-900">
+                                Net 30
+                              </p>
                             </div>
                           </div>
-                        </div>
-                      </div>
 
-                      <div className="space-y-3 px-1">
-                        <div className="flex items-start justify-between text-[11px]">
-                          <div>
-                            <p className="uppercase tracking-[0.16em] text-slate-500">
-                              Total due
-                            </p>
-                            <p className="mt-1 text-[18px] font-semibold text-slate-900">
-                              R 21,235.00
-                            </p>
-                          </div>
-                          <div className="text-right text-[10px] text-slate-500">
-                            <p>Invoice terms</p>
-                            <p className="mt-1 font-medium text-slate-900">
-                              Net 30
-                            </p>
-                          </div>
+                          <button
+                            type="button"
+                            className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-white transition-colors hover:bg-slate-800"
+                          >
+                            Send Invoice Now
+                          </button>
                         </div>
-
-                        <button
-                          type="button"
-                          className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-white transition-colors hover:bg-slate-800"
-                        >
-                          Send Invoice Now
-                        </button>
                       </div>
                     </div>
                   </div>
-                </div>
                 </div>
               </div>
             </div>
@@ -583,7 +591,9 @@ export const LandingPage = () => {
                         {tier.features.map((feature) => (
                           <li key={feature} className="flex items-start gap-2">
                             <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-400" />
-                            <span className="text-sm text-slate-100">{feature}</span>
+                            <span className="text-sm text-slate-100">
+                              {feature}
+                            </span>
                           </li>
                         ))}
                         {trialDays > 0 && tier.auto_renew && (
