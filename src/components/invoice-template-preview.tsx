@@ -92,6 +92,22 @@ function getInitials(value?: string) {
   return parts.map((part) => part[0]?.toUpperCase() || "").join("");
 }
 
+function getPreviewStatusBadgeClass(status: string) {
+  switch (normalizeInvoiceStatus(status)) {
+    case "paid":
+      return "border border-emerald-600/30 bg-emerald-50 text-emerald-700 hover:bg-emerald-50";
+    case "overdue":
+      return "border border-rose-600/30 bg-rose-50 text-rose-700 hover:bg-rose-50";
+    case "sent":
+      return "border border-sky-600/30 bg-sky-50 text-sky-700 hover:bg-sky-50";
+    case "draft":
+      return "border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-100";
+    case "pending":
+    default:
+      return "border border-amber-600/30 bg-amber-50 text-amber-700 hover:bg-amber-50";
+  }
+}
+
 function BrandIdentity({
   businessProfile,
   className,
@@ -320,36 +336,38 @@ function ClassicPreview({
 }: TemplateBodyProps) {
   return (
     <>
-      <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-        <div className="space-y-4">
-          <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">{documentLabel}</div>
-          <BrandIdentity
-            businessProfile={businessProfile}
-            logoClassName="h-16 w-16 rounded-none border-slate-200 p-3"
-            initialsClassName="h-16 w-16 rounded-none bg-slate-900"
-          />
-          <div className="space-y-1 text-sm text-muted-foreground">
-            <p>{businessProfile?.business_phone || "+27 00 000 0000"}</p>
-            <p>{businessProfile?.business_address || "Business address will appear here"}</p>
+      <div className="border-b border-slate-200 pb-6">
+        <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+          <div className="space-y-4">
+            <div className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">{documentLabel}</div>
+            <BrandIdentity
+              businessProfile={businessProfile}
+              logoClassName="h-16 w-16 rounded-none border-slate-200 p-3"
+              initialsClassName="h-16 w-16 rounded-none bg-slate-900"
+            />
+            <div className="space-y-1 text-sm text-muted-foreground">
+              <p>{businessProfile?.business_phone || "+27 00 000 0000"}</p>
+              <p>{businessProfile?.business_address || "Business address will appear here"}</p>
+            </div>
           </div>
-        </div>
 
-        <div className="min-w-[220px] border bg-muted/30 p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm text-muted-foreground">{documentLabel} Number</p>
-              <p className="text-lg font-semibold">{invoiceNumber || "INV-0001"}</p>
+          <div className="min-w-[240px] border border-slate-300 bg-slate-50/80 p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">{documentLabel} Number</p>
+                <p className="mt-2 text-2xl font-semibold tracking-tight">{invoiceNumber || "INV-0001"}</p>
+              </div>
+              <Badge className={getPreviewStatusBadgeClass(normalizedStatus)}>{formatInvoiceStatus(normalizedStatus)}</Badge>
             </div>
-            <Badge>{formatInvoiceStatus(normalizedStatus)}</Badge>
-          </div>
-          <div className="mt-4 grid gap-3 text-sm">
-            <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground">Issued</span>
-              <span>{formatDate(invoiceDate)}</span>
-            </div>
-            <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground">Due</span>
-              <span>{formatDate(dueDate)}</span>
+            <div className="mt-5 grid gap-3 text-sm">
+              <div className="flex justify-between gap-4 border-b border-slate-200 pb-3">
+                <span className="text-muted-foreground">Issued</span>
+                <span className="font-medium text-slate-900">{formatDate(invoiceDate)}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Due</span>
+                <span className="font-medium text-slate-900">{formatDate(dueDate)}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -361,30 +379,38 @@ function ClassicPreview({
           title={client?.name || "Client name"}
           subtitle={client?.company}
           lines={[client?.email, client?.phone, client?.address]}
-          className="rounded-none"
+          className="rounded-none border-slate-200 bg-slate-50/40 p-5"
         />
         <PreviewPartyBlock
           label="From"
           title={businessProfile?.company_name || "Your business"}
           subtitle={businessProfile?.registration_number ? `Reg ${businessProfile.registration_number}` : undefined}
           lines={[businessProfile?.business_email, businessProfile?.business_phone, businessProfile?.business_address]}
-          className="rounded-none"
+          className="rounded-none border-slate-200 bg-white p-5"
         />
       </div>
 
       <PreviewItemsTable currency={currency} items={safeLineItems} variant="classic" />
 
-      <PreviewTotals
-        currency={currency}
-        subtotal={subtotal}
-        discountAmount={discountAmount}
-        discountType={discountType}
-        discount={discount}
-        total={total}
-        className="rounded-none"
-      />
+      <div className="grid gap-4 md:grid-cols-[1fr_320px] md:items-start">
+        <div className="rounded-none border border-slate-200 bg-slate-50/40 p-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">Payment Reference</p>
+          <p className="mt-3 text-sm leading-6 text-slate-700">
+            Please use <span className="font-semibold text-slate-900">{invoiceNumber || "INV-0001"}</span> as your payment reference.
+          </p>
+        </div>
+        <PreviewTotals
+          currency={currency}
+          subtotal={subtotal}
+          discountAmount={discountAmount}
+          discountType={discountType}
+          discount={discount}
+          total={total}
+          className="rounded-none border-slate-900 bg-white"
+        />
+      </div>
 
-      {notes ? <PreviewNotes notes={notes} className="rounded-none" /> : null}
+      {notes ? <PreviewNotes notes={notes} className="rounded-none border-slate-200 bg-white" /> : null}
     </>
   );
 }
@@ -633,7 +659,7 @@ function PreviewItemsTable({
       <div
         className={cn(
           "grid grid-cols-12 px-4 py-3 text-xs font-semibold uppercase tracking-[0.22em]",
-          variant === "classic" && "bg-muted/40 text-muted-foreground",
+          variant === "classic" && "border-b border-slate-200 bg-slate-50 text-slate-500",
           variant === "studio" && "bg-sky-600 text-white",
           variant === "executive" && "bg-slate-100 text-slate-600",
         )}>
