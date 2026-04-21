@@ -444,30 +444,6 @@ export const LandingPage = () => {
         </div>
       </section>
 
-      {/* Trusted By Section */}
-      <section className="py-12 border-y bg-muted/30">
-        <div className="container mx-auto px-4">
-          <p className="text-center text-sm text-muted-foreground mb-8 font-medium">
-            TRUSTED BY COMPANIES LIKE
-          </p>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {trustedByLogos.map((logo, index) => (
-              <div
-                key={logo.name}
-                className="flex items-center justify-center transition-all duration-300 hover:-translate-y-1"
-                style={{
-                  animation: `fadeIn 0.5s ease-out ${index * 0.1}s backwards`,
-                }}
-              >
-                <div className="w-full rounded-xl border-2 border-slate-800 bg-white px-6 py-4 text-center font-bold text-slate-900 shadow-sm transition-shadow hover:shadow-md">
-                  {logo.name}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Pricing Section */}
       <section id="pricing" className="py-20 md:py-32">
         <div className="container mx-auto px-4">
@@ -610,11 +586,9 @@ export const LandingPage = () => {
                     <CardFooter>
                       <Button
                         className={cn(
-                          "w-full transition-all duration-300 hover:scale-105 active:scale-95",
-                          isPopular &&
-                            "bg-white text-slate-950 hover:bg-slate-100 shadow-md",
+                          "w-full bg-white text-slate-950 shadow-md transition-all duration-300 hover:scale-105 hover:bg-slate-100 active:scale-95",
                         )}
-                        variant={isPopular ? "default" : "outline"}
+                        variant="default"
                         onClick={() => beginPlanSignup(tier)}
                         disabled={!canStartSignup}
                       >
