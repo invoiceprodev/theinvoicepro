@@ -3,7 +3,7 @@ import { getAuth0BridgeSnapshot } from "@/lib/auth0-bridge";
 import { getAppIdentityFromUser, getAppRoleFromUser } from "@/lib/auth0-identity";
 import { getProfileBridgeSnapshot } from "@/lib/profile-bridge";
 import { setPendingAuthHandoff } from "@/lib/auth0-handoff";
-import { signupWithAuth0Database } from "@/lib/auth0-db";
+import { sendAuth0PasswordResetEmail, signupWithAuth0Database } from "@/lib/auth0-db";
 import { getSelectedPlanCheckout } from "@/lib/plan-selection";
 import { canStartTrialWithoutCard } from "@/lib/trial-bypass";
 
@@ -77,6 +77,32 @@ export const authProvider: AuthProvider = {
           ...(getSelectedPlanCheckout()?.id ? { plan: getSelectedPlanCheckout()!.id } : {}),
         }).toString()}`,
       };
+    } catch (error) {
+      return {
+        success: false,
+        error: error as Error,
+      };
+    }
+  },
+
+  forgotPassword: async ({ email }) => {
+    if (!email) {
+      return {
+        success: false,
+        error: {
+          name: "ValidationError",
+          message: "Email is required to reset your password.",
+        },
+      };
+    }
+
+    try {
+      await sendAuth0PasswordResetEmail({
+        appKind: "customer",
+        email,
+      });
+
+      return { success: true };
     } catch (error) {
       return {
         success: false,

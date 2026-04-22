@@ -12,6 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InputPassword } from "@/components/refine-ui/form/input-password";
 import { getAdminRoute } from "@/lib/admin-routing";
 import { ShieldCheck, AlertTriangle, AlertCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const loginSchema = z.object({
   email: z.string().min(1, "Email is required").email("Please enter a valid email address"),
@@ -118,7 +119,16 @@ export const AdminLoginPage = () => {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-slate-200">Password</FormLabel>
+                      <div className="flex items-center justify-between gap-3">
+                        <FormLabel className="text-slate-200">Password</FormLabel>
+                        <Button variant="link" className="h-auto px-0 text-sm text-purple-300 hover:text-purple-200" asChild>
+                          <Link
+                            to={getAdminRoute("/forgot-password")}
+                            className={cn(isLoading && "pointer-events-none opacity-50")}>
+                            Forgot password?
+                          </Link>
+                        </Button>
+                      </div>
                       <FormControl>
                         <InputPassword
                           {...field}

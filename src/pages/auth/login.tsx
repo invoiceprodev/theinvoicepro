@@ -151,6 +151,11 @@ export const LoginPage = () => {
                 Create Account
               </Link>
             </Button>
+            <Button variant="link" className="h-auto px-0 text-sm" asChild>
+              <Link to="/forgot-password" className={cn(isLoading && "pointer-events-none opacity-50")}>
+                Forgot password?
+              </Link>
+            </Button>
           </CardFooter>
         </Card>
 
