@@ -35,6 +35,7 @@ import { ExpenseShowPage } from "@/pages/dashboard/expenses/show";
 import { CompliancePage } from "@/pages/dashboard/compliance/index";
 import { SettingsPage } from "@/pages/dashboard/settings/index";
 import { LoginPage } from "@/pages/auth/login";
+import { ForgotPasswordPage } from "@/pages/auth/forgot-password";
 import { RegisterPage } from "./pages/auth/register";
 import { VerifyEmailPage } from "@/pages/auth/verify-email";
 import { CardSetupPage } from "@/pages/auth/card-setup";
@@ -155,6 +156,14 @@ function AdminApp({ adminHost }: { adminHost: boolean }) {
               element={
                 <PublicOnlyRoute>
                   <AdminRegisterPage />
+                </PublicOnlyRoute>
+              }
+            />
+            <Route
+              path={adminRoute("/forgot-password")}
+              element={
+                <PublicOnlyRoute>
+                  <ForgotPasswordPage appKind="admin" />
                 </PublicOnlyRoute>
               }
             />
@@ -314,6 +323,14 @@ function CustomerApp() {
               element={
                 <PublicOnlyRoute>
                   <RegisterPage />
+                </PublicOnlyRoute>
+              }
+            />
+            <Route
+              path="/forgot-password"
+              element={
+                <PublicOnlyRoute>
+                  <ForgotPasswordPage />
                 </PublicOnlyRoute>
               }
             />

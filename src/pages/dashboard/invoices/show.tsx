@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import type { Invoice, Client, LineItem } from "@/types";
-import { formatInvoiceStatus, getCurrencySymbol, normalizeInvoiceStatus } from "@/types";
+import { canDeleteInvoiceDocument, formatInvoiceStatus, getCurrencySymbol, normalizeInvoiceStatus } from "@/types";
 import { useSendInvoiceEmail } from "@/hooks/use-send-invoice-email";
 import { useSubscriptionState } from "@/hooks/use-subscription-state";
 import { useDashboardFeatureAccess } from "@/hooks/use-dashboard-feature-access";
@@ -93,6 +93,7 @@ export function InvoiceShowPage({ documentType = "invoice" }: InvoiceShowPagePro
   const symbol = getCurrencySymbol(invoice?.currency || "ZAR");
   const isQuote = documentType === "quote" || String(invoice?.invoice_number || "").toUpperCase().startsWith("QUO-");
   const documentLabel = isQuote ? "Quote" : "Invoice";
+  const canDeleteInvoice = canDeleteInvoiceDocument(invoice?.status);
 
   const discountType = (invoice as any)?.discountType || "percentage";
   const discountValue = Number((invoice as any)?.discount) || 0;
@@ -195,9 +196,11 @@ export function InvoiceShowPage({ documentType = "invoice" }: InvoiceShowPagePro
             Download PDF
           </Button>
           <EditButton resource={resourceName} recordItemId={invoice?.id} />
-          <DeleteButton resource={resourceName} recordItemId={invoice?.id} size="sm" variant="destructive">
-            Delete
-          </DeleteButton>
+          {canDeleteInvoice && (
+            <DeleteButton resource={resourceName} recordItemId={invoice?.id} size="sm" variant="destructive">
+              Delete
+            </DeleteButton>
+          )}
         </ShowViewHeader>
 
         <LoadingOverlay loading={isLoading}>

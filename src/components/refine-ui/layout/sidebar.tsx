@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useMenu, useLink, useRefineOptions, type TreeMenuItem } from "@refinedev/core";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import {
   SidebarRail as ShadcnSidebarRail,
   Sidebar as ShadcnSidebar,
@@ -20,13 +20,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, ListIcon, LogOut } from "lucide-react";
+import { ArrowUpRight, ChevronRight, ListIcon, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { getProfileBridgeSnapshot, subscribeProfileBridge } from "@/lib/profile-bridge";
 import { getDashboardBranding } from "@/lib/dashboard-branding";
 import { useDashboardFeatureAccess } from "@/hooks/use-dashboard-feature-access";
 import { isSubscriptionGateExemptRoute } from "@/lib/subscription-access";
+import { isAdminContext } from "@/lib/admin-routing";
 
 export function Sidebar() {
   const { open } = useShadcnSidebar();
@@ -55,6 +56,7 @@ export function Sidebar() {
         {menuItems.map((item: TreeMenuItem) => (
           <SidebarItem key={item.key || item.name} item={item} selectedKey={selectedKey} />
         ))}
+        <SidebarUpgradeCta />
       </ShadcnSidebarContent>
       <SidebarFooter />
     </ShadcnSidebar>
@@ -320,6 +322,40 @@ function SidebarFooter() {
         </Button>
       </div>
     </ShadcnSidebarFooter>
+  );
+}
+
+function SidebarUpgradeCta() {
+  const { open } = useShadcnSidebar();
+  const Link = useLink();
+  const location = useLocation();
+  const isAdminRoute = isAdminContext(location.pathname);
+  const isActive = location.pathname === "/plans";
+
+  if (isAdminRoute) return null;
+
+  return (
+    <Button
+      asChild
+      size="lg"
+      className={cn(
+        "mt-1 flex w-full items-center justify-start gap-2 overflow-hidden rounded-md border border-amber-300/50 bg-amber-500 px-3 py-2 text-sm font-semibold text-amber-950 shadow-sm transition-colors hover:bg-amber-400",
+        {
+          "justify-center px-0": !open,
+          "ring-2 ring-amber-700/20": isActive,
+        },
+      )}>
+      <Link to="/plans" className={cn("flex w-full items-center gap-2")}>
+        <ArrowUpRight className="h-4 w-4 shrink-0" />
+        <span
+          className={cn("truncate", {
+            "opacity-0": !open,
+            "opacity-100": open,
+          })}>
+          Upgrade
+        </span>
+      </Link>
+    </Button>
   );
 }
 

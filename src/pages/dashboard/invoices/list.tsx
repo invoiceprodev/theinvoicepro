@@ -31,7 +31,7 @@ import {
 import { DataTableSorter } from "@/components/refine-ui/data-table/data-table-sorter";
 
 import type { Invoice, Client } from "@/types";
-import { formatInvoiceStatus, getCurrencySymbol, normalizeInvoiceStatus } from "@/types";
+import { canDeleteInvoiceDocument, formatInvoiceStatus, getCurrencySymbol, normalizeInvoiceStatus } from "@/types";
 import { useDashboardFeatureAccess } from "@/hooks/use-dashboard-feature-access";
 
 const statusColors: Record<string, string> = {
@@ -155,6 +155,7 @@ export function InvoiceListPage({ documentType = "invoice" }: InvoiceListPagePro
         enableSorting: false,
         cell: ({ row }) => {
           const record = row.original;
+          const canDeleteRecord = canDeleteInvoiceDocument(record.status);
           return (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -184,11 +185,17 @@ export function InvoiceListPage({ documentType = "invoice" }: InvoiceListPagePro
                     Edit
                   </EditButton>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="p-0" onSelect={(e) => e.preventDefault()}>
-                  <DeleteButton resource={resourceName} recordItemId={record.id} variant="ghost" className="w-full justify-start">
-                    Delete
-                  </DeleteButton>
-                </DropdownMenuItem>
+                {canDeleteRecord && (
+                  <DropdownMenuItem className="p-0" onSelect={(e) => e.preventDefault()}>
+                    <DeleteButton
+                      resource={resourceName}
+                      recordItemId={record.id}
+                      variant="ghost"
+                      className="w-full justify-start">
+                      Delete
+                    </DeleteButton>
+                  </DropdownMenuItem>
+                )}
                 {documentType !== "quote" && normalizeInvoiceStatus(record.status) !== "paid" && (
                   <DropdownMenuItem
                     className="text-green-600 focus:text-green-700 cursor-pointer"

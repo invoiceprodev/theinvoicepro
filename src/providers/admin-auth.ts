@@ -3,7 +3,7 @@ import { getAuth0BridgeSnapshot } from "@/lib/auth0-bridge";
 import { getAppIdentityFromUser, getAppRoleFromUser } from "@/lib/auth0-identity";
 import { getProfileBridgeSnapshot } from "@/lib/profile-bridge";
 import { setPendingAuthHandoff } from "@/lib/auth0-handoff";
-import { signupWithAuth0Database } from "@/lib/auth0-db";
+import { sendAuth0PasswordResetEmail, signupWithAuth0Database } from "@/lib/auth0-db";
 import { canAccessAdminPortal, getEffectiveAdminRole } from "@/lib/admin-access";
 import { getAdminRoute } from "@/lib/admin-routing";
 
@@ -65,6 +65,32 @@ export const adminAuthProvider: AuthProvider = {
         success: true,
         redirectTo: `/verify-email?email=${encodeURIComponent(email)}&next=admin`,
       };
+    } catch (error) {
+      return {
+        success: false,
+        error: error as Error,
+      };
+    }
+  },
+
+  forgotPassword: async ({ email }) => {
+    if (!email) {
+      return {
+        success: false,
+        error: {
+          name: "ValidationError",
+          message: "Email is required to reset your admin password.",
+        },
+      };
+    }
+
+    try {
+      await sendAuth0PasswordResetEmail({
+        appKind: "admin",
+        email,
+      });
+
+      return { success: true };
     } catch (error) {
       return {
         success: false,
