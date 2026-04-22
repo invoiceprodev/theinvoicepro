@@ -2514,12 +2514,33 @@ app.delete("/invoices/:id", async (req: AuthedRequest, res: Response) => {
     const profile = await getProfileForUser(user);
     const isAdmin = isAdminUser(user);
 
-    let query = adminSupabase.from("invoices").delete().eq("id", req.params.id);
+    let ownershipQuery = adminSupabase.from("invoices").select("id,user_id,status").eq("id", req.params.id);
     if (!isAdmin) {
-      query = query.eq("user_id", profile.id);
+      ownershipQuery = ownershipQuery.eq("user_id", profile.id);
     }
 
-    const { error } = await query;
+    const { data: invoice, error: invoiceError } = await ownershipQuery.maybeSingle();
+    if (invoiceError) {
+      res.status(500).json({ error: invoiceError.message });
+      return;
+    }
+
+    if (!invoice?.id) {
+      res.status(404).json({ error: "Invoice not found" });
+      return;
+    }
+
+    if (String(invoice.status || "").toLowerCase() !== "draft") {
+      res.status(409).json({ error: "Only draft invoices and quotes can be deleted" });
+      return;
+    }
+
+    let deleteQuery = adminSupabase.from("invoices").delete().eq("id", req.params.id);
+    if (!isAdmin) {
+      deleteQuery = deleteQuery.eq("user_id", profile.id);
+    }
+
+    const { error } = await deleteQuery;
     if (error) {
       res.status(500).json({ error: error.message });
       return;

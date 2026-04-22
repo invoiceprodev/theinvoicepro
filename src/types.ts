@@ -58,6 +58,10 @@ export function formatInvoiceStatus(status?: string | null): LegacyInvoiceStatus
   }
 }
 
+export function canDeleteInvoiceDocument(status?: string | null): boolean {
+  return normalizeInvoiceStatus(status) === "draft";
+}
+
 export type ClientStatus = "Active" | "Inactive" | "Suspended";
 
 export function normalizeClientStatus(status?: string | null): ClientStatus {
