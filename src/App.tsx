@@ -32,6 +32,9 @@ import { ExpenseListPage } from "@/pages/dashboard/expenses/list";
 import { ExpenseCreatePage } from "@/pages/dashboard/expenses/create";
 import { ExpenseEditPage } from "@/pages/dashboard/expenses/edit";
 import { ExpenseShowPage } from "@/pages/dashboard/expenses/show";
+import { ContractListPage } from "@/pages/dashboard/contracts/list";
+import { ContractCreatePage } from "@/pages/dashboard/contracts/create";
+import { ContractShowPage } from "@/pages/dashboard/contracts/show";
 import { CompliancePage } from "@/pages/dashboard/compliance/index";
 import { SettingsPage } from "@/pages/dashboard/settings/index";
 import { LoginPage } from "@/pages/auth/login";
@@ -278,6 +281,16 @@ function CustomerApp() {
               },
             },
             {
+              name: "contracts",
+              list: "/contracts",
+              create: "/contracts/create",
+              show: "/contracts/:id",
+              meta: {
+                label: "AI Contracts",
+                icon: <FileText />,
+              },
+            },
+            {
               name: "compliance",
               list: "/compliance",
               meta: {
@@ -383,6 +396,9 @@ function CustomerApp() {
               <Route path="/expenses/create" element={<ExpenseCreatePage />} />
               <Route path="/expenses/:id" element={<ExpenseShowPage />} />
               <Route path="/expenses/:id/edit" element={<ExpenseEditPage />} />
+              <Route path="/contracts" element={<ContractListPage />} />
+              <Route path="/contracts/create" element={<ContractCreatePage />} />
+              <Route path="/contracts/:id" element={<ContractShowPage />} />
               <Route path="/compliance" element={<CompliancePage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>

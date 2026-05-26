@@ -42,12 +42,15 @@ Local note:
 
 ## What Works Now
 
-- Auth0 customer signup, email verification, login
-- Auth0 admin login and registration flow
+- Auth0 customer signup, email verification, login, and password reset email flow
+- Auth0 admin login, registration, and password reset email flow
 - host-aware admin routing on the admin subdomain
 - Auth0 user to Supabase `profiles` mapping through the API
 - admin access enforced from mapped `public.profiles.role`, not only Auth0 token claims
 - customer dashboard CRUD for clients, invoices, expenses
+- AI contract upload, generation, saved draft listing, detail view, and PDF download in the customer dashboard
+- draft-only invoice and quote deletion enforced in both the dashboard UI and API
+- customer sidebar upgrade link to the plans page
 - admin pricing, tenants, and subscriptions pages using live API-backed data
 - invoice email send with PDF attachment through Resend
 - expense receipt email with PDF attachment through Resend
@@ -90,6 +93,7 @@ Use [`.env.example`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%
 Important groups:
 - Supabase frontend keys
 - Supabase service role key
+- AI Contracts server-side keys
 - customer and admin Auth0 app vars
 - API URLs
 - Resend vars
@@ -104,6 +108,7 @@ Important migrations:
 - [`db/migrations/DASHBOARD_SCHEMA_ALIGNMENT.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/DASHBOARD_SCHEMA_ALIGNMENT.sql)
 - [`db/migrations/AUTH0_IDENTITY_ALIGNMENT.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/AUTH0_IDENTITY_ALIGNMENT.sql)
 - [`db/migrations/AUTH0_PROFILE_DECOUPLING.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/AUTH0_PROFILE_DECOUPLING.sql)
+- [`db/migrations/AI_CONTRACTS_MVP.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/AI_CONTRACTS_MVP.sql)
 - [`db/migrations/PLAN_METADATA_ALIGNMENT.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/PLAN_METADATA_ALIGNMENT.sql)
 - [`db/migrations/EXPENSE_RECIPIENT_DETAILS.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/EXPENSE_RECIPIENT_DETAILS.sql)
 - [`db/migrations/PAYPAL_SUBSCRIPTION_TOKEN.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/PAYPAL_SUBSCRIPTION_TOKEN.sql)
@@ -132,6 +137,7 @@ npm run dev:admin
 That starts the same local stack and serves the admin app at:
 - `http://127.0.0.1:5173/admin/login`
 - `http://127.0.0.1:5173/admin/register`
+- `http://127.0.0.1:5173/admin/forgot-password`
 
 Customer-only shortcut:
 
@@ -143,6 +149,7 @@ That starts the same local stack and serves the customer app at:
 - `http://127.0.0.1:5173`
 - `http://127.0.0.1:5173/login`
 - `http://127.0.0.1:5173/register`
+- `http://127.0.0.1:5173/forgot-password`
 
 Or run them separately:
 
@@ -150,6 +157,42 @@ Or run them separately:
 npm run api:dev
 npm run dev
 ```
+
+## AI Contracts
+
+Customer dashboard routes:
+- `/contracts`
+- `/contracts/create`
+- `/contracts/:id`
+
+Current flow:
+- users can upload a supporting `PDF` or `DOCX` document
+- uploaded files are stored in the Supabase bucket from `SUPABASE_CONTRACTS_BUCKET`
+- when `LLAMA_PARSE_API_KEY` or `LLAMA_CLOUD_API_KEY` is configured, the API parses the uploaded document and includes extracted markdown in the generation prompt
+- when `OPENAI_API_KEY` is configured, the API generates contract HTML with the configured model
+- generated contract HTML is sanitized server-side before it is stored, displayed, or rendered to PDF
+- users can preview the saved HTML draft and download a generated PDF copy
+
+Required env vars for the full AI flow:
+- `OPENAI_API_KEY`
+- `OPENAI_CONTRACT_MODEL` optional, defaults to `gpt-4.1-mini`
+- `LLAMA_PARSE_API_KEY` or `LLAMA_CLOUD_API_KEY`
+- `SUPABASE_CONTRACTS_BUCKET` optional, defaults to `contract-documents`
+
+Fallback behavior:
+- if `OPENAI_API_KEY` is missing, the contracts page shows a readiness warning and generation falls back to the built-in HTML template
+- if `LLAMA_PARSE_API_KEY` is missing, uploaded files are still stored, but document parsing is skipped and the contracts page shows that readiness warning
+
+Backend endpoints:
+- `GET /contracts/status`
+- `GET /contracts`
+- `GET /contracts/:id`
+- `GET /contracts/:id/pdf`
+- `POST /contracts/upload`
+- `POST /contracts/generate`
+
+Detailed setup:
+- [`db/docs/AI_CONTRACTS_SETUP.md`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/docs/AI_CONTRACTS_SETUP.md)
 
 ## Scripts
 
@@ -234,8 +277,9 @@ Admin production URLs:
 Notes:
 - verification email is enforced for customer signup
 - verification email is enforced for admin signup/login as well
+- password reset emails use Auth0 database connection change-password emails for both customer and admin apps
 - the text shown on Auth0-hosted login comes from your Auth0 app and tenant branding
-- on the admin subdomain, routes resolve at `/login`, `/register`, `/callback`, and `/dashboard` without an extra `/admin` prefix
+- on the admin subdomain, routes resolve at `/login`, `/register`, `/forgot-password`, `/callback`, and `/dashboard` without an extra `/admin` prefix
 - if an admin user exists in Auth0 but cannot access the admin portal, verify `public.profiles.role = 'admin'`
 
 ## Production Reset
@@ -291,6 +335,8 @@ SUPABASE_BRANDING_BUCKET=company-branding
 ## Documents
 
 - invoice and quote numbers now use padded sequences like `INV-0001` and `QUO-0001`
+- only draft invoices and quotes can be deleted; non-draft delete attempts are blocked by the API
+- AI contract drafts are stored as sanitized HTML before dashboard rendering or PDF generation
 - invoice/quote PDFs use minimal saved company branding
 - expense receipts can be downloaded and emailed with payment method shown as recorded metadata only
 

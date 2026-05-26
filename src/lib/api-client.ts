@@ -31,7 +31,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   const token = await getAccessToken();
   const headers = new Headers(init.headers || {});
 
-  if (!headers.has("Content-Type") && init.body) {
+  if (!headers.has("Content-Type") && init.body && !(init.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -65,6 +65,31 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   }
 
   return body as T;
+}
+
+export async function apiRequestBlob(path: string, init: RequestInit = {}) {
+  if (!API_BASE_URL) {
+    throw new Error("Missing VITE_API_URL or VITE_API_BASE_URL.");
+  }
+
+  const token = await getAccessToken();
+  const headers = new Headers(init.headers || {});
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers,
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new ApiClientError(message || `API request failed: ${response.status}`, response.status, message);
+  }
+
+  return response.blob();
 }
 
 export function hasApiBaseUrl() {

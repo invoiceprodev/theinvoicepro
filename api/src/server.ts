@@ -23,6 +23,7 @@ import {
 } from "./resend.js";
 import { adminSupabase } from "./supabase.js";
 import { getEmailPreview, listEmailPreviews } from "./emails/previews.js";
+import { contractsRouter } from "./contracts/routes.js";
 
 type AuthedRequest = Request & { user?: AuthenticatedUser };
 
@@ -938,6 +939,8 @@ app.use(async (req: AuthedRequest, res: Response, next: NextFunction) => {
     res.status(401).json({ error: "Invalid token" });
   }
 });
+
+app.use("/contracts", contractsRouter);
 
 app.get("/me", async (req: AuthedRequest, res: Response) => {
   const user = req.user!;

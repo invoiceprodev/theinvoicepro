@@ -7,6 +7,7 @@ This directory contains all database-related files for the TheInvoicePro platfor
 ```
 db/
 ├── migrations/          # Incremental schema changes (run in order)
+│   ├── AI_CONTRACTS_MVP.sql
 │   ├── BUSINESS_SETTINGS_MIGRATION.sql
 │   ├── PAYFAST_WEBHOOK_LOGS_TABLE.sql
 │   ├── SUBSCRIPTION_TOKEN_MIGRATION.sql
@@ -31,6 +32,7 @@ db/
 │   └── SUPABASE_TESTING_REPORT.md
 │
 └── docs/                # Feature-specific database setup guides
+    ├── AI_CONTRACTS_SETUP.md
     ├── BUSINESS_SETTINGS_SETUP.md
     ├── INVOICE_EMAIL_USAGE.md
     ├── MIGRATION_GUIDE.md
@@ -67,6 +69,8 @@ Run these in order in the Supabase SQL Editor:
 7. ⚠️ `db/migrations/TRIAL_ANALYTICS_MIGRATION.sql` — Create trial_conversions table
 8. ⚠️ `db/migrations/SUBSCRIPTION_TOKEN_MIGRATION.sql` — Add subscription token support
 9. ⚠️ `db/setup/STORAGE_BUCKET_SETUP.md` — Create `company-branding` storage bucket (manual)
+10. ⚠️ `db/migrations/AI_CONTRACTS_MVP.sql` — Create AI contracts tables and policies
+11. ⚠️ Create `contract-documents` storage bucket or set `SUPABASE_CONTRACTS_BUCKET`
 
 ---
 
@@ -86,3 +90,4 @@ To populate a new environment with test data:
 - Always test migrations in a staging environment before running in production
 - RLS policies are documented in `db/supabase/RLS_POLICIES.md`
 - For PayFast webhook setup, see `db/docs/PAYFAST_WEBHOOK_SETUP.md`
+- For AI contracts setup, see `db/docs/AI_CONTRACTS_SETUP.md`
