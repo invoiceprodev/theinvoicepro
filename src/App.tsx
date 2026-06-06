@@ -1,6 +1,13 @@
 import { Refine } from "@refinedev/core";
 import routerProvider from "@refinedev/react-router";
-import { BrowserRouter, Routes, Route, Outlet, useLocation, Navigate } from "react-router";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Outlet,
+  useLocation,
+  Navigate,
+} from "react-router";
 import { Layout } from "@/components/refine-ui/layout/layout";
 import { dataProvider } from "@/providers/data";
 import { authProvider } from "@/providers/auth";
@@ -14,8 +21,22 @@ import { AppAuth0Provider } from "@/components/auth0-provider";
 import { BrandingFaviconSync } from "@/components/branding-favicon-sync";
 import { SeoManager } from "@/components/seo-manager";
 import { ProtectedRoute } from "@/components/protected-route";
-import { getAdminRoute, isAdminContext, isAdminHostname, stripAdminPrefix } from "@/lib/admin-routing";
-import { LayoutDashboard, FileText, Users, CreditCard, Home, ShieldCheck, Settings, Layers } from "lucide-react";
+import {
+  getAdminRoute,
+  isAdminContext,
+  isAdminHostname,
+  stripAdminPrefix,
+} from "@/lib/admin-routing";
+import {
+  LayoutDashboard,
+  FileText,
+  Users,
+  CreditCard,
+  Home,
+  ShieldCheck,
+  Settings,
+  Layers,
+} from "lucide-react";
 
 // Customer app pages
 import { LandingPage } from "@/pages/landing/index";
@@ -70,7 +91,9 @@ import AdminSettingsPage from "@/pages/admin/settings/index";
 
 function AdminPrefixedRedirect() {
   const location = useLocation();
-  const destination = `${stripAdminPrefix(location.pathname)}${location.search}${location.hash}`;
+  const destination = `${stripAdminPrefix(location.pathname)}${
+    location.search
+  }${location.hash}`;
   return <Navigate to={destination} replace />;
 }
 
@@ -139,11 +162,18 @@ function AdminApp({ adminHost }: { adminHost: boolean }) {
                 icon: <Settings />,
               },
             },
-          ]}>
+          ]}
+        >
           <Routes>
             {/* Admin root redirects */}
-            <Route path="/" element={<Navigate to={adminRoute("/login")} replace />} />
-            <Route path="/admin" element={<Navigate to={adminRoute("/login")} replace />} />
+            <Route
+              path="/"
+              element={<Navigate to={adminRoute("/login")} replace />}
+            />
+            <Route
+              path="/admin"
+              element={<Navigate to={adminRoute("/login")} replace />}
+            />
 
             {/* Admin Public Route */}
             <Route
@@ -170,8 +200,14 @@ function AdminApp({ adminHost }: { adminHost: boolean }) {
                 </PublicOnlyRoute>
               }
             />
-            <Route path={adminRoute("/verify-email")} element={<VerifyEmailPage />} />
-            <Route path={adminRoute("/callback")} element={<AuthCallbackPage />} />
+            <Route
+              path={adminRoute("/verify-email")}
+              element={<VerifyEmailPage />}
+            />
+            <Route
+              path={adminRoute("/callback")}
+              element={<AuthCallbackPage />}
+            />
 
             {/* Admin Protected Routes */}
             <Route
@@ -181,19 +217,46 @@ function AdminApp({ adminHost }: { adminHost: boolean }) {
                     <Outlet />
                   </Layout>
                 </ProtectedRoute>
-              }>
-              <Route path={adminRoute("/dashboard")} element={<AdminDashboard />} />
+              }
+            >
+              <Route
+                path={adminRoute("/dashboard")}
+                element={<AdminDashboard />}
+              />
               <Route path={adminRoute("/tiers")} element={<PlanListPage />} />
-              <Route path={adminRoute("/tiers/create")} element={<CreatePlanPage />} />
-              <Route path={adminRoute("/tiers/:id/edit")} element={<EditPlanPage />} />
-              <Route path={adminRoute("/subscriptions")} element={<SubscriptionListPage />} />
-              <Route path={adminRoute("/tenants")} element={<TenantListPage />} />
-              <Route path={adminRoute("/tenants/:id")} element={<TenantShowPage />} />
-              <Route path={adminRoute("/settings")} element={<AdminSettingsPage />} />
+              <Route
+                path={adminRoute("/tiers/create")}
+                element={<CreatePlanPage />}
+              />
+              <Route
+                path={adminRoute("/tiers/:id/edit")}
+                element={<EditPlanPage />}
+              />
+              <Route
+                path={adminRoute("/subscriptions")}
+                element={<SubscriptionListPage />}
+              />
+              <Route
+                path={adminRoute("/tenants")}
+                element={<TenantListPage />}
+              />
+              <Route
+                path={adminRoute("/tenants/:id")}
+                element={<TenantShowPage />}
+              />
+              <Route
+                path={adminRoute("/settings")}
+                element={<AdminSettingsPage />}
+              />
             </Route>
 
-            {adminHost ? <Route path="/admin/*" element={<AdminPrefixedRedirect />} /> : null}
-            <Route path={adminHost ? "*" : "/admin/*"} element={<RefineAiErrorComponent />} />
+            {adminHost ? (
+              <Route path="/admin/*" element={<AdminPrefixedRedirect />} />
+            ) : null}
+            <Route
+              path={adminHost ? "*" : "/admin/*"}
+              element={<RefineAiErrorComponent />}
+            />
           </Routes>
           <Toaster />
         </Refine>
@@ -306,7 +369,8 @@ function CustomerApp() {
                 icon: <Settings />,
               },
             },
-          ]}>
+          ]}
+        >
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/about" element={<AboutPage />} />
@@ -316,7 +380,10 @@ function CustomerApp() {
             <Route path="/terms" element={<TermsOfServicePage />} />
             <Route path="/refund-policy" element={<RefundPolicyPage />} />
             <Route path="/cookie-policy" element={<CookiePolicyPage />} />
-            <Route path="/acceptable-use" element={<AcceptableUsePolicyPage />} />
+            <Route
+              path="/acceptable-use"
+              element={<AcceptableUsePolicyPage />}
+            />
             <Route path="/blog" element={<BlogPage />} />
             <Route path="/blog/:slug" element={<BlogArticlePage />} />
             <Route path="/services/pricing" element={<PricingPage />} />
@@ -366,7 +433,10 @@ function CustomerApp() {
             />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/auth/card-setup" element={<CardSetupPage />} />
-            <Route path="/auth/card-setup/success" element={<CardSetupSuccess />} />
+            <Route
+              path="/auth/card-setup/success"
+              element={<CardSetupSuccess />}
+            />
             <Route path="/card-setup/success" element={<CardSetupSuccess />} />
 
             {/* Dashboard Routes */}
@@ -377,16 +447,29 @@ function CustomerApp() {
                     <Outlet />
                   </Layout>
                 </ProtectedRoute>
-              }>
+              }
+            >
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/invoices" element={<InvoiceListPage />} />
               <Route path="/invoices/create" element={<InvoiceCreatePage />} />
               <Route path="/invoices/:id" element={<InvoiceShowPage />} />
               <Route path="/invoices/:id/edit" element={<InvoiceEditPage />} />
-              <Route path="/quotes" element={<InvoiceListPage documentType="quote" />} />
-              <Route path="/quotes/create" element={<InvoiceCreatePage documentType="quote" />} />
-              <Route path="/quotes/:id" element={<InvoiceShowPage documentType="quote" />} />
-              <Route path="/quotes/:id/edit" element={<InvoiceEditPage documentType="quote" />} />
+              <Route
+                path="/quotes"
+                element={<InvoiceListPage documentType="quote" />}
+              />
+              <Route
+                path="/quotes/create"
+                element={<InvoiceCreatePage documentType="quote" />}
+              />
+              <Route
+                path="/quotes/:id"
+                element={<InvoiceShowPage documentType="quote" />}
+              />
+              <Route
+                path="/quotes/:id/edit"
+                element={<InvoiceEditPage documentType="quote" />}
+              />
               <Route path="/clients" element={<ClientListPage />} />
               <Route path="/clients/create" element={<ClientCreatePage />} />
               <Route path="/clients/:id/edit" element={<ClientEditPage />} />
@@ -397,7 +480,10 @@ function CustomerApp() {
               <Route path="/expenses/:id" element={<ExpenseShowPage />} />
               <Route path="/expenses/:id/edit" element={<ExpenseEditPage />} />
               <Route path="/contracts" element={<ContractListPage />} />
-              <Route path="/contracts/create" element={<ContractCreatePage />} />
+              <Route
+                path="/contracts/create"
+                element={<ContractCreatePage />}
+              />
               <Route path="/contracts/:id" element={<ContractShowPage />} />
               <Route path="/compliance" element={<CompliancePage />} />
               <Route path="/settings" element={<SettingsPage />} />
@@ -413,13 +499,32 @@ function CustomerApp() {
 }
 
 // ─── Path-based Router ────────────────────────────────────────────────────────
+function DomainRedirect() {
+  const canonicalHost = "www.theinvoicepro.co.za";
+  const apexHost = canonicalHost.replace(/^www\./, "");
+
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  if (window.location.hostname === apexHost) {
+    const url = new URL(window.location.href);
+    url.hostname = canonicalHost;
+    window.location.replace(url.toString());
+  }
+
+  return null;
+}
+
 function AppRouter() {
   const location = useLocation();
-  const hostname = typeof window !== "undefined" ? window.location.hostname : "";
+  const hostname =
+    typeof window !== "undefined" ? window.location.hostname : "";
   const adminHost = isAdminHostname(hostname);
   const isAdmin = isAdminContext(location.pathname, hostname);
   return (
     <AppAuth0Provider appKind={isAdmin ? "admin" : "customer"}>
+      <DomainRedirect />
       <BrandingFaviconSync />
       <SeoManager />
       {isAdmin ? <AdminApp adminHost={adminHost} /> : <CustomerApp />}

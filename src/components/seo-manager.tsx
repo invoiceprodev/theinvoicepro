@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useLocation } from "react-router";
 import { blogPosts } from "@/pages/blog/content";
 
-const DEFAULT_SITE_URL = "https://theinvoicepro.co.za";
+const DEFAULT_SITE_URL = "https://www.theinvoicepro.co.za";
 const DEFAULT_IMAGE_URL = `${DEFAULT_SITE_URL}/og-image-card.png`;
 const BASE_TITLE = "The Invoice Pro";
 const DEFAULT_TITLE = "The Invoice Pro – Simple Invoicing for South African Businesses";
