@@ -109,6 +109,14 @@ Customer application allowed URLs:
 - logout: `https://theinvoicepro.co.za`
 - web origin: `https://theinvoicepro.co.za`
 
+Note: If your site is served from the `www` subdomain, also add the `www` origin and callback/logout URLs in your Auth0 customer application settings to avoid CORS and redirect issues:
+
+- web origin: `https://www.theinvoicepro.co.za`
+- callback: `https://www.theinvoicepro.co.za/auth/callback`
+- logout: `https://www.theinvoicepro.co.za`
+
+Also ensure `https://www.theinvoicepro.co.za` is included in the Auth0 application's **Allowed Web Origins** and **Allowed Callback URLs** (and the tenant-level CORS/Allowed Origins if applicable).
+
 Admin application allowed URLs:
 
 - callback: `https://admin.theinvoicepro.co.za/callback`
