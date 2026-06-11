@@ -67,14 +67,17 @@ export async function signupWithAuth0Database(input: {
     }
 
     // Call the backend API endpoint instead of Auth0 directly
-    const result = await apiRequest<Record<string, unknown>>("POST", "/auth/signup", {
-      domain: config.domain,
-      clientId: config.clientId,
-      connection: config.connection,
-      name: input.name,
-      username: input.username,
-      email: input.email,
-      password: input.password,
+    const result = await apiRequest<Record<string, unknown>>("/auth/signup", {
+      method: "POST",
+      body: JSON.stringify({
+        domain: config.domain,
+        clientId: config.clientId,
+        connection: config.connection,
+        name: input.name,
+        username: input.username,
+        email: input.email,
+        password: input.password,
+      }),
     });
 
     return result;
@@ -113,10 +116,13 @@ export async function sendAuth0PasswordResetEmail(input: { appKind: AuthAppKind;
   }
 
   // Call the backend API endpoint instead of Auth0 directly
-  return apiRequest<{ message: string }>("POST", "/auth/forgot-password", {
-    domain: config.domain,
-    clientId: config.clientId,
-    connection: config.connection,
-    email: input.email,
+  return apiRequest<{ message: string }>("/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({
+      domain: config.domain,
+      clientId: config.clientId,
+      connection: config.connection,
+      email: input.email,
+    }),
   });
 }
