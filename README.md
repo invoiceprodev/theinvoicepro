@@ -1,9 +1,10 @@
 # The InvoicePro
 
 Customer invoicing SaaS with:
-- public marketing site
-- customer dashboard
-- admin dashboard
+
+- public marketing site, pricing, signup, blog, and legal pages
+- customer dashboard for invoices, quotes, clients, expenses, AI contract drafting, compliance, and business settings
+- admin dashboard for pricing tiers, tenant management, subscription health, and plan catalog control
 - local API for Auth0-backed profile, subscription, email, Paystack, PayPal, and legacy PayFast integration work
 
 ## Current Architecture
@@ -17,26 +18,31 @@ Customer invoicing SaaS with:
 - Email: `Resend`
 
 Production target:
+
 - customer frontend on `Vercel`
 - admin frontend on `Vercel`
 - API on `Railway`
 
 Current live deployment:
+
 - customer frontend: `https://theinvoicepro.co.za`
 - admin frontend: `https://admin.theinvoicepro.co.za`
 - API: `https://api.theinvoicepro.co.za`
 
 Deployment guide:
+
 - [`DEPLOYMENT.md`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/DEPLOYMENT.md)
 
 ## Resume Note
 
 Current billing direction:
+
 - customer checkout defaults to `Paystack`
 - `PayPal` is shown alongside Paystack when `VITE_PAYPAL_CLIENT_ID` is configured
 - legacy `PayFast` code remains in the API for backward compatibility only
 
 Local note:
+
 - local frontend came up on `http://127.0.0.1:5174` during the last session because `5173` was already in use
 - local API was started with `npm run api:start`
 
@@ -47,18 +53,17 @@ Local note:
 - host-aware admin routing on the admin subdomain
 - Auth0 user to Supabase `profiles` mapping through the API
 - admin access enforced from mapped `public.profiles.role`, not only Auth0 token claims
-- customer dashboard CRUD for clients, invoices, expenses
+- customer dashboard CRUD for clients, invoices, quotes, expenses
 - AI contract upload, generation, saved draft listing, detail view, and PDF download in the customer dashboard
+- expense compliance and VAT tracking dashboard for business expense management
+- company branding, business profile, and logo upload in dashboard settings
 - draft-only invoice and quote deletion enforced in both the dashboard UI and API
 - customer sidebar upgrade link to the plans page
-- admin pricing, tenants, and subscriptions pages using live API-backed data
+- plan-aware signup flow and subscription state shown in the dashboard plans page
+- admin pricing, tenant, subscription, trial conversion, and plan management pages using live API-backed data
 - invoice email send with PDF attachment through Resend
 - expense receipt email with PDF attachment through Resend
-- company branding in settings, persisted to profile and Supabase Storage
-- plan-aware signup flow
-- subscription state in dashboard plans page
-- quote CRUD routes and screens in the customer dashboard
-- Railway production API health at `https://api.theinvoicepro.co.za/health`
+- Railway production API health endpoint at `https://api.theinvoicepro.co.za/health`
 
 ## Known Caveats
 
@@ -91,6 +96,7 @@ npm install
 Use [`.env.example`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/.env.example) as the reference.
 
 Important groups:
+
 - Supabase frontend keys
 - Supabase service role key
 - AI Contracts server-side keys
@@ -105,6 +111,7 @@ Important groups:
 At minimum, make sure your Supabase project includes the current dashboard and Auth0 schema work.
 
 Important migrations:
+
 - [`db/migrations/DASHBOARD_SCHEMA_ALIGNMENT.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/DASHBOARD_SCHEMA_ALIGNMENT.sql)
 - [`db/migrations/AUTH0_IDENTITY_ALIGNMENT.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/AUTH0_IDENTITY_ALIGNMENT.sql)
 - [`db/migrations/AUTH0_PROFILE_DECOUPLING.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/AUTH0_PROFILE_DECOUPLING.sql)
@@ -114,6 +121,7 @@ Important migrations:
 - [`db/migrations/PAYPAL_SUBSCRIPTION_TOKEN.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/PAYPAL_SUBSCRIPTION_TOKEN.sql)
 
 For a fresh project, also review:
+
 - [`db/supabase_full_setup.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/supabase_full_setup.sql)
 
 ### 4. Start the app
@@ -125,6 +133,7 @@ npm run dev:all
 ```
 
 That starts:
+
 - frontend on `http://127.0.0.1:5173`
 - API on `http://127.0.0.1:3000`
 
@@ -135,6 +144,7 @@ npm run dev:admin
 ```
 
 That starts the same local stack and serves the admin app at:
+
 - `http://127.0.0.1:5173/admin/login`
 - `http://127.0.0.1:5173/admin/register`
 - `http://127.0.0.1:5173/admin/forgot-password`
@@ -146,6 +156,7 @@ npm run dev:customer
 ```
 
 That starts the same local stack and serves the customer app at:
+
 - `http://127.0.0.1:5173`
 - `http://127.0.0.1:5173/login`
 - `http://127.0.0.1:5173/register`
@@ -161,11 +172,13 @@ npm run dev
 ## AI Contracts
 
 Customer dashboard routes:
+
 - `/contracts`
 - `/contracts/create`
 - `/contracts/:id`
 
 Current flow:
+
 - users can upload a supporting `PDF` or `DOCX` document
 - uploaded files are stored in the Supabase bucket from `SUPABASE_CONTRACTS_BUCKET`
 - when `LLAMA_PARSE_API_KEY` or `LLAMA_CLOUD_API_KEY` is configured, the API parses the uploaded document and includes extracted markdown in the generation prompt
@@ -174,16 +187,19 @@ Current flow:
 - users can preview the saved HTML draft and download a generated PDF copy
 
 Required env vars for the full AI flow:
+
 - `OPENAI_API_KEY`
 - `OPENAI_CONTRACT_MODEL` optional, defaults to `gpt-4.1-mini`
 - `LLAMA_PARSE_API_KEY` or `LLAMA_CLOUD_API_KEY`
 - `SUPABASE_CONTRACTS_BUCKET` optional, defaults to `contract-documents`
 
 Fallback behavior:
+
 - if `OPENAI_API_KEY` is missing, the contracts page shows a readiness warning and generation falls back to the built-in HTML template
 - if `LLAMA_PARSE_API_KEY` is missing, uploaded files are still stored, but document parsing is skipped and the contracts page shows that readiness warning
 
 Backend endpoints:
+
 - `GET /contracts/status`
 - `GET /contracts`
 - `GET /contracts/:id`
@@ -192,6 +208,7 @@ Backend endpoints:
 - `POST /contracts/generate`
 
 Detailed setup:
+
 - [`db/docs/AI_CONTRACTS_SETUP.md`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/docs/AI_CONTRACTS_SETUP.md)
 
 ## Scripts
@@ -252,6 +269,7 @@ npm run env:sync:railway
 ```
 
 Notes:
+
 - the sync script reads local `.env`
 - customer/admin Vercel values are transformed to production URLs automatically
 - Railway/API values use server-side plain env names, not `VITE_*`
@@ -262,19 +280,23 @@ Notes:
 Use separate Auth0 applications for customer and admin.
 
 Customer app URLs:
+
 - callback: `http://127.0.0.1:5173/auth/callback`
 - logout: `http://127.0.0.1:5173`
 
 Admin app URLs:
+
 - callback: `http://127.0.0.1:5173/admin/callback`
 - logout: `http://127.0.0.1:5173/admin/login`
 
 Admin production URLs:
+
 - callback: `https://admin.theinvoicepro.co.za/callback`
 - logout: `https://admin.theinvoicepro.co.za/login`
 - login: `https://admin.theinvoicepro.co.za/login`
 
 Notes:
+
 - verification email is enforced for customer signup
 - verification email is enforced for admin signup/login as well
 - password reset emails use Auth0 database connection change-password emails for both customer and admin apps
@@ -285,9 +307,11 @@ Notes:
 ## Production Reset
 
 To wipe tenant/app data before going live, use:
+
 - [`db/setup/PRODUCTION_CLEAN_START.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/setup/PRODUCTION_CLEAN_START.sql)
 
 Important:
+
 - this removes app data, `profiles`, and `auth.users`
 - it does not clear the `company-branding` bucket from SQL; delete those objects manually in Supabase Storage
 - after the wipe, create a fresh admin account and promote it with:
@@ -301,6 +325,7 @@ WHERE business_email = 'your-admin-email@example.com';
 ## Trial Flow
 
 Expected flow:
+
 1. choose `Starter/Trial`
 2. create account
 3. confirm email
@@ -309,6 +334,7 @@ Expected flow:
 6. add billing later if needed before renewal
 
 Card-required plans:
+
 1. choose `Pro` or `Enterprise`
 2. create account
 3. confirm email
@@ -319,6 +345,7 @@ Card-required plans:
 ## Branding
 
 Customer settings can now save:
+
 - company name
 - business email
 - business phone
