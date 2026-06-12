@@ -650,7 +650,7 @@ async function applyPayPalSubscriptionAuthorization(input: {
 
 app.use(
   cors({
-    origin: [apiConfig.customerAppUrl, apiConfig.adminAppUrl],
+    origin: "https://theinvoicepro.co.za",
     credentials: false,
   }),
 );
