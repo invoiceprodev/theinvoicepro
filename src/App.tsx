@@ -500,16 +500,16 @@ function CustomerApp() {
 
 // ─── Path-based Router ────────────────────────────────────────────────────────
 function DomainRedirect() {
-  const canonicalHost = "www.theinvoicepro.co.za";
-  const apexHost = canonicalHost.replace(/^www\./, "");
+  const apexHost = "theinvoicepro.co.za";
+  const wwwHost = `www.${apexHost}`;
 
   if (typeof window === "undefined") {
     return null;
   }
 
-  if (window.location.hostname === apexHost) {
+  if (window.location.hostname === wwwHost) {
     const url = new URL(window.location.href);
-    url.hostname = canonicalHost;
+    url.hostname = apexHost;
     window.location.replace(url.toString());
   }
 
