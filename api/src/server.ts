@@ -1,9 +1,21 @@
 import cors from "cors";
-import express, { type NextFunction, type Request, type Response } from "express";
+import express, {
+  type NextFunction,
+  type Request,
+  type Response,
+} from "express";
 import { apiConfig } from "./config.js";
 import { verifyAccessToken, type AuthenticatedUser } from "./auth.js";
-import { buildTrialSubscriptionCheckout, verifyPayFastSignature } from "./payfast.js";
-import { initializePaystackSubscriptionCheckout, isPaystackConfigured, verifyPaystackTransaction, verifyPaystackWebhookSignature } from "./paystack.js";
+import {
+  buildTrialSubscriptionCheckout,
+  verifyPayFastSignature,
+} from "./payfast.js";
+import {
+  initializePaystackSubscriptionCheckout,
+  isPaystackConfigured,
+  verifyPaystackTransaction,
+  verifyPaystackWebhookSignature,
+} from "./paystack.js";
 import {
   getPayPalSubscriptionDetails,
   initializePayPalSubscriptionCheckout,
@@ -29,7 +41,12 @@ import { authRouter } from "./auth-routes.js";
 type AuthedRequest = Request & { user?: AuthenticatedUser };
 
 const app = express();
-const BRANDING_ALLOWED_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml"]);
+const BRANDING_ALLOWED_MIME_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/svg+xml",
+]);
 const BRANDING_MAX_UPLOAD_BYTES = 500 * 1024;
 const BRANDING_MIN_WIDTH = 600;
 const BRANDING_MIN_HEIGHT = 200;
@@ -72,38 +89,58 @@ function decodeDataUrl(input: string) {
 }
 
 function validateBrandingDimensions(width: number, height: number) {
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+  if (
+    !Number.isFinite(width) ||
+    !Number.isFinite(height) ||
+    width <= 0 ||
+    height <= 0
+  ) {
     throw new Error("Logo dimensions are required.");
   }
 
   if (width < BRANDING_MIN_WIDTH || height < BRANDING_MIN_HEIGHT) {
-    throw new Error(`Logo must be at least ${BRANDING_MIN_WIDTH}x${BRANDING_MIN_HEIGHT}px.`);
+    throw new Error(
+      `Logo must be at least ${BRANDING_MIN_WIDTH}x${BRANDING_MIN_HEIGHT}px.`,
+    );
   }
 
   const aspectRatio = width / height;
-  if (aspectRatio < BRANDING_MIN_ASPECT_RATIO || aspectRatio > BRANDING_MAX_ASPECT_RATIO) {
-    throw new Error("Logo must be horizontal with an aspect ratio close to 3:1.");
+  if (
+    aspectRatio < BRANDING_MIN_ASPECT_RATIO ||
+    aspectRatio > BRANDING_MAX_ASPECT_RATIO
+  ) {
+    throw new Error(
+      "Logo must be horizontal with an aspect ratio close to 3:1.",
+    );
   }
 }
 
 async function ensureBrandingBucket() {
-  const { data: buckets, error: listError } = await adminSupabase.storage.listBuckets();
+  const { data: buckets, error: listError } =
+    await adminSupabase.storage.listBuckets();
   if (listError) {
     throw new Error(`Failed to inspect storage buckets: ${listError.message}`);
   }
 
-  if (buckets.some((bucket) => bucket.name === apiConfig.supabaseBrandingBucket)) {
+  if (
+    buckets.some((bucket) => bucket.name === apiConfig.supabaseBrandingBucket)
+  ) {
     return;
   }
 
-  const { error: createError } = await adminSupabase.storage.createBucket(apiConfig.supabaseBrandingBucket, {
-    public: true,
-    fileSizeLimit: BRANDING_MAX_UPLOAD_BYTES,
-    allowedMimeTypes: Array.from(BRANDING_ALLOWED_MIME_TYPES),
-  });
+  const { error: createError } = await adminSupabase.storage.createBucket(
+    apiConfig.supabaseBrandingBucket,
+    {
+      public: true,
+      fileSizeLimit: BRANDING_MAX_UPLOAD_BYTES,
+      allowedMimeTypes: Array.from(BRANDING_ALLOWED_MIME_TYPES),
+    },
+  );
 
   if (createError && !/already exists/i.test(createError.message)) {
-    throw new Error(`Failed to create branding storage bucket: ${createError.message}`);
+    throw new Error(
+      `Failed to create branding storage bucket: ${createError.message}`,
+    );
   }
 }
 
@@ -134,7 +171,9 @@ function getNextDocumentNumber(existingNumbers: string[], prefix: string) {
 }
 
 function getDocumentNumberPrefix(value: string) {
-  const match = String(value || "").trim().match(/^(.*?)(\d+)$/);
+  const match = String(value || "")
+    .trim()
+    .match(/^(.*?)(\d+)$/);
   return match ? match[1] : null;
 }
 
@@ -153,7 +192,9 @@ function isMissingTeamMembersTableError(error: unknown) {
   const message = String(candidate.message || "");
   return (
     candidate.code === "PGRST205" ||
-    message.includes("Could not find the table 'public.team_members' in the schema cache")
+    message.includes(
+      "Could not find the table 'public.team_members' in the schema cache",
+    )
   );
 }
 
@@ -187,7 +228,9 @@ function sanitizeInvoiceItem(item: unknown) {
 }
 
 function sanitizeClientStatus(status?: string | null) {
-  const normalized = String(status || "Active").trim().toLowerCase();
+  const normalized = String(status || "Active")
+    .trim()
+    .toLowerCase();
   if (normalized === "inactive") return "Inactive";
   if (normalized === "suspended") return "Suspended";
   return "Active";
@@ -200,27 +243,37 @@ function sanitizeClientPayload(body: Record<string, unknown>) {
     company: String(body.company ?? "").trim(),
     phone: String(body.phone ?? "").trim(),
     address: String(body.address ?? "").trim(),
-    status: sanitizeClientStatus(typeof body.status === "string" ? body.status : null),
+    status: sanitizeClientStatus(
+      typeof body.status === "string" ? body.status : null,
+    ),
   };
 }
 
 function sanitizeInvoicePayload(body: Record<string, unknown>) {
-  const lineItems = Array.isArray(body.lineItems) ? body.lineItems.map(sanitizeInvoiceItem) : [];
+  const lineItems = Array.isArray(body.lineItems)
+    ? body.lineItems.map(sanitizeInvoiceItem)
+    : [];
   const subtotal = Number(body.subtotal ?? 0);
   const total = Number(body.total ?? 0);
   const discount = Number(body.discount ?? 0);
 
   return {
-    invoice_number: String(body.invoice_number ?? body.invoiceNumber ?? "").trim(),
+    invoice_number: String(
+      body.invoice_number ?? body.invoiceNumber ?? "",
+    ).trim(),
     client_id: String(body.client_id ?? body.clientId ?? "").trim(),
     invoice_date: String(body.invoice_date ?? body.invoiceDate ?? "").trim(),
     due_date: String(body.due_date ?? body.dueDate ?? "").trim(),
-    status: normalizeInvoiceStatus(typeof body.status === "string" ? body.status : null),
+    status: normalizeInvoiceStatus(
+      typeof body.status === "string" ? body.status : null,
+    ),
     currency: String(body.currency ?? "ZAR").trim() || "ZAR",
     subtotal,
     tax_percentage: Number(body.tax_percentage ?? body.taxPercentage ?? 0),
     tax_amount: Number(body.tax_amount ?? body.taxAmount ?? 0),
-    discount_type: String(body.discount_type ?? body.discountType ?? "percentage").trim() || "percentage",
+    discount_type:
+      String(body.discount_type ?? body.discountType ?? "percentage").trim() ||
+      "percentage",
     discount,
     total,
     notes: typeof body.notes === "string" ? body.notes : "",
@@ -239,21 +292,34 @@ function sanitizeExpensePayload(body: Record<string, unknown>) {
   return {
     category: String(body.category ?? "").trim(),
     recipient: String(body.recipient ?? "").trim(),
-    recipient_email: String(body.recipient_email ?? body.recipientEmail ?? "").trim() || null,
-    recipient_phone: String(body.recipient_phone ?? body.recipientPhone ?? "").trim() || null,
-    recipient_company: String(body.recipient_company ?? body.recipientCompany ?? "").trim() || null,
+    recipient_email:
+      String(body.recipient_email ?? body.recipientEmail ?? "").trim() || null,
+    recipient_phone:
+      String(body.recipient_phone ?? body.recipientPhone ?? "").trim() || null,
+    recipient_company:
+      String(body.recipient_company ?? body.recipientCompany ?? "").trim() ||
+      null,
     amount: Number(body.amount ?? 0),
     currency: String(body.currency ?? "ZAR").trim() || "ZAR",
-    payment_method: String(body.payment_method ?? body.paymentMethod ?? "Bank Transfer").trim() || "Bank Transfer",
+    payment_method:
+      String(
+        body.payment_method ?? body.paymentMethod ?? "Bank Transfer",
+      ).trim() || "Bank Transfer",
     date: String(body.date ?? "").trim(),
-    status: normalizeExpenseStatus(typeof body.status === "string" ? body.status : null),
+    status: normalizeExpenseStatus(
+      typeof body.status === "string" ? body.status : null,
+    ),
     notes: typeof body.notes === "string" ? body.notes : "",
     vat_applicable: Boolean(body.vat_applicable ?? body.vatApplicable ?? false),
   };
 }
 
 function normalizePlanBillingCycle(value: unknown) {
-  return String(value ?? "monthly").trim().toLowerCase() === "yearly" ? "yearly" : "monthly";
+  return String(value ?? "monthly")
+    .trim()
+    .toLowerCase() === "yearly"
+    ? "yearly"
+    : "monthly";
 }
 
 function sanitizePlanFeatures(value: unknown) {
@@ -264,10 +330,13 @@ function sanitizePlanFeatures(value: unknown) {
 function sanitizePlanPayload(body: Record<string, unknown>) {
   return {
     name: String(body.name ?? "").trim(),
-    description: typeof body.description === "string" ? body.description.trim() : "",
+    description:
+      typeof body.description === "string" ? body.description.trim() : "",
     price: Number(body.price ?? 0),
     currency: String(body.currency ?? "ZAR").trim() || "ZAR",
-    billing_cycle: normalizePlanBillingCycle(body.billing_cycle ?? body.billingCycle),
+    billing_cycle: normalizePlanBillingCycle(
+      body.billing_cycle ?? body.billingCycle,
+    ),
     features: sanitizePlanFeatures(body.features),
     is_active: Boolean(body.is_active ?? body.isActive ?? true),
     is_popular: Boolean(body.is_popular ?? body.isPopular ?? false),
@@ -380,7 +449,10 @@ function applyCrudPagination(query: any, pagination: CrudPagination) {
     return query;
   }
 
-  const current = Math.max(1, Number(pagination.current ?? pagination.currentPage ?? 1));
+  const current = Math.max(
+    1,
+    Number(pagination.current ?? pagination.currentPage ?? 1),
+  );
   const pageSize = Math.max(1, Number(pagination.pageSize || 100));
   const from = (current - 1) * pageSize;
   const to = from + pageSize - 1;
@@ -395,7 +467,10 @@ function buildCrudQuery(req: Request) {
     .filter(Boolean);
   const filters = parseJsonQueryParam<CrudFilter[]>(req.query.filters, []);
   const sorters = parseJsonQueryParam<CrudSorter[]>(req.query.sorters, []);
-  const pagination = parseJsonQueryParam<CrudPagination>(req.query.pagination, {});
+  const pagination = parseJsonQueryParam<CrudPagination>(
+    req.query.pagination,
+    {},
+  );
 
   return { ids, filters, sorters, pagination };
 }
@@ -431,7 +506,8 @@ async function getProfileForUser(user: AuthenticatedUser) {
   const payload = {
     auth0_user_id: user.sub,
     auth_provider: "auth0",
-    full_name: user.name || user.nickname || user.email || (isAdmin ? "Admin" : "User"),
+    full_name:
+      user.name || user.nickname || user.email || (isAdmin ? "Admin" : "User"),
     business_email: user.email ?? null,
     role: isAdmin ? "admin" : "user",
     last_login_at: new Date().toISOString(),
@@ -520,7 +596,10 @@ async function applyPaystackChargeToSubscription(input: {
     .single();
 
   if (subscriptionError || !subscription?.id) {
-    throw new Error(subscriptionError?.message || "Subscription not found for Paystack payment");
+    throw new Error(
+      subscriptionError?.message ||
+        "Subscription not found for Paystack payment",
+    );
   }
 
   const updatePayload: Record<string, unknown> = {
@@ -542,7 +621,10 @@ async function applyPaystackChargeToSubscription(input: {
     .single();
 
   if (updateError || !updatedSubscription?.id) {
-    throw new Error(updateError?.message || "Failed to update subscription with Paystack authorization");
+    throw new Error(
+      updateError?.message ||
+        "Failed to update subscription with Paystack authorization",
+    );
   }
 
   const paymentId = await recordPaystackSubscriptionPayment({
@@ -611,7 +693,10 @@ async function applyPayPalSubscriptionAuthorization(input: {
     .single();
 
   if (subscriptionError || !subscription?.id) {
-    throw new Error(subscriptionError?.message || "Subscription not found for PayPal authorization");
+    throw new Error(
+      subscriptionError?.message ||
+        "Subscription not found for PayPal authorization",
+    );
   }
 
   const updatePayload: Record<string, unknown> = {
@@ -631,7 +716,10 @@ async function applyPayPalSubscriptionAuthorization(input: {
     .single();
 
   if (updateError || !updatedSubscription?.id) {
-    throw new Error(updateError?.message || "Failed to update subscription with PayPal authorization");
+    throw new Error(
+      updateError?.message ||
+        "Failed to update subscription with PayPal authorization",
+    );
   }
 
   if (input.recordPayment && Number(input.amount || 0) > 0) {
@@ -648,9 +736,18 @@ async function applyPayPalSubscriptionAuthorization(input: {
   return { subscription: updatedSubscription };
 }
 
+const allowedCorsOrigins = new Set<string>([
+  apiConfig.customerAppUrl,
+  apiConfig.adminAppUrl,
+]);
+
+if (apiConfig.customerAppUrl.startsWith("https://theinvoicepro.co.za")) {
+  allowedCorsOrigins.add("https://www.theinvoicepro.co.za");
+}
+
 app.use(
   cors({
-    origin: "https://theinvoicepro.co.za",
+    origin: Array.from(allowedCorsOrigins),
     credentials: false,
   }),
 );
@@ -741,7 +838,9 @@ app.post("/subscribe", async (req: Request, res: Response) => {
     res.json({ ok: true, id: result.id });
   } catch (error) {
     console.error("[API] failed to send footer subscription email", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to submit subscription") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to submit subscription") });
   }
 });
 
@@ -749,7 +848,12 @@ app.post("/paystack/webhook", async (req: Request, res: Response) => {
   const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from([]);
 
   try {
-    if (!verifyPaystackWebhookSignature(rawBody, req.headers["x-paystack-signature"]?.toString() || null)) {
+    if (
+      !verifyPaystackWebhookSignature(
+        rawBody,
+        req.headers["x-paystack-signature"]?.toString() || null,
+      )
+    ) {
       res.status(400).send("Invalid signature");
       return;
     }
@@ -771,7 +875,10 @@ app.post("/paystack/webhook", async (req: Request, res: Response) => {
       return;
     }
 
-    const subscriptionId = typeof payload.data.metadata?.subscriptionId === "string" ? payload.data.metadata.subscriptionId : "";
+    const subscriptionId =
+      typeof payload.data.metadata?.subscriptionId === "string"
+        ? payload.data.metadata.subscriptionId
+        : "";
     if (!subscriptionId) {
       res.status(200).send("OK");
       return;
@@ -830,7 +937,10 @@ app.post("/payfast/webhook", async (req: Request, res: Response) => {
         updatePayload.status = "active";
       }
 
-      const { error } = await adminSupabase.from("subscriptions").update(updatePayload).eq("id", subscriptionId);
+      const { error } = await adminSupabase
+        .from("subscriptions")
+        .update(updatePayload)
+        .eq("id", subscriptionId);
 
       if (error) {
         console.error("[PayFast webhook] failed to update subscription", error);
@@ -850,9 +960,12 @@ app.post("/paypal/webhook", async (req: Request, res: Response) => {
   try {
     const valid = await verifyPayPalWebhookSignature({
       headers: {
-        transmissionId: req.headers["paypal-transmission-id"]?.toString() || null,
-        transmissionTime: req.headers["paypal-transmission-time"]?.toString() || null,
-        transmissionSig: req.headers["paypal-transmission-sig"]?.toString() || null,
+        transmissionId:
+          req.headers["paypal-transmission-id"]?.toString() || null,
+        transmissionTime:
+          req.headers["paypal-transmission-time"]?.toString() || null,
+        transmissionSig:
+          req.headers["paypal-transmission-sig"]?.toString() || null,
         certUrl: req.headers["paypal-cert-url"]?.toString() || null,
         authAlgo: req.headers["paypal-auth-algo"]?.toString() || null,
       },
@@ -864,16 +977,17 @@ app.post("/paypal/webhook", async (req: Request, res: Response) => {
       return;
     }
 
-    const eventType = typeof payload.event_type === "string" ? payload.event_type : "";
+    const eventType =
+      typeof payload.event_type === "string" ? payload.event_type : "";
     const resource = (payload.resource || {}) as Record<string, unknown>;
     const paypalSubscriptionId =
       typeof resource.id === "string"
         ? resource.id
         : typeof resource.billing_agreement_id === "string"
-          ? resource.billing_agreement_id
-          : typeof resource.subscription_id === "string"
-            ? resource.subscription_id
-            : "";
+        ? resource.billing_agreement_id
+        : typeof resource.subscription_id === "string"
+        ? resource.subscription_id
+        : "";
 
     if (!paypalSubscriptionId) {
       res.status(200).send("OK");
@@ -916,7 +1030,9 @@ app.use(async (req: AuthedRequest, res: Response, next: NextFunction) => {
   }
 
   try {
-    const verifiedUser = await verifyAccessToken(authHeader.slice("Bearer ".length));
+    const verifiedUser = await verifyAccessToken(
+      authHeader.slice("Bearer ".length),
+    );
     const { data: mappedProfile, error: profileError } = await adminSupabase
       .from("profiles")
       .select("role")
@@ -924,13 +1040,16 @@ app.use(async (req: AuthedRequest, res: Response, next: NextFunction) => {
       .maybeSingle();
 
     if (profileError) {
-      throw new Error(`Failed to resolve profile role: ${profileError.message}`);
+      throw new Error(
+        `Failed to resolve profile role: ${profileError.message}`,
+      );
     }
 
     req.user = {
       ...verifiedUser,
       roles:
-        mappedProfile?.role === "admin" && !verifiedUser.roles.some((role) => role.toLowerCase() === "admin")
+        mappedProfile?.role === "admin" &&
+        !verifiedUser.roles.some((role) => role.toLowerCase() === "admin")
           ? [...verifiedUser.roles, "admin"]
           : verifiedUser.roles,
     };
@@ -986,7 +1105,9 @@ app.get("/plans", async (req: AuthedRequest, res: Response) => {
     res.json({ data: data || [], total: count || 0 });
   } catch (error) {
     console.error("[API] failed to load plans", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load plans") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to load plans") });
   }
 });
 
@@ -998,7 +1119,11 @@ app.get("/plans/:id", async (req: AuthedRequest, res: Response) => {
   }
 
   try {
-    const { data, error } = await adminSupabase.from("plans").select("*").eq("id", req.params.id).maybeSingle();
+    const { data, error } = await adminSupabase
+      .from("plans")
+      .select("*")
+      .eq("id", req.params.id)
+      .maybeSingle();
 
     if (error) {
       res.status(500).json({ error: error.message });
@@ -1013,7 +1138,9 @@ app.get("/plans/:id", async (req: AuthedRequest, res: Response) => {
     res.json({ data });
   } catch (error) {
     console.error("[API] failed to load plan", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load plan") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to load plan") });
   }
 });
 
@@ -1046,7 +1173,9 @@ app.get("/profiles", async (req: AuthedRequest, res: Response) => {
     res.json({ data: data || [], total: count || 0 });
   } catch (error) {
     console.error("[API] failed to load profiles", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load profiles") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to load profiles") });
   }
 });
 
@@ -1058,7 +1187,11 @@ app.get("/profiles/:id", async (req: AuthedRequest, res: Response) => {
   }
 
   try {
-    const { data, error } = await adminSupabase.from("profiles").select("*").eq("id", req.params.id).maybeSingle();
+    const { data, error } = await adminSupabase
+      .from("profiles")
+      .select("*")
+      .eq("id", req.params.id)
+      .maybeSingle();
 
     if (error) {
       res.status(500).json({ error: error.message });
@@ -1073,7 +1206,9 @@ app.get("/profiles/:id", async (req: AuthedRequest, res: Response) => {
     res.json({ data });
   } catch (error) {
     console.error("[API] failed to load profile", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load profile") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to load profile") });
   }
 });
 
@@ -1111,7 +1246,9 @@ app.patch("/profiles/:id", async (req: AuthedRequest, res: Response) => {
     res.json({ data });
   } catch (error) {
     console.error("[API] failed to update profile", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to update profile") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to update profile") });
   }
 });
 
@@ -1149,7 +1286,9 @@ app.get("/subscriptions", async (req: AuthedRequest, res: Response) => {
     res.json({ data: data || [], total: count || 0 });
   } catch (error) {
     console.error("[API] failed to load subscriptions", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load subscriptions") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to load subscriptions") });
   }
 });
 
@@ -1163,7 +1302,9 @@ app.get("/subscriptions/:id", async (req: AuthedRequest, res: Response) => {
   try {
     const { data, error } = await adminSupabase
       .from("subscriptions")
-      .select("*, plan:plans(*), profile:profiles!subscriptions_user_id_fkey(id, full_name, business_email)")
+      .select(
+        "*, plan:plans(*), profile:profiles!subscriptions_user_id_fkey(id, full_name, business_email)",
+      )
       .eq("id", req.params.id)
       .maybeSingle();
 
@@ -1180,7 +1321,9 @@ app.get("/subscriptions/:id", async (req: AuthedRequest, res: Response) => {
     res.json({ data });
   } catch (error) {
     console.error("[API] failed to load subscription", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load subscription") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to load subscription") });
   }
 });
 
@@ -1202,7 +1345,9 @@ app.patch("/subscriptions/:id", async (req: AuthedRequest, res: Response) => {
       .from("subscriptions")
       .update(payload)
       .eq("id", req.params.id)
-      .select("*, plan:plans(*), profile:profiles!subscriptions_user_id_fkey(id, full_name, business_email)")
+      .select(
+        "*, plan:plans(*), profile:profiles!subscriptions_user_id_fkey(id, full_name, business_email)",
+      )
       .maybeSingle();
 
     if (error) {
@@ -1218,7 +1363,9 @@ app.patch("/subscriptions/:id", async (req: AuthedRequest, res: Response) => {
     res.json({ data });
   } catch (error) {
     console.error("[API] failed to update subscription", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to update subscription") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to update subscription") });
   }
 });
 
@@ -1256,7 +1403,9 @@ app.get("/subscription_history", async (req: AuthedRequest, res: Response) => {
     res.json({ data: data || [], total: count || 0 });
   } catch (error) {
     console.error("[API] failed to load subscription history", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load subscription history") });
+    res.status(500).json({
+      error: getErrorMessage(error, "Failed to load subscription history"),
+    });
   }
 });
 
@@ -1291,7 +1440,9 @@ app.get("/trial_conversions", async (req: AuthedRequest, res: Response) => {
     res.json({ data: data || [], total: count || 0 });
   } catch (error) {
     console.error("[API] failed to load trial conversions", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load trial conversions") });
+    res.status(500).json({
+      error: getErrorMessage(error, "Failed to load trial conversions"),
+    });
   }
 });
 
@@ -1324,7 +1475,9 @@ app.get("/payments", async (req: AuthedRequest, res: Response) => {
     res.json({ data: data || [], total: count || 0 });
   } catch (error) {
     console.error("[API] failed to load payments", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load payments") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to load payments") });
   }
 });
 
@@ -1336,7 +1489,11 @@ app.get("/payments/:id", async (req: AuthedRequest, res: Response) => {
   }
 
   try {
-    const { data, error } = await adminSupabase.from("payments").select("*").eq("id", req.params.id).maybeSingle();
+    const { data, error } = await adminSupabase
+      .from("payments")
+      .select("*")
+      .eq("id", req.params.id)
+      .maybeSingle();
 
     if (error) {
       res.status(500).json({ error: error.message });
@@ -1351,7 +1508,9 @@ app.get("/payments/:id", async (req: AuthedRequest, res: Response) => {
     res.json({ data });
   } catch (error) {
     console.error("[API] failed to load payment", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load payment") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to load payment") });
   }
 });
 
@@ -1365,15 +1524,27 @@ app.post("/payments", async (req: AuthedRequest, res: Response) => {
   try {
     const body = (req.body || {}) as Record<string, unknown>;
     const payload = {
-      subscription_id: typeof body.subscription_id === "string" ? body.subscription_id : null,
+      subscription_id:
+        typeof body.subscription_id === "string" ? body.subscription_id : null,
       invoice_id: typeof body.invoice_id === "string" ? body.invoice_id : null,
       user_id: String(body.user_id ?? "").trim(),
       amount: Number(body.amount ?? 0),
       currency: String(body.currency ?? "ZAR").trim() || "ZAR",
-      payment_method: String(body.payment_method ?? body.paymentMethod ?? "payfast").trim() || "payfast",
-      status: String(body.status ?? "pending").trim().toLowerCase() || "pending",
-      payfast_payment_id: typeof body.payfast_payment_id === "string" ? body.payfast_payment_id : null,
-      transaction_reference: typeof body.transaction_reference === "string" ? body.transaction_reference : null,
+      payment_method:
+        String(body.payment_method ?? body.paymentMethod ?? "payfast").trim() ||
+        "payfast",
+      status:
+        String(body.status ?? "pending")
+          .trim()
+          .toLowerCase() || "pending",
+      payfast_payment_id:
+        typeof body.payfast_payment_id === "string"
+          ? body.payfast_payment_id
+          : null,
+      transaction_reference:
+        typeof body.transaction_reference === "string"
+          ? body.transaction_reference
+          : null,
     };
 
     if (!payload.user_id) {
@@ -1381,7 +1552,11 @@ app.post("/payments", async (req: AuthedRequest, res: Response) => {
       return;
     }
 
-    const { data, error } = await adminSupabase.from("payments").insert(payload).select("*").single();
+    const { data, error } = await adminSupabase
+      .from("payments")
+      .insert(payload)
+      .select("*")
+      .single();
 
     if (error) {
       res.status(500).json({ error: error.message });
@@ -1391,7 +1566,9 @@ app.post("/payments", async (req: AuthedRequest, res: Response) => {
     res.status(201).json({ data });
   } catch (error) {
     console.error("[API] failed to create payment", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to create payment") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to create payment") });
   }
 });
 
@@ -1403,14 +1580,20 @@ app.post("/plans", async (req: AuthedRequest, res: Response) => {
   }
 
   try {
-    const payload = sanitizePlanPayload((req.body || {}) as Record<string, unknown>);
+    const payload = sanitizePlanPayload(
+      (req.body || {}) as Record<string, unknown>,
+    );
 
     if (!payload.name) {
       res.status(400).json({ error: "Plan name is required." });
       return;
     }
 
-    const { data, error } = await adminSupabase.from("plans").insert(payload).select("*").single();
+    const { data, error } = await adminSupabase
+      .from("plans")
+      .insert(payload)
+      .select("*")
+      .single();
 
     if (error) {
       res.status(500).json({ error: error.message });
@@ -1420,7 +1603,9 @@ app.post("/plans", async (req: AuthedRequest, res: Response) => {
     res.status(201).json({ data });
   } catch (error) {
     console.error("[API] failed to create plan", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to create plan") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to create plan") });
   }
 });
 
@@ -1462,7 +1647,9 @@ app.patch("/plans/:id", async (req: AuthedRequest, res: Response) => {
     res.json({ data });
   } catch (error) {
     console.error("[API] failed to update plan", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to update plan") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to update plan") });
   }
 });
 
@@ -1474,7 +1661,12 @@ app.delete("/plans/:id", async (req: AuthedRequest, res: Response) => {
   }
 
   try {
-    const { data, error } = await adminSupabase.from("plans").delete().eq("id", req.params.id).select("id").maybeSingle();
+    const { data, error } = await adminSupabase
+      .from("plans")
+      .delete()
+      .eq("id", req.params.id)
+      .select("id")
+      .maybeSingle();
 
     if (error) {
       res.status(500).json({ error: error.message });
@@ -1489,7 +1681,9 @@ app.delete("/plans/:id", async (req: AuthedRequest, res: Response) => {
     res.json({ data });
   } catch (error) {
     console.error("[API] failed to delete plan", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to delete plan") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to delete plan") });
   }
 });
 
@@ -1501,7 +1695,9 @@ app.get("/settings/company", async (req: AuthedRequest, res: Response) => {
     res.json({ profile });
   } catch (error) {
     console.error("[API] failed to load company settings", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load company settings") });
+    res.status(500).json({
+      error: getErrorMessage(error, "Failed to load company settings"),
+    });
   }
 });
 
@@ -1512,7 +1708,8 @@ app.get("/documents/next-number", async (req: AuthedRequest, res: Response) => {
   try {
     const profile = await getProfileForUser(user);
     const invoicePrefix =
-      typeof (profile as { invoice_prefix?: unknown }).invoice_prefix === "string" &&
+      typeof (profile as { invoice_prefix?: unknown }).invoice_prefix ===
+        "string" &&
       (profile as { invoice_prefix?: string }).invoice_prefix?.trim()
         ? (profile as { invoice_prefix?: string }).invoice_prefix!.trim()
         : "INV-";
@@ -1528,11 +1725,16 @@ app.get("/documents/next-number", async (req: AuthedRequest, res: Response) => {
       return;
     }
 
-    const nextNumber = getNextDocumentNumber((records || []).map((record) => String(record.invoice_number || "")), prefix);
+    const nextNumber = getNextDocumentNumber(
+      (records || []).map((record) => String(record.invoice_number || "")),
+      prefix,
+    );
     res.json({ data: { number: nextNumber, prefix } });
   } catch (error) {
     console.error("[API] failed to generate next document number", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to generate next document number") });
+    res.status(500).json({
+      error: getErrorMessage(error, "Failed to generate next document number"),
+    });
   }
 });
 
@@ -1543,12 +1745,26 @@ app.patch("/settings/company", async (req: AuthedRequest, res: Response) => {
   try {
     const profile = await getProfileForUser(user);
     const updatePayload = {
-      company_name: typeof body.companyName === "string" ? body.companyName.trim() : profile.company_name ?? null,
-      business_email: typeof body.businessEmail === "string" ? body.businessEmail.trim() : profile.business_email ?? null,
-      business_phone: typeof body.businessPhone === "string" ? body.businessPhone.trim() : profile.business_phone ?? null,
-      business_address: typeof body.businessAddress === "string" ? body.businessAddress.trim() : profile.business_address ?? null,
+      company_name:
+        typeof body.companyName === "string"
+          ? body.companyName.trim()
+          : profile.company_name ?? null,
+      business_email:
+        typeof body.businessEmail === "string"
+          ? body.businessEmail.trim()
+          : profile.business_email ?? null,
+      business_phone:
+        typeof body.businessPhone === "string"
+          ? body.businessPhone.trim()
+          : profile.business_phone ?? null,
+      business_address:
+        typeof body.businessAddress === "string"
+          ? body.businessAddress.trim()
+          : profile.business_address ?? null,
       registration_number:
-        typeof body.registrationNumber === "string" ? body.registrationNumber.trim() : profile.registration_number ?? null,
+        typeof body.registrationNumber === "string"
+          ? body.registrationNumber.trim()
+          : profile.registration_number ?? null,
       updated_at: new Date().toISOString(),
     };
 
@@ -1560,117 +1776,143 @@ app.patch("/settings/company", async (req: AuthedRequest, res: Response) => {
       .single();
 
     if (error || !updatedProfile) {
-      res.status(500).json({ error: error?.message || "Failed to update company settings" });
+      res
+        .status(500)
+        .json({ error: error?.message || "Failed to update company settings" });
       return;
     }
 
     res.json({ profile: updatedProfile });
   } catch (error) {
     console.error("[API] failed to update company settings", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to update company settings") });
+    res.status(500).json({
+      error: getErrorMessage(error, "Failed to update company settings"),
+    });
   }
 });
 
-app.post("/settings/company/logo", async (req: AuthedRequest, res: Response) => {
-  const user = req.user!;
-  const body = (req.body || {}) as Record<string, unknown>;
+app.post(
+  "/settings/company/logo",
+  async (req: AuthedRequest, res: Response) => {
+    const user = req.user!;
+    const body = (req.body || {}) as Record<string, unknown>;
 
-  try {
-    const profile = await getProfileForUser(user);
-    const dataUrl = typeof body.dataUrl === "string" ? body.dataUrl : "";
-    const width = Number(body.width ?? 0);
-    const height = Number(body.height ?? 0);
-    if (!dataUrl) {
-      res.status(400).json({ error: "Missing logo file data." });
-      return;
-    }
+    try {
+      const profile = await getProfileForUser(user);
+      const dataUrl = typeof body.dataUrl === "string" ? body.dataUrl : "";
+      const width = Number(body.width ?? 0);
+      const height = Number(body.height ?? 0);
+      if (!dataUrl) {
+        res.status(400).json({ error: "Missing logo file data." });
+        return;
+      }
 
-    const { mimeType, buffer } = decodeDataUrl(dataUrl);
-    if (!BRANDING_ALLOWED_MIME_TYPES.has(mimeType)) {
-      res.status(400).json({ error: "Unsupported logo format. Use PNG, JPG, WEBP, or SVG." });
-      return;
-    }
+      const { mimeType, buffer } = decodeDataUrl(dataUrl);
+      if (!BRANDING_ALLOWED_MIME_TYPES.has(mimeType)) {
+        res.status(400).json({
+          error: "Unsupported logo format. Use PNG, JPG, WEBP, or SVG.",
+        });
+        return;
+      }
 
-    if (buffer.byteLength > BRANDING_MAX_UPLOAD_BYTES) {
-      res.status(400).json({ error: "Logo file is too large. Maximum size is 500KB." });
-      return;
-    }
+      if (buffer.byteLength > BRANDING_MAX_UPLOAD_BYTES) {
+        res
+          .status(400)
+          .json({ error: "Logo file is too large. Maximum size is 500KB." });
+        return;
+      }
 
-    validateBrandingDimensions(width, height);
+      validateBrandingDimensions(width, height);
 
-    await ensureBrandingBucket();
+      await ensureBrandingBucket();
 
-    const logoPath = getBrandingLogoPath(profile.id);
-    const { error: uploadError } = await adminSupabase.storage
-      .from(apiConfig.supabaseBrandingBucket)
-      .upload(logoPath, buffer, {
-        cacheControl: "3600",
-        contentType: mimeType,
-        upsert: true,
+      const logoPath = getBrandingLogoPath(profile.id);
+      const { error: uploadError } = await adminSupabase.storage
+        .from(apiConfig.supabaseBrandingBucket)
+        .upload(logoPath, buffer, {
+          cacheControl: "3600",
+          contentType: mimeType,
+          upsert: true,
+        });
+
+      if (uploadError) {
+        res.status(500).json({ error: uploadError.message });
+        return;
+      }
+
+      const {
+        data: { publicUrl },
+      } = adminSupabase.storage
+        .from(apiConfig.supabaseBrandingBucket)
+        .getPublicUrl(logoPath);
+
+      const { data: updatedProfile, error: profileError } = await adminSupabase
+        .from("profiles")
+        .update({
+          logo_url: publicUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", profile.id)
+        .select("*")
+        .single();
+
+      if (profileError || !updatedProfile) {
+        res
+          .status(500)
+          .json({ error: profileError?.message || "Failed to save logo URL" });
+        return;
+      }
+
+      res.json({ profile: updatedProfile, logoUrl: publicUrl });
+    } catch (error) {
+      console.error("[API] failed to upload company logo", error);
+      res.status(500).json({
+        error: getErrorMessage(error, "Failed to upload company logo"),
       });
-
-    if (uploadError) {
-      res.status(500).json({ error: uploadError.message });
-      return;
     }
+  },
+);
 
-    const {
-      data: { publicUrl },
-    } = adminSupabase.storage.from(apiConfig.supabaseBrandingBucket).getPublicUrl(logoPath);
+app.delete(
+  "/settings/company/logo",
+  async (req: AuthedRequest, res: Response) => {
+    const user = req.user!;
 
-    const { data: updatedProfile, error: profileError } = await adminSupabase
-      .from("profiles")
-      .update({
-        logo_url: publicUrl,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", profile.id)
-      .select("*")
-      .single();
+    try {
+      const profile = await getProfileForUser(user);
+      await ensureBrandingBucket();
 
-    if (profileError || !updatedProfile) {
-      res.status(500).json({ error: profileError?.message || "Failed to save logo URL" });
-      return;
+      const logoPath = getBrandingLogoPath(profile.id);
+      await adminSupabase.storage
+        .from(apiConfig.supabaseBrandingBucket)
+        .remove([logoPath]);
+
+      const { data: updatedProfile, error } = await adminSupabase
+        .from("profiles")
+        .update({
+          logo_url: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", profile.id)
+        .select("*")
+        .single();
+
+      if (error || !updatedProfile) {
+        res
+          .status(500)
+          .json({ error: error?.message || "Failed to remove company logo" });
+        return;
+      }
+
+      res.json({ profile: updatedProfile });
+    } catch (error) {
+      console.error("[API] failed to remove company logo", error);
+      res.status(500).json({
+        error: getErrorMessage(error, "Failed to remove company logo"),
+      });
     }
-
-    res.json({ profile: updatedProfile, logoUrl: publicUrl });
-  } catch (error) {
-    console.error("[API] failed to upload company logo", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to upload company logo") });
-  }
-});
-
-app.delete("/settings/company/logo", async (req: AuthedRequest, res: Response) => {
-  const user = req.user!;
-
-  try {
-    const profile = await getProfileForUser(user);
-    await ensureBrandingBucket();
-
-    const logoPath = getBrandingLogoPath(profile.id);
-    await adminSupabase.storage.from(apiConfig.supabaseBrandingBucket).remove([logoPath]);
-
-    const { data: updatedProfile, error } = await adminSupabase
-      .from("profiles")
-      .update({
-        logo_url: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", profile.id)
-      .select("*")
-      .single();
-
-    if (error || !updatedProfile) {
-      res.status(500).json({ error: error?.message || "Failed to remove company logo" });
-      return;
-    }
-
-    res.json({ profile: updatedProfile });
-  } catch (error) {
-    console.error("[API] failed to remove company logo", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to remove company logo") });
-  }
-});
+  },
+);
 
 app.get("/settings/users", async (req: AuthedRequest, res: Response) => {
   const user = req.user!;
@@ -1679,7 +1921,9 @@ app.get("/settings/users", async (req: AuthedRequest, res: Response) => {
     const profile = await getProfileForUser(user);
     const { data, error } = await adminSupabase
       .from("team_members")
-      .select("*, member_profile:member_profile_id(id, full_name, business_email, company_name)")
+      .select(
+        "*, member_profile:member_profile_id(id, full_name, business_email, company_name)",
+      )
       .eq("owner_profile_id", profile.id)
       .order("created_at", { ascending: true });
 
@@ -1695,7 +1939,9 @@ app.get("/settings/users", async (req: AuthedRequest, res: Response) => {
     res.json({ data: data || [], available: true });
   } catch (error) {
     console.error("[API] failed to load team members", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load team members") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to load team members") });
   }
 });
 
@@ -1705,17 +1951,32 @@ app.post("/settings/users", async (req: AuthedRequest, res: Response) => {
   try {
     const profile = await getProfileForUser(user);
     const body = (req.body || {}) as Record<string, unknown>;
-    const email = String(body.email ?? "").trim().toLowerCase();
-    const fullName = String(body.fullName ?? body.full_name ?? "").trim() || null;
-    const role = String(body.role ?? "member").trim().toLowerCase() === "admin" ? "admin" : "member";
+    const email = String(body.email ?? "")
+      .trim()
+      .toLowerCase();
+    const fullName =
+      String(body.fullName ?? body.full_name ?? "").trim() || null;
+    const role =
+      String(body.role ?? "member")
+        .trim()
+        .toLowerCase() === "admin"
+        ? "admin"
+        : "member";
 
     if (!email) {
       res.status(400).json({ error: "Email is required." });
       return;
     }
 
-    if (email === String(user.email || profile.business_email || "").trim().toLowerCase()) {
-      res.status(400).json({ error: "You are already the owner of this workspace." });
+    if (
+      email ===
+      String(user.email || profile.business_email || "")
+        .trim()
+        .toLowerCase()
+    ) {
+      res
+        .status(400)
+        .json({ error: "You are already the owner of this workspace." });
       return;
     }
 
@@ -1737,12 +1998,17 @@ app.post("/settings/users", async (req: AuthedRequest, res: Response) => {
     const { data, error } = await adminSupabase
       .from("team_members")
       .upsert(payload, { onConflict: "owner_profile_id,email" })
-      .select("*, member_profile:member_profile_id(id, full_name, business_email, company_name)")
+      .select(
+        "*, member_profile:member_profile_id(id, full_name, business_email, company_name)",
+      )
       .single();
 
     if (error) {
       if (isMissingTeamMembersTableError(error)) {
-        res.status(503).json({ error: "Team access is not available yet because the team_members table has not been deployed." });
+        res.status(503).json({
+          error:
+            "Team access is not available yet because the team_members table has not been deployed.",
+        });
         return;
       }
       res.status(500).json({ error: error.message });
@@ -1770,7 +2036,9 @@ app.post("/settings/users", async (req: AuthedRequest, res: Response) => {
     res.status(201).json({ data });
   } catch (error) {
     console.error("[API] failed to create team member", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to create team member") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to create team member") });
   }
 });
 
@@ -1779,19 +2047,29 @@ app.patch("/settings/users/:id", async (req: AuthedRequest, res: Response) => {
 
   try {
     const profile = await getProfileForUser(user);
-    const role = String((req.body || {}).role ?? "member").trim().toLowerCase() === "admin" ? "admin" : "member";
+    const role =
+      String((req.body || {}).role ?? "member")
+        .trim()
+        .toLowerCase() === "admin"
+        ? "admin"
+        : "member";
 
     const { data, error } = await adminSupabase
       .from("team_members")
       .update({ role, updated_at: new Date().toISOString() })
       .eq("id", req.params.id)
       .eq("owner_profile_id", profile.id)
-      .select("*, member_profile:member_profile_id(id, full_name, business_email, company_name)")
+      .select(
+        "*, member_profile:member_profile_id(id, full_name, business_email, company_name)",
+      )
       .single();
 
     if (error) {
       if (isMissingTeamMembersTableError(error)) {
-        res.status(503).json({ error: "Team access is not available yet because the team_members table has not been deployed." });
+        res.status(503).json({
+          error:
+            "Team access is not available yet because the team_members table has not been deployed.",
+        });
         return;
       }
       res.status(500).json({ error: error.message });
@@ -1801,7 +2079,9 @@ app.patch("/settings/users/:id", async (req: AuthedRequest, res: Response) => {
     res.json({ data });
   } catch (error) {
     console.error("[API] failed to update team member", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to update team member") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to update team member") });
   }
 });
 
@@ -1818,7 +2098,10 @@ app.delete("/settings/users/:id", async (req: AuthedRequest, res: Response) => {
 
     if (error) {
       if (isMissingTeamMembersTableError(error)) {
-        res.status(503).json({ error: "Team access is not available yet because the team_members table has not been deployed." });
+        res.status(503).json({
+          error:
+            "Team access is not available yet because the team_members table has not been deployed.",
+        });
         return;
       }
       res.status(500).json({ error: error.message });
@@ -1828,7 +2111,9 @@ app.delete("/settings/users/:id", async (req: AuthedRequest, res: Response) => {
     res.status(204).send();
   } catch (error) {
     console.error("[API] failed to delete team member", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to delete team member") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to delete team member") });
   }
 });
 
@@ -1856,7 +2141,11 @@ app.get("/subscription/current", async (req: AuthedRequest, res: Response) => {
       return;
     }
 
-    const { data: plan } = await adminSupabase.from("plans").select("*").eq("id", subscription.plan_id).maybeSingle();
+    const { data: plan } = await adminSupabase
+      .from("plans")
+      .select("*")
+      .eq("id", subscription.plan_id)
+      .maybeSingle();
 
     res.json({
       data: {
@@ -1866,7 +2155,9 @@ app.get("/subscription/current", async (req: AuthedRequest, res: Response) => {
     });
   } catch (error) {
     console.error("[API] failed to load current subscription", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load current subscription") });
+    res.status(500).json({
+      error: getErrorMessage(error, "Failed to load current subscription"),
+    });
   }
 });
 
@@ -1883,16 +2174,21 @@ app.get("/subscription/usage", async (req: AuthedRequest, res: Response) => {
       { count: clientsCount, error: clientsError },
       { count: invoicesCount, error: invoicesError },
       { count: teamMembersCount, error: teamMembersError },
-    ] =
-      await Promise.all([
-        adminSupabase.from("clients").select("*", { count: "exact", head: true }).eq("user_id", profile.id),
-        adminSupabase
-          .from("invoices")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", profile.id)
-          .gte("invoice_date", monthStart.toISOString().split("T")[0]),
-        adminSupabase.from("team_members").select("*", { count: "exact", head: true }).eq("owner_profile_id", profile.id),
-      ]);
+    ] = await Promise.all([
+      adminSupabase
+        .from("clients")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", profile.id),
+      adminSupabase
+        .from("invoices")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", profile.id)
+        .gte("invoice_date", monthStart.toISOString().split("T")[0]),
+      adminSupabase
+        .from("team_members")
+        .select("*", { count: "exact", head: true })
+        .eq("owner_profile_id", profile.id),
+    ]);
 
     if (clientsError) {
       res.status(500).json({ error: clientsError.message });
@@ -1913,164 +2209,200 @@ app.get("/subscription/usage", async (req: AuthedRequest, res: Response) => {
       data: {
         savedClients: clientsCount || 0,
         invoicesThisMonth: invoicesCount || 0,
-        teamMembers: ((isMissingTeamMembersTableError(teamMembersError) ? 0 : teamMembersCount) || 0) + 1,
+        teamMembers:
+          ((isMissingTeamMembersTableError(teamMembersError)
+            ? 0
+            : teamMembersCount) || 0) + 1,
       },
     });
   } catch (error) {
     console.error("[API] failed to load subscription usage", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load subscription usage") });
-  }
-});
-
-app.post("/subscription/cancel-auto-renew", async (req: AuthedRequest, res: Response) => {
-  const user = req.user!;
-
-  try {
-    const profile = await getProfileForUser(user);
-
-    const { data: subscription, error: subscriptionError } = await adminSupabase
-      .from("subscriptions")
-      .select("*")
-      .eq("user_id", profile.id)
-      .in("status", ["trial", "active"])
-      .order("created_at", { ascending: false })
-      .maybeSingle();
-
-    if (subscriptionError) {
-      res.status(500).json({ error: subscriptionError.message });
-      return;
-    }
-
-    if (!subscription?.id) {
-      res.status(404).json({ error: "No active subscription found" });
-      return;
-    }
-
-    const { data: updatedSubscription, error: updateError } = await adminSupabase
-      .from("subscriptions")
-      .update({
-        auto_renew: false,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", subscription.id)
-      .select("*")
-      .single();
-
-    if (updateError || !updatedSubscription?.id) {
-      res.status(500).json({ error: updateError?.message || "Failed to cancel auto-renew" });
-      return;
-    }
-
-    const { data: plan } = await adminSupabase.from("plans").select("*").eq("id", updatedSubscription.plan_id).maybeSingle();
-
-    res.json({
-      data: {
-        ...updatedSubscription,
-        plan: plan || null,
-      },
+    res.status(500).json({
+      error: getErrorMessage(error, "Failed to load subscription usage"),
     });
-  } catch (error) {
-    console.error("[API] failed to cancel auto-renew", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to cancel auto-renew") });
   }
 });
 
-app.post("/subscription/change-plan", async (req: AuthedRequest, res: Response) => {
-  const user = req.user!;
-  const body = (req.body || {}) as { planId?: string };
+app.post(
+  "/subscription/cancel-auto-renew",
+  async (req: AuthedRequest, res: Response) => {
+    const user = req.user!;
 
-  if (!body.planId) {
-    res.status(400).json({ error: "planId is required" });
-    return;
-  }
+    try {
+      const profile = await getProfileForUser(user);
 
-  try {
-    const profile = await getProfileForUser(user);
+      const { data: subscription, error: subscriptionError } =
+        await adminSupabase
+          .from("subscriptions")
+          .select("*")
+          .eq("user_id", profile.id)
+          .in("status", ["trial", "active"])
+          .order("created_at", { ascending: false })
+          .maybeSingle();
 
-    const { data: subscription, error: subscriptionError } = await adminSupabase
-      .from("subscriptions")
-      .select("*")
-      .eq("user_id", profile.id)
-      .in("status", ["trial", "active", "cancelled", "expired"])
-      .order("created_at", { ascending: false })
-      .maybeSingle();
-
-    if (subscriptionError) {
-      res.status(500).json({ error: subscriptionError.message });
-      return;
-    }
-
-    if (!subscription?.id) {
-      res.status(404).json({ error: "No subscription found to update" });
-      return;
-    }
-
-    const { data: plan, error: planError } = await adminSupabase
-      .from("plans")
-      .select("*")
-      .eq("id", body.planId)
-      .eq("is_active", true)
-      .single();
-
-    if (planError || !plan?.id) {
-      res.status(404).json({ error: planError?.message || "Selected plan not found" });
-      return;
-    }
-
-    const hasReusableBillingAuthorization = Boolean(
-      subscription.payfast_token || subscription.paystack_authorization_code || subscription.subscription_token,
-    );
-
-    if (Boolean(plan.requires_card) && !hasReusableBillingAuthorization) {
-      res.status(409).json({ error: "Card setup is required before switching to this plan" });
-      return;
-    }
-
-    const today = new Date();
-    const renewalDate = new Date(today);
-    if (plan.billing_cycle === "yearly") {
-      renewalDate.setFullYear(renewalDate.getFullYear() + 1);
-    } else {
-      renewalDate.setMonth(renewalDate.getMonth() + 1);
-    }
-
-    const updatedFields: Record<string, unknown> = {
-      plan_id: plan.id,
-      auto_renew: Boolean(plan.auto_renew),
-      updated_at: new Date().toISOString(),
-    };
-
-    if (subscription.status !== "trial") {
-      updatedFields.renewal_date = renewalDate.toISOString().split("T")[0];
-      if (subscription.status === "cancelled" || subscription.status === "expired") {
-        updatedFields.status = "active";
-        updatedFields.start_date = today.toISOString().split("T")[0];
+      if (subscriptionError) {
+        res.status(500).json({ error: subscriptionError.message });
+        return;
       }
+
+      if (!subscription?.id) {
+        res.status(404).json({ error: "No active subscription found" });
+        return;
+      }
+
+      const { data: updatedSubscription, error: updateError } =
+        await adminSupabase
+          .from("subscriptions")
+          .update({
+            auto_renew: false,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", subscription.id)
+          .select("*")
+          .single();
+
+      if (updateError || !updatedSubscription?.id) {
+        res.status(500).json({
+          error: updateError?.message || "Failed to cancel auto-renew",
+        });
+        return;
+      }
+
+      const { data: plan } = await adminSupabase
+        .from("plans")
+        .select("*")
+        .eq("id", updatedSubscription.plan_id)
+        .maybeSingle();
+
+      res.json({
+        data: {
+          ...updatedSubscription,
+          plan: plan || null,
+        },
+      });
+    } catch (error) {
+      console.error("[API] failed to cancel auto-renew", error);
+      res
+        .status(500)
+        .json({ error: getErrorMessage(error, "Failed to cancel auto-renew") });
     }
+  },
+);
 
-    const { data: updatedSubscription, error: updateError } = await adminSupabase
-      .from("subscriptions")
-      .update(updatedFields)
-      .eq("id", subscription.id)
-      .select("*")
-      .single();
+app.post(
+  "/subscription/change-plan",
+  async (req: AuthedRequest, res: Response) => {
+    const user = req.user!;
+    const body = (req.body || {}) as { planId?: string };
 
-    if (updateError || !updatedSubscription?.id) {
-      res.status(500).json({ error: updateError?.message || "Failed to change plan" });
+    if (!body.planId) {
+      res.status(400).json({ error: "planId is required" });
       return;
     }
 
-    res.json({
-      data: {
-        ...updatedSubscription,
-        plan,
-      },
-    });
-  } catch (error) {
-    console.error("[API] failed to change plan", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to change plan") });
-  }
-});
+    try {
+      const profile = await getProfileForUser(user);
+
+      const { data: subscription, error: subscriptionError } =
+        await adminSupabase
+          .from("subscriptions")
+          .select("*")
+          .eq("user_id", profile.id)
+          .in("status", ["trial", "active", "cancelled", "expired"])
+          .order("created_at", { ascending: false })
+          .maybeSingle();
+
+      if (subscriptionError) {
+        res.status(500).json({ error: subscriptionError.message });
+        return;
+      }
+
+      if (!subscription?.id) {
+        res.status(404).json({ error: "No subscription found to update" });
+        return;
+      }
+
+      const { data: plan, error: planError } = await adminSupabase
+        .from("plans")
+        .select("*")
+        .eq("id", body.planId)
+        .eq("is_active", true)
+        .single();
+
+      if (planError || !plan?.id) {
+        res
+          .status(404)
+          .json({ error: planError?.message || "Selected plan not found" });
+        return;
+      }
+
+      const hasReusableBillingAuthorization = Boolean(
+        subscription.payfast_token ||
+          subscription.paystack_authorization_code ||
+          subscription.subscription_token,
+      );
+
+      if (Boolean(plan.requires_card) && !hasReusableBillingAuthorization) {
+        res.status(409).json({
+          error: "Card setup is required before switching to this plan",
+        });
+        return;
+      }
+
+      const today = new Date();
+      const renewalDate = new Date(today);
+      if (plan.billing_cycle === "yearly") {
+        renewalDate.setFullYear(renewalDate.getFullYear() + 1);
+      } else {
+        renewalDate.setMonth(renewalDate.getMonth() + 1);
+      }
+
+      const updatedFields: Record<string, unknown> = {
+        plan_id: plan.id,
+        auto_renew: Boolean(plan.auto_renew),
+        updated_at: new Date().toISOString(),
+      };
+
+      if (subscription.status !== "trial") {
+        updatedFields.renewal_date = renewalDate.toISOString().split("T")[0];
+        if (
+          subscription.status === "cancelled" ||
+          subscription.status === "expired"
+        ) {
+          updatedFields.status = "active";
+          updatedFields.start_date = today.toISOString().split("T")[0];
+        }
+      }
+
+      const { data: updatedSubscription, error: updateError } =
+        await adminSupabase
+          .from("subscriptions")
+          .update(updatedFields)
+          .eq("id", subscription.id)
+          .select("*")
+          .single();
+
+      if (updateError || !updatedSubscription?.id) {
+        res
+          .status(500)
+          .json({ error: updateError?.message || "Failed to change plan" });
+        return;
+      }
+
+      res.json({
+        data: {
+          ...updatedSubscription,
+          plan,
+        },
+      });
+    } catch (error) {
+      console.error("[API] failed to change plan", error);
+      res
+        .status(500)
+        .json({ error: getErrorMessage(error, "Failed to change plan") });
+    }
+  },
+);
 
 app.get("/clients", async (req: AuthedRequest, res: Response) => {
   const user = req.user!;
@@ -2080,7 +2412,10 @@ app.get("/clients", async (req: AuthedRequest, res: Response) => {
     const profileId = profile.id;
     const isAdmin = isAdminUser(user);
 
-    let query = adminSupabase.from("clients").select("*", { count: "exact" }).order("created_at", { ascending: false });
+    let query = adminSupabase
+      .from("clients")
+      .select("*", { count: "exact" })
+      .order("created_at", { ascending: false });
 
     if (!isAdmin) {
       query = query.eq("user_id", profileId);
@@ -2096,7 +2431,9 @@ app.get("/clients", async (req: AuthedRequest, res: Response) => {
     res.json({ data: data || [], total: count || 0 });
   } catch (error) {
     console.error("[API] failed to load clients", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load clients") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to load clients") });
   }
 });
 
@@ -2108,7 +2445,10 @@ app.get("/clients/:id", async (req: AuthedRequest, res: Response) => {
     const profileId = profile.id;
     const isAdmin = isAdminUser(user);
 
-    let query = adminSupabase.from("clients").select("*").eq("id", req.params.id);
+    let query = adminSupabase
+      .from("clients")
+      .select("*")
+      .eq("id", req.params.id);
 
     if (!isAdmin) {
       query = query.eq("user_id", profileId);
@@ -2117,14 +2457,18 @@ app.get("/clients/:id", async (req: AuthedRequest, res: Response) => {
     const { data, error } = await query.single();
 
     if (error) {
-      res.status(error.code === "PGRST116" ? 404 : 500).json({ error: error.message });
+      res
+        .status(error.code === "PGRST116" ? 404 : 500)
+        .json({ error: error.message });
       return;
     }
 
     res.json({ data });
   } catch (error) {
     console.error("[API] failed to load client", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load client") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to load client") });
   }
 });
 
@@ -2153,10 +2497,19 @@ app.post("/clients", async (req: AuthedRequest, res: Response) => {
       ...sanitized,
     };
 
-    const { data, error } = await adminSupabase.from("clients").insert(payload).select("*").single();
+    const { data, error } = await adminSupabase
+      .from("clients")
+      .insert(payload)
+      .select("*")
+      .single();
 
     if (error) {
-      console.error("[API] failed to insert client", { error, payload, auth0UserId: user.sub, profileId });
+      console.error("[API] failed to insert client", {
+        error,
+        payload,
+        auth0UserId: user.sub,
+        profileId,
+      });
       res.status(500).json({
         error: error.message,
         description:
@@ -2170,14 +2523,16 @@ app.post("/clients", async (req: AuthedRequest, res: Response) => {
     console.error("[API] failed to create client", error);
     res.status(500).json({
       error: getErrorMessage(error, "Failed to create client"),
-      description: "The API could not resolve or create the Auth0-mapped profile required for this client.",
+      description:
+        "The API could not resolve or create the Auth0-mapped profile required for this client.",
     });
   }
 });
 
 app.get("/invoice_items", async (req: AuthedRequest, res: Response) => {
   const user = req.user!;
-  const invoiceId = typeof req.query.invoice_id === "string" ? req.query.invoice_id : "";
+  const invoiceId =
+    typeof req.query.invoice_id === "string" ? req.query.invoice_id : "";
 
   if (!invoiceId) {
     res.status(400).json({ error: "invoice_id query parameter is required" });
@@ -2188,12 +2543,16 @@ app.get("/invoice_items", async (req: AuthedRequest, res: Response) => {
     const profile = await getProfileForUser(user);
     const isAdmin = isAdminUser(user);
 
-    let invoiceQuery = adminSupabase.from("invoices").select("id").eq("id", invoiceId);
+    let invoiceQuery = adminSupabase
+      .from("invoices")
+      .select("id")
+      .eq("id", invoiceId);
     if (!isAdmin) {
       invoiceQuery = invoiceQuery.eq("user_id", profile.id);
     }
 
-    const { data: invoice, error: invoiceError } = await invoiceQuery.maybeSingle();
+    const { data: invoice, error: invoiceError } =
+      await invoiceQuery.maybeSingle();
 
     if (invoiceError) {
       res.status(500).json({ error: invoiceError.message });
@@ -2219,7 +2578,9 @@ app.get("/invoice_items", async (req: AuthedRequest, res: Response) => {
     res.json({ data: data || [], total: data?.length || 0 });
   } catch (error) {
     console.error("[API] failed to load invoice items", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load invoice items") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to load invoice items") });
   }
 });
 
@@ -2230,7 +2591,10 @@ app.get("/invoices", async (req: AuthedRequest, res: Response) => {
     const profile = await getProfileForUser(user);
     const isAdmin = isAdminUser(user);
 
-    let query = adminSupabase.from("invoices").select("*", { count: "exact" }).order("created_at", { ascending: false });
+    let query = adminSupabase
+      .from("invoices")
+      .select("*", { count: "exact" })
+      .order("created_at", { ascending: false });
     if (!isAdmin) {
       query = query.eq("user_id", profile.id);
     }
@@ -2245,7 +2609,9 @@ app.get("/invoices", async (req: AuthedRequest, res: Response) => {
     res.json({ data: data || [], total: count || 0 });
   } catch (error) {
     console.error("[API] failed to load invoices", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load invoices") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to load invoices") });
   }
 });
 
@@ -2256,7 +2622,10 @@ app.get("/invoices/:id", async (req: AuthedRequest, res: Response) => {
     const profile = await getProfileForUser(user);
     const isAdmin = isAdminUser(user);
 
-    let query = adminSupabase.from("invoices").select("*").eq("id", req.params.id);
+    let query = adminSupabase
+      .from("invoices")
+      .select("*")
+      .eq("id", req.params.id);
     if (!isAdmin) {
       query = query.eq("user_id", profile.id);
     }
@@ -2264,7 +2633,9 @@ app.get("/invoices/:id", async (req: AuthedRequest, res: Response) => {
     const { data, error } = await query.single();
 
     if (error) {
-      res.status(error.code === "PGRST116" ? 404 : 500).json({ error: error.message });
+      res
+        .status(error.code === "PGRST116" ? 404 : 500)
+        .json({ error: error.message });
       return;
     }
 
@@ -2299,7 +2670,9 @@ app.get("/invoices/:id", async (req: AuthedRequest, res: Response) => {
     });
   } catch (error) {
     console.error("[API] failed to load invoice", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load invoice") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to load invoice") });
   }
 });
 
@@ -2312,34 +2685,55 @@ app.post("/invoices", async (req: AuthedRequest, res: Response) => {
     const isAdmin = isAdminUser(user);
     const payload = sanitizeInvoicePayload(body);
 
-    if (!payload.invoice_number || !payload.client_id || !payload.invoice_date || !payload.due_date) {
-      res.status(400).json({ error: "Invoice number, client, invoice date, and due date are required" });
+    if (
+      !payload.invoice_number ||
+      !payload.client_id ||
+      !payload.invoice_date ||
+      !payload.due_date
+    ) {
+      res.status(400).json({
+        error:
+          "Invoice number, client, invoice date, and due date are required",
+      });
       return;
     }
 
-    if (payload.lineItems.length === 0 || payload.lineItems.some((item) => !item.description)) {
-      res.status(400).json({ error: "At least one valid line item is required" });
+    if (
+      payload.lineItems.length === 0 ||
+      payload.lineItems.some((item) => !item.description)
+    ) {
+      res
+        .status(400)
+        .json({ error: "At least one valid line item is required" });
       return;
     }
 
-    let clientQuery = adminSupabase.from("clients").select("id,user_id").eq("id", payload.client_id);
+    let clientQuery = adminSupabase
+      .from("clients")
+      .select("id,user_id")
+      .eq("id", payload.client_id);
     if (!isAdmin) {
       clientQuery = clientQuery.eq("user_id", profile.id);
     }
 
-    const { data: client, error: clientError } = await clientQuery.maybeSingle();
+    const { data: client, error: clientError } =
+      await clientQuery.maybeSingle();
     if (clientError) {
       res.status(500).json({ error: clientError.message });
       return;
     }
 
     if (!client?.id) {
-      res.status(400).json({ error: "Selected client does not exist for this account" });
+      res
+        .status(400)
+        .json({ error: "Selected client does not exist for this account" });
       return;
     }
 
     const { lineItems, ...invoicePayload } = payload;
-    const documentPrefix = getDocumentNumberPrefix(invoicePayload.invoice_number);
+    const documentPrefix = getDocumentNumberPrefix(
+      invoicePayload.invoice_number,
+    );
 
     let invoice: Record<string, unknown> | null = null;
     let invoiceError: unknown = null;
@@ -2394,8 +2788,13 @@ app.post("/invoices", async (req: AuthedRequest, res: Response) => {
 
       res.status(500).json({
         error:
-          invoiceError && typeof invoiceError === "object" && "message" in invoiceError
-            ? String((invoiceError as { message?: unknown }).message || "Failed to create invoice")
+          invoiceError &&
+          typeof invoiceError === "object" &&
+          "message" in invoiceError
+            ? String(
+                (invoiceError as { message?: unknown }).message ||
+                  "Failed to create invoice",
+              )
             : "Failed to create invoice",
       });
       return;
@@ -2406,11 +2805,17 @@ app.post("/invoices", async (req: AuthedRequest, res: Response) => {
       ...item,
     }));
 
-    const { error: itemsError } = await adminSupabase.from("invoice_items").insert(itemsPayload);
+    const { error: itemsError } = await adminSupabase
+      .from("invoice_items")
+      .insert(itemsPayload);
 
     if (itemsError) {
       await adminSupabase.from("invoices").delete().eq("id", invoice.id);
-      console.error("[API] failed to insert invoice items", { itemsError, itemsPayload, invoiceId: invoice.id });
+      console.error("[API] failed to insert invoice items", {
+        itemsError,
+        itemsPayload,
+        invoiceId: invoice.id,
+      });
       res.status(500).json({ error: itemsError.message });
       return;
     }
@@ -2423,7 +2828,9 @@ app.post("/invoices", async (req: AuthedRequest, res: Response) => {
     });
   } catch (error) {
     console.error("[API] failed to create invoice", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to create invoice") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to create invoice") });
   }
 });
 
@@ -2436,12 +2843,16 @@ app.patch("/invoices/:id", async (req: AuthedRequest, res: Response) => {
     const isAdmin = isAdminUser(user);
     const payload = sanitizeInvoicePayload(body);
 
-    let invoiceOwnershipQuery = adminSupabase.from("invoices").select("id,user_id").eq("id", req.params.id);
+    let invoiceOwnershipQuery = adminSupabase
+      .from("invoices")
+      .select("id,user_id")
+      .eq("id", req.params.id);
     if (!isAdmin) {
       invoiceOwnershipQuery = invoiceOwnershipQuery.eq("user_id", profile.id);
     }
 
-    const { data: existingInvoice, error: existingInvoiceError } = await invoiceOwnershipQuery.maybeSingle();
+    const { data: existingInvoice, error: existingInvoiceError } =
+      await invoiceOwnershipQuery.maybeSingle();
     if (existingInvoiceError) {
       res.status(500).json({ error: existingInvoiceError.message });
       return;
@@ -2452,19 +2863,25 @@ app.patch("/invoices/:id", async (req: AuthedRequest, res: Response) => {
       return;
     }
 
-    let clientQuery = adminSupabase.from("clients").select("id,user_id").eq("id", payload.client_id);
+    let clientQuery = adminSupabase
+      .from("clients")
+      .select("id,user_id")
+      .eq("id", payload.client_id);
     if (!isAdmin) {
       clientQuery = clientQuery.eq("user_id", existingInvoice.user_id);
     }
 
-    const { data: client, error: clientError } = await clientQuery.maybeSingle();
+    const { data: client, error: clientError } =
+      await clientQuery.maybeSingle();
     if (clientError) {
       res.status(500).json({ error: clientError.message });
       return;
     }
 
     if (!client?.id) {
-      res.status(400).json({ error: "Selected client does not exist for this account" });
+      res
+        .status(400)
+        .json({ error: "Selected client does not exist for this account" });
       return;
     }
 
@@ -2486,7 +2903,10 @@ app.patch("/invoices/:id", async (req: AuthedRequest, res: Response) => {
     }
 
     if (Array.isArray(body.lineItems)) {
-      const { error: deleteItemsError } = await adminSupabase.from("invoice_items").delete().eq("invoice_id", req.params.id);
+      const { error: deleteItemsError } = await adminSupabase
+        .from("invoice_items")
+        .delete()
+        .eq("invoice_id", req.params.id);
       if (deleteItemsError) {
         res.status(500).json({ error: deleteItemsError.message });
         return;
@@ -2497,7 +2917,9 @@ app.patch("/invoices/:id", async (req: AuthedRequest, res: Response) => {
           invoice_id: req.params.id,
           ...item,
         }));
-        const { error: insertItemsError } = await adminSupabase.from("invoice_items").insert(itemsPayload);
+        const { error: insertItemsError } = await adminSupabase
+          .from("invoice_items")
+          .insert(itemsPayload);
         if (insertItemsError) {
           res.status(500).json({ error: insertItemsError.message });
           return;
@@ -2508,7 +2930,9 @@ app.patch("/invoices/:id", async (req: AuthedRequest, res: Response) => {
     res.json({ data: updatedInvoice });
   } catch (error) {
     console.error("[API] failed to update invoice", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to update invoice") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to update invoice") });
   }
 });
 
@@ -2519,12 +2943,16 @@ app.delete("/invoices/:id", async (req: AuthedRequest, res: Response) => {
     const profile = await getProfileForUser(user);
     const isAdmin = isAdminUser(user);
 
-    let ownershipQuery = adminSupabase.from("invoices").select("id,user_id,status").eq("id", req.params.id);
+    let ownershipQuery = adminSupabase
+      .from("invoices")
+      .select("id,user_id,status")
+      .eq("id", req.params.id);
     if (!isAdmin) {
       ownershipQuery = ownershipQuery.eq("user_id", profile.id);
     }
 
-    const { data: invoice, error: invoiceError } = await ownershipQuery.maybeSingle();
+    const { data: invoice, error: invoiceError } =
+      await ownershipQuery.maybeSingle();
     if (invoiceError) {
       res.status(500).json({ error: invoiceError.message });
       return;
@@ -2536,11 +2964,16 @@ app.delete("/invoices/:id", async (req: AuthedRequest, res: Response) => {
     }
 
     if (String(invoice.status || "").toLowerCase() !== "draft") {
-      res.status(409).json({ error: "Only draft invoices and quotes can be deleted" });
+      res
+        .status(409)
+        .json({ error: "Only draft invoices and quotes can be deleted" });
       return;
     }
 
-    let deleteQuery = adminSupabase.from("invoices").delete().eq("id", req.params.id);
+    let deleteQuery = adminSupabase
+      .from("invoices")
+      .delete()
+      .eq("id", req.params.id);
     if (!isAdmin) {
       deleteQuery = deleteQuery.eq("user_id", profile.id);
     }
@@ -2554,7 +2987,9 @@ app.delete("/invoices/:id", async (req: AuthedRequest, res: Response) => {
     res.json({ data: { id: req.params.id } });
   } catch (error) {
     console.error("[API] failed to delete invoice", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to delete invoice") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to delete invoice") });
   }
 });
 
@@ -2575,7 +3010,10 @@ app.patch("/clients/:id", async (req: AuthedRequest, res: Response) => {
     const isAdmin = isAdminUser(user);
     const payload = sanitizeClientPayload(body as Record<string, unknown>);
 
-    let query = adminSupabase.from("clients").update(payload).eq("id", req.params.id);
+    let query = adminSupabase
+      .from("clients")
+      .update(payload)
+      .eq("id", req.params.id);
     if (!isAdmin) {
       query = query.eq("user_id", profileId);
     }
@@ -2583,14 +3021,18 @@ app.patch("/clients/:id", async (req: AuthedRequest, res: Response) => {
     const { data, error } = await query.select("*").single();
 
     if (error) {
-      res.status(error.code === "PGRST116" ? 404 : 500).json({ error: error.message });
+      res
+        .status(error.code === "PGRST116" ? 404 : 500)
+        .json({ error: error.message });
       return;
     }
 
     res.json({ data });
   } catch (error) {
     console.error("[API] failed to update client", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to update client") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to update client") });
   }
 });
 
@@ -2617,7 +3059,9 @@ app.delete("/clients/:id", async (req: AuthedRequest, res: Response) => {
     res.json({ data: { id: req.params.id } });
   } catch (error) {
     console.error("[API] failed to delete client", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to delete client") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to delete client") });
   }
 });
 
@@ -2628,7 +3072,10 @@ app.get("/expenses", async (req: AuthedRequest, res: Response) => {
     const profile = await getProfileForUser(user);
     const isAdmin = isAdminUser(user);
 
-    let query = adminSupabase.from("expenses").select("*", { count: "exact" }).order("date", { ascending: false });
+    let query = adminSupabase
+      .from("expenses")
+      .select("*", { count: "exact" })
+      .order("date", { ascending: false });
     if (!isAdmin) {
       query = query.eq("user_id", profile.id);
     }
@@ -2642,7 +3089,9 @@ app.get("/expenses", async (req: AuthedRequest, res: Response) => {
     res.json({ data: data || [], total: count || 0 });
   } catch (error) {
     console.error("[API] failed to load expenses", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load expenses") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to load expenses") });
   }
 });
 
@@ -2653,21 +3102,28 @@ app.get("/expenses/:id", async (req: AuthedRequest, res: Response) => {
     const profile = await getProfileForUser(user);
     const isAdmin = isAdminUser(user);
 
-    let query = adminSupabase.from("expenses").select("*").eq("id", req.params.id);
+    let query = adminSupabase
+      .from("expenses")
+      .select("*")
+      .eq("id", req.params.id);
     if (!isAdmin) {
       query = query.eq("user_id", profile.id);
     }
 
     const { data, error } = await query.single();
     if (error) {
-      res.status(error.code === "PGRST116" ? 404 : 500).json({ error: error.message });
+      res
+        .status(error.code === "PGRST116" ? 404 : 500)
+        .json({ error: error.message });
       return;
     }
 
     res.json({ data });
   } catch (error) {
     console.error("[API] failed to load expense", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load expense") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to load expense") });
   }
 });
 
@@ -2679,8 +3135,15 @@ app.post("/expenses", async (req: AuthedRequest, res: Response) => {
     const profile = await getProfileForUser(user);
     const payload = sanitizeExpensePayload(body);
 
-    if (!payload.category || !payload.recipient || !payload.date || payload.amount <= 0) {
-      res.status(400).json({ error: "Category, recipient, date, and a positive amount are required" });
+    if (
+      !payload.category ||
+      !payload.recipient ||
+      !payload.date ||
+      payload.amount <= 0
+    ) {
+      res.status(400).json({
+        error: "Category, recipient, date, and a positive amount are required",
+      });
       return;
     }
 
@@ -2693,14 +3156,18 @@ app.post("/expenses", async (req: AuthedRequest, res: Response) => {
       .select("*")
       .single();
     if (error || !data) {
-      res.status(500).json({ error: error?.message || "Failed to create expense" });
+      res
+        .status(500)
+        .json({ error: error?.message || "Failed to create expense" });
       return;
     }
 
     res.status(201).json({ data });
   } catch (error) {
     console.error("[API] failed to create expense", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to create expense") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to create expense") });
   }
 });
 
@@ -2713,12 +3180,16 @@ app.patch("/expenses/:id", async (req: AuthedRequest, res: Response) => {
     const isAdmin = isAdminUser(user);
     const payload = sanitizeExpensePayload(body);
 
-    let expenseOwnershipQuery = adminSupabase.from("expenses").select("id,user_id").eq("id", req.params.id);
+    let expenseOwnershipQuery = adminSupabase
+      .from("expenses")
+      .select("id,user_id")
+      .eq("id", req.params.id);
     if (!isAdmin) {
       expenseOwnershipQuery = expenseOwnershipQuery.eq("user_id", profile.id);
     }
 
-    const { data: existingExpense, error: existingExpenseError } = await expenseOwnershipQuery.maybeSingle();
+    const { data: existingExpense, error: existingExpenseError } =
+      await expenseOwnershipQuery.maybeSingle();
     if (existingExpenseError) {
       res.status(500).json({ error: existingExpenseError.message });
       return;
@@ -2734,21 +3205,28 @@ app.patch("/expenses/:id", async (req: AuthedRequest, res: Response) => {
       user_id: existingExpense.user_id,
     };
 
-    let query = adminSupabase.from("expenses").update(expenseUpdatePayload).eq("id", req.params.id);
+    let query = adminSupabase
+      .from("expenses")
+      .update(expenseUpdatePayload)
+      .eq("id", req.params.id);
     if (!isAdmin) {
       query = query.eq("user_id", profile.id);
     }
 
     const { data, error } = await query.select("*").single();
     if (error) {
-      res.status(error.code === "PGRST116" ? 404 : 500).json({ error: error.message });
+      res
+        .status(error.code === "PGRST116" ? 404 : 500)
+        .json({ error: error.message });
       return;
     }
 
     res.json({ data });
   } catch (error) {
     console.error("[API] failed to update expense", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to update expense") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to update expense") });
   }
 });
 
@@ -2773,659 +3251,811 @@ app.delete("/expenses/:id", async (req: AuthedRequest, res: Response) => {
     res.json({ data: { id: req.params.id } });
   } catch (error) {
     console.error("[API] failed to delete expense", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to delete expense") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to delete expense") });
   }
 });
 
-app.post("/subscriptions/trial-setup", async (req: AuthedRequest, res: Response) => {
-  const user = req.user!;
-  const body = (req.body || {}) as { planId?: string };
+app.post(
+  "/subscriptions/trial-setup",
+  async (req: AuthedRequest, res: Response) => {
+    const user = req.user!;
+    const body = (req.body || {}) as { planId?: string };
 
-  if (!body.planId) {
-    res.status(400).json({ error: "planId is required" });
-    return;
-  }
-
-  try {
-    const profile = await getProfileForUser(user);
-
-    const { data: plan, error: planError } = await adminSupabase
-      .from("plans")
-      .select("*")
-      .eq("id", body.planId)
-      .eq("is_active", true)
-      .single();
-
-    if (planError || !plan?.id) {
-      res.status(404).json({ error: planError?.message || "Selected plan not found" });
+    if (!body.planId) {
+      res.status(400).json({ error: "planId is required" });
       return;
     }
 
-    const { data: existingSubscription, error: existingSubscriptionError } = await adminSupabase
-      .from("subscriptions")
-      .select("*")
-      .eq("user_id", profile.id)
-      .in("status", ["trial", "active"])
-      .order("created_at", { ascending: false })
-      .maybeSingle();
+    try {
+      const profile = await getProfileForUser(user);
 
-    if (existingSubscriptionError) {
-      res.status(500).json({ error: existingSubscriptionError.message });
-      return;
-    }
-
-    if (existingSubscription?.id) {
-      res.json({ data: { subscription: existingSubscription, plan, existing: true } });
-      return;
-    }
-
-    const trialDays = Number(plan.trial_days || 0);
-    const startDate = new Date();
-    const renewalDate = new Date(startDate);
-    renewalDate.setDate(renewalDate.getDate() + (trialDays > 0 ? trialDays : 30));
-
-    const payload = {
-      user_id: profile.id,
-      plan_id: plan.id,
-      status: trialDays > 0 ? "trial" : "active",
-      start_date: startDate.toISOString().split("T")[0],
-      renewal_date: renewalDate.toISOString().split("T")[0],
-      trial_start_date: trialDays > 0 ? startDate.toISOString() : null,
-      trial_end_date: trialDays > 0 ? renewalDate.toISOString() : null,
-      auto_renew: Boolean(plan.auto_renew),
-    };
-
-    const { data: subscription, error: subscriptionError } = await adminSupabase
-      .from("subscriptions")
-      .insert(payload)
-      .select("*")
-      .single();
-
-    if (subscriptionError || !subscription?.id) {
-      res.status(500).json({ error: subscriptionError?.message || "Failed to create subscription" });
-      return;
-    }
-
-    res.status(201).json({ data: { subscription, plan, existing: false } });
-  } catch (error) {
-    console.error("[API] failed to set up trial subscription", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to set up trial subscription") });
-  }
-});
-
-app.post("/subscriptions/:id/payfast-token", async (req: AuthedRequest, res: Response) => {
-  const user = req.user!;
-  const body = (req.body || {}) as { payfastToken?: string | null; planId?: string | null };
-  const payfastToken = typeof body.payfastToken === "string" ? body.payfastToken.trim() : "";
-
-  if (!payfastToken) {
-    res.status(400).json({ error: "Missing PayFast recurring token" });
-    return;
-  }
-
-  try {
-    const profile = await getProfileForUser(user);
-    const isAdmin = isAdminUser(user);
-
-    let updatePayload: Record<string, unknown> = {
-      payfast_token: payfastToken,
-      updated_at: new Date().toISOString(),
-    };
-
-    if (body.planId) {
-      const { data: targetPlan, error: targetPlanError } = await adminSupabase
+      const { data: plan, error: planError } = await adminSupabase
         .from("plans")
         .select("*")
         .eq("id", body.planId)
         .eq("is_active", true)
         .single();
 
-      if (targetPlanError || !targetPlan?.id) {
-        res.status(404).json({ error: targetPlanError?.message || "Selected plan not found" });
+      if (planError || !plan?.id) {
+        res
+          .status(404)
+          .json({ error: planError?.message || "Selected plan not found" });
         return;
       }
 
-      updatePayload = {
-        ...updatePayload,
-        plan_id: targetPlan.id,
-        auto_renew: Boolean(targetPlan.auto_renew),
+      const { data: existingSubscription, error: existingSubscriptionError } =
+        await adminSupabase
+          .from("subscriptions")
+          .select("*")
+          .eq("user_id", profile.id)
+          .in("status", ["trial", "active"])
+          .order("created_at", { ascending: false })
+          .maybeSingle();
+
+      if (existingSubscriptionError) {
+        res.status(500).json({ error: existingSubscriptionError.message });
+        return;
+      }
+
+      if (existingSubscription?.id) {
+        res.json({
+          data: { subscription: existingSubscription, plan, existing: true },
+        });
+        return;
+      }
+
+      const trialDays = Number(plan.trial_days || 0);
+      const startDate = new Date();
+      const renewalDate = new Date(startDate);
+      renewalDate.setDate(
+        renewalDate.getDate() + (trialDays > 0 ? trialDays : 30),
+      );
+
+      const payload = {
+        user_id: profile.id,
+        plan_id: plan.id,
+        status: trialDays > 0 ? "trial" : "active",
+        start_date: startDate.toISOString().split("T")[0],
+        renewal_date: renewalDate.toISOString().split("T")[0],
+        trial_start_date: trialDays > 0 ? startDate.toISOString() : null,
+        trial_end_date: trialDays > 0 ? renewalDate.toISOString() : null,
+        auto_renew: Boolean(plan.auto_renew),
       };
-    }
 
-    let query = adminSupabase.from("subscriptions").update(updatePayload).eq("id", req.params.id);
+      const { data: subscription, error: subscriptionError } =
+        await adminSupabase
+          .from("subscriptions")
+          .insert(payload)
+          .select("*")
+          .single();
 
-    if (!isAdmin) {
-      query = query.eq("user_id", profile.id);
-    }
-
-    const { data, error } = await query.select("*").single();
-
-    if (error) {
-      res.status(error.code === "PGRST116" ? 404 : 500).json({ error: error.message });
-      return;
-    }
-
-    res.json({ data });
-  } catch (error) {
-    console.error("[API] failed to update subscription PayFast token", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to update subscription token") });
-  }
-});
-
-app.post("/subscriptions/:id/paystack-checkout", async (req: AuthedRequest, res: Response) => {
-  const user = req.user!;
-  const body = (req.body || {}) as { planId?: string };
-
-  if (!isPaystackConfigured()) {
-    res.status(500).json({ error: "Paystack is not configured on the API." });
-    return;
-  }
-
-  try {
-    const requesterProfile = await getProfileForUser(user);
-    const isAdmin = isAdminUser(user);
-
-    let subscriptionQuery = adminSupabase.from("subscriptions").select("*").eq("id", req.params.id);
-    if (!isAdmin) {
-      subscriptionQuery = subscriptionQuery.eq("user_id", requesterProfile.id);
-    }
-
-    const { data: subscription, error: subscriptionError } = await subscriptionQuery.single();
-    if (subscriptionError || !subscription?.id) {
-      res.status(subscriptionError?.code === "PGRST116" ? 404 : 500).json({
-        error: subscriptionError?.message || "Subscription not found",
-      });
-      return;
-    }
-
-    const { data: plan, error: planError } = await adminSupabase
-      .from("plans")
-      .select("*")
-      .eq("id", body.planId || subscription.plan_id)
-      .single();
-
-    if (planError || !plan?.id) {
-      res.status(planError?.code === "PGRST116" ? 404 : 500).json({
-        error: planError?.message || "Plan not found for subscription",
-      });
-      return;
-    }
-
-    const { data: ownerProfile, error: ownerProfileError } = await adminSupabase
-      .from("profiles")
-      .select("*")
-      .eq("id", subscription.user_id)
-      .single();
-
-    if (ownerProfileError || !ownerProfile?.id || !ownerProfile.business_email) {
-      res.status(ownerProfileError?.code === "PGRST116" ? 404 : 500).json({
-        error: ownerProfileError?.message || "Subscription owner profile email is required",
-      });
-      return;
-    }
-
-    const checkout = await initializePaystackSubscriptionCheckout({
-      email: ownerProfile.business_email,
-      amount: Number(plan.price || 0),
-      subscriptionId: subscription.id,
-      planId: plan.id,
-      planName: String(plan.name || "InvoicePro"),
-      userId: ownerProfile.id,
-      trialDays: Number(plan.trial_days || 0),
-      billingCycle: plan.billing_cycle === "yearly" ? "yearly" : "monthly",
-    });
-
-    res.json({
-      data: {
-        provider: "paystack",
-        authorizationUrl: checkout.authorizationUrl,
-        reference: checkout.reference,
-        accessCode: checkout.accessCode,
-      },
-    });
-  } catch (error) {
-    console.error("[API] failed to initialize Paystack checkout", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to initialize Paystack checkout") });
-  }
-});
-
-app.post("/subscriptions/:id/paypal-checkout", async (req: AuthedRequest, res: Response) => {
-  const user = req.user!;
-  const body = (req.body || {}) as { planId?: string };
-
-  if (!isPayPalConfigured()) {
-    res.status(500).json({ error: "PayPal is not configured on the API." });
-    return;
-  }
-
-  try {
-    const requesterProfile = await getProfileForUser(user);
-    const isAdmin = isAdminUser(user);
-
-    let subscriptionQuery = adminSupabase.from("subscriptions").select("*").eq("id", req.params.id);
-    if (!isAdmin) {
-      subscriptionQuery = subscriptionQuery.eq("user_id", requesterProfile.id);
-    }
-
-    const { data: subscription, error: subscriptionError } = await subscriptionQuery.single();
-    if (subscriptionError || !subscription?.id) {
-      res.status(subscriptionError?.code === "PGRST116" ? 404 : 500).json({
-        error: subscriptionError?.message || "Subscription not found",
-      });
-      return;
-    }
-
-    const { data: plan, error: planError } = await adminSupabase
-      .from("plans")
-      .select("*")
-      .eq("id", body.planId || subscription.plan_id)
-      .single();
-
-    if (planError || !plan?.id) {
-      res.status(planError?.code === "PGRST116" ? 404 : 500).json({
-        error: planError?.message || "Plan not found for subscription",
-      });
-      return;
-    }
-
-    const { data: ownerProfile, error: ownerProfileError } = await adminSupabase
-      .from("profiles")
-      .select("*")
-      .eq("id", subscription.user_id)
-      .single();
-
-    if (ownerProfileError || !ownerProfile?.id || !ownerProfile.business_email) {
-      res.status(ownerProfileError?.code === "PGRST116" ? 404 : 500).json({
-        error: ownerProfileError?.message || "Subscription owner profile email is required",
-      });
-      return;
-    }
-
-    const checkout = await initializePayPalSubscriptionCheckout({
-      email: ownerProfile.business_email,
-      fullName: ownerProfile.full_name || "Customer",
-      amount: Number(plan.price || 0),
-      currency: String(plan.currency || "ZAR"),
-      subscriptionId: subscription.id,
-      planId: plan.id,
-      planName: String(plan.name || "InvoicePro"),
-      userId: ownerProfile.id,
-      trialDays: Number(plan.trial_days || 0),
-      billingCycle: plan.billing_cycle === "yearly" ? "yearly" : "monthly",
-    });
-
-    res.json({
-      data: {
-        provider: "paypal",
-        approvalUrl: checkout.approvalUrl,
-        paypalSubscriptionId: checkout.paypalSubscriptionId,
-      },
-    });
-  } catch (error) {
-    console.error("[API] failed to initialize PayPal checkout", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to initialize PayPal checkout") });
-  }
-});
-
-app.post("/subscriptions/:id/paypal-verify", async (req: AuthedRequest, res: Response) => {
-  const user = req.user!;
-  const body = (req.body || {}) as { paypalSubscriptionId?: string; planId?: string | null };
-
-  if (!body.paypalSubscriptionId) {
-    res.status(400).json({ error: "paypalSubscriptionId is required" });
-    return;
-  }
-
-  try {
-    const profile = await getProfileForUser(user);
-    const isAdmin = isAdminUser(user);
-
-    let subscriptionQuery = adminSupabase.from("subscriptions").select("*").eq("id", req.params.id);
-    if (!isAdmin) {
-      subscriptionQuery = subscriptionQuery.eq("user_id", profile.id);
-    }
-
-    const { data: subscription, error: subscriptionError } = await subscriptionQuery.single();
-    if (subscriptionError || !subscription?.id) {
-      res.status(subscriptionError?.code === "PGRST116" ? 404 : 500).json({
-        error: subscriptionError?.message || "Subscription not found",
-      });
-      return;
-    }
-
-    const details = await getPayPalSubscriptionDetails(body.paypalSubscriptionId);
-    if (details.custom_id && details.custom_id !== subscription.id) {
-      res.status(400).json({ error: "PayPal subscription does not match this subscription" });
-      return;
-    }
-
-    if (body.planId) {
-      const { data: plan, error: planError } = await adminSupabase
-        .from("plans")
-        .select("*")
-        .eq("id", body.planId)
-        .eq("is_active", true)
-        .single();
-
-      if (planError || !plan?.id) {
-        res.status(404).json({ error: planError?.message || "Selected plan not found" });
+      if (subscriptionError || !subscription?.id) {
+        res.status(500).json({
+          error: subscriptionError?.message || "Failed to create subscription",
+        });
         return;
       }
 
-      const { error: updatePlanError } = await adminSupabase
-        .from("subscriptions")
-        .update({
-          plan_id: plan.id,
-          auto_renew: Boolean(plan.auto_renew),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", subscription.id);
-
-      if (updatePlanError) {
-        res.status(500).json({ error: updatePlanError.message });
-        return;
-      }
-    }
-
-    const { data: activePlan } = await adminSupabase.from("plans").select("*").eq("id", body.planId || subscription.plan_id).maybeSingle();
-    const result = await applyPayPalSubscriptionAuthorization({
-      subscriptionId: subscription.id,
-      paypalSubscriptionId: details.id,
-      amount: Number(activePlan?.price || 0),
-      currency: String(activePlan?.currency || "ZAR"),
-      recordPayment: subscription.status !== "trial",
-    });
-
-    res.json({ data: result.subscription });
-  } catch (error) {
-    console.error("[API] failed to verify PayPal subscription", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to verify PayPal subscription") });
-  }
-});
-
-app.post("/subscriptions/:id/paystack-verify", async (req: AuthedRequest, res: Response) => {
-  const user = req.user!;
-  const body = (req.body || {}) as { reference?: string; planId?: string | null };
-
-  if (!body.reference) {
-    res.status(400).json({ error: "reference is required" });
-    return;
-  }
-
-  try {
-    const profile = await getProfileForUser(user);
-    const isAdmin = isAdminUser(user);
-
-    let subscriptionQuery = adminSupabase.from("subscriptions").select("*").eq("id", req.params.id);
-    if (!isAdmin) {
-      subscriptionQuery = subscriptionQuery.eq("user_id", profile.id);
-    }
-
-    const { data: subscription, error: subscriptionError } = await subscriptionQuery.single();
-    if (subscriptionError || !subscription?.id) {
-      res.status(subscriptionError?.code === "PGRST116" ? 404 : 500).json({
-        error: subscriptionError?.message || "Subscription not found",
+      res.status(201).json({ data: { subscription, plan, existing: false } });
+    } catch (error) {
+      console.error("[API] failed to set up trial subscription", error);
+      res.status(500).json({
+        error: getErrorMessage(error, "Failed to set up trial subscription"),
       });
+    }
+  },
+);
+
+app.post(
+  "/subscriptions/:id/payfast-token",
+  async (req: AuthedRequest, res: Response) => {
+    const user = req.user!;
+    const body = (req.body || {}) as {
+      payfastToken?: string | null;
+      planId?: string | null;
+    };
+    const payfastToken =
+      typeof body.payfastToken === "string" ? body.payfastToken.trim() : "";
+
+    if (!payfastToken) {
+      res.status(400).json({ error: "Missing PayFast recurring token" });
       return;
     }
 
-    const verification = await verifyPaystackTransaction(body.reference);
-    if (verification.status !== "success") {
-      res.status(400).json({ error: verification.gateway_response || "Paystack transaction was not successful" });
-      return;
-    }
+    try {
+      const profile = await getProfileForUser(user);
+      const isAdmin = isAdminUser(user);
 
-    const metadataSubscriptionId =
-      typeof verification.metadata?.subscriptionId === "string" ? verification.metadata.subscriptionId : subscription.id;
-    if (metadataSubscriptionId !== subscription.id) {
-      res.status(400).json({ error: "Paystack reference does not match this subscription" });
-      return;
-    }
-
-    if (body.planId) {
-      const { data: plan, error: planError } = await adminSupabase
-        .from("plans")
-        .select("*")
-        .eq("id", body.planId)
-        .eq("is_active", true)
-        .single();
-
-      if (planError || !plan?.id) {
-        res.status(404).json({ error: planError?.message || "Selected plan not found" });
-        return;
-      }
-
-      const { error: updatePlanError } = await adminSupabase
-        .from("subscriptions")
-        .update({
-          plan_id: plan.id,
-          auto_renew: Boolean(plan.auto_renew),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", subscription.id);
-
-      if (updatePlanError) {
-        res.status(500).json({ error: updatePlanError.message });
-        return;
-      }
-    }
-
-    const result = await applyPaystackChargeToSubscription({
-      subscriptionId: subscription.id,
-      reference: verification.reference,
-      amount: Number(verification.amount || 0) / 100,
-      currency: verification.currency || "ZAR",
-      customerCode: verification.customer?.customer_code || null,
-      authorizationCode: verification.authorization?.authorization_code || null,
-    });
-
-    res.json({ data: result.subscription });
-  } catch (error) {
-    console.error("[API] failed to verify Paystack transaction", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to verify Paystack transaction") });
-  }
-});
-
-app.post("/subscriptions/:id/activate-bypass", async (req: AuthedRequest, res: Response) => {
-  const user = req.user!;
-
-  if (!apiConfig.isDevelopment || !apiConfig.trialBypassEnabled) {
-    res.status(403).json({ error: "Trial bypass is disabled" });
-    return;
-  }
-
-  try {
-    const profile = await getProfileForUser(user);
-    const isAdmin = isAdminUser(user);
-
-    let subscriptionQuery = adminSupabase.from("subscriptions").select("*").eq("id", req.params.id);
-    if (!isAdmin) {
-      subscriptionQuery = subscriptionQuery.eq("user_id", profile.id);
-    }
-
-    const { data: subscription, error: subscriptionError } = await subscriptionQuery.single();
-    if (subscriptionError || !subscription?.id) {
-      res.status(subscriptionError?.code === "PGRST116" ? 404 : 500).json({
-        error: subscriptionError?.message || "Subscription not found",
-      });
-      return;
-    }
-
-    const { data: updatedSubscription, error: updateError } = await adminSupabase
-      .from("subscriptions")
-      .update({
-        payfast_token: subscription.payfast_token || "TRIAL_BYPASS",
+      let updatePayload: Record<string, unknown> = {
+        payfast_token: payfastToken,
         updated_at: new Date().toISOString(),
-      })
-      .eq("id", subscription.id)
-      .select("*")
-      .single();
+      };
 
-    if (updateError || !updatedSubscription) {
-      res.status(500).json({ error: updateError?.message || "Failed to activate bypass trial" });
-      return;
-    }
+      if (body.planId) {
+        const { data: targetPlan, error: targetPlanError } = await adminSupabase
+          .from("plans")
+          .select("*")
+          .eq("id", body.planId)
+          .eq("is_active", true)
+          .single();
 
-    res.json({ data: updatedSubscription });
-  } catch (error) {
-    console.error("[API] failed to activate bypass trial", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to activate bypass trial") });
-  }
-});
+        if (targetPlanError || !targetPlan?.id) {
+          res.status(404).json({
+            error: targetPlanError?.message || "Selected plan not found",
+          });
+          return;
+        }
 
-app.post("/subscriptions/:id/payfast-checkout", async (req: AuthedRequest, res: Response) => {
-  const user = req.user!;
-  const body = (req.body || {}) as { planId?: string };
+        updatePayload = {
+          ...updatePayload,
+          plan_id: targetPlan.id,
+          auto_renew: Boolean(targetPlan.auto_renew),
+        };
+      }
 
-  try {
-    const requesterProfile = await getProfileForUser(user);
-    const isAdmin = isAdminUser(user);
+      let query = adminSupabase
+        .from("subscriptions")
+        .update(updatePayload)
+        .eq("id", req.params.id);
 
-    let subscriptionQuery = adminSupabase
-      .from("subscriptions")
-      .select("*")
-      .eq("id", req.params.id);
+      if (!isAdmin) {
+        query = query.eq("user_id", profile.id);
+      }
 
-    if (!isAdmin) {
-      subscriptionQuery = subscriptionQuery.eq("user_id", requesterProfile.id);
-    }
+      const { data, error } = await query.select("*").single();
 
-    const { data: subscription, error: subscriptionError } = await subscriptionQuery.single();
-    if (subscriptionError || !subscription?.id) {
-      res.status(subscriptionError?.code === "PGRST116" ? 404 : 500).json({
-        error: subscriptionError?.message || "Subscription not found",
+      if (error) {
+        res
+          .status(error.code === "PGRST116" ? 404 : 500)
+          .json({ error: error.message });
+        return;
+      }
+
+      res.json({ data });
+    } catch (error) {
+      console.error("[API] failed to update subscription PayFast token", error);
+      res.status(500).json({
+        error: getErrorMessage(error, "Failed to update subscription token"),
       });
+    }
+  },
+);
+
+app.post(
+  "/subscriptions/:id/paystack-checkout",
+  async (req: AuthedRequest, res: Response) => {
+    const user = req.user!;
+    const body = (req.body || {}) as { planId?: string };
+
+    if (!isPaystackConfigured()) {
+      res.status(500).json({ error: "Paystack is not configured on the API." });
       return;
     }
 
-    let planQuery = adminSupabase
-      .from("plans")
-      .select("*")
-      .eq("id", body.planId || subscription.plan_id)
-      .single();
+    try {
+      const requesterProfile = await getProfileForUser(user);
+      const isAdmin = isAdminUser(user);
 
-    const { data: plan, error: planError } = await planQuery;
+      let subscriptionQuery = adminSupabase
+        .from("subscriptions")
+        .select("*")
+        .eq("id", req.params.id);
+      if (!isAdmin) {
+        subscriptionQuery = subscriptionQuery.eq(
+          "user_id",
+          requesterProfile.id,
+        );
+      }
 
-    if (planError || !plan?.id) {
-      res.status(planError?.code === "PGRST116" ? 404 : 500).json({
-        error: planError?.message || "Plan not found for subscription",
-      });
-      return;
-    }
+      const { data: subscription, error: subscriptionError } =
+        await subscriptionQuery.single();
+      if (subscriptionError || !subscription?.id) {
+        res.status(subscriptionError?.code === "PGRST116" ? 404 : 500).json({
+          error: subscriptionError?.message || "Subscription not found",
+        });
+        return;
+      }
 
-    const { data: ownerProfile, error: ownerProfileError } = await adminSupabase
-      .from("profiles")
-      .select("*")
-      .eq("id", subscription.user_id)
-      .single();
+      const { data: plan, error: planError } = await adminSupabase
+        .from("plans")
+        .select("*")
+        .eq("id", body.planId || subscription.plan_id)
+        .single();
 
-    if (ownerProfileError || !ownerProfile?.id) {
-      res.status(ownerProfileError?.code === "PGRST116" ? 404 : 500).json({
-        error: ownerProfileError?.message || "Subscription owner profile not found",
-      });
-      return;
-    }
+      if (planError || !plan?.id) {
+        res.status(planError?.code === "PGRST116" ? 404 : 500).json({
+          error: planError?.message || "Plan not found for subscription",
+        });
+        return;
+      }
 
-    const checkout = buildTrialSubscriptionCheckout({
-      userId: ownerProfile.id,
-      userEmail: ownerProfile.business_email || "",
-      userName: ownerProfile.full_name || "Customer",
-      amount: Number(plan.price || 0),
-      subscriptionId: subscription.id,
-      planId: plan.id,
-      planName: String(plan.name || "InvoicePro"),
-      trialDays: Number(plan.trial_days || 0),
-      billingCycle: plan.billing_cycle === "yearly" ? "yearly" : "monthly",
-    });
+      const { data: ownerProfile, error: ownerProfileError } =
+        await adminSupabase
+          .from("profiles")
+          .select("*")
+          .eq("id", subscription.user_id)
+          .single();
 
-    res.json({ data: checkout });
-  } catch (error) {
-    console.error("[API] failed to build PayFast checkout", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to build PayFast checkout") });
-  }
-});
+      if (
+        ownerProfileError ||
+        !ownerProfile?.id ||
+        !ownerProfile.business_email
+      ) {
+        res.status(ownerProfileError?.code === "PGRST116" ? 404 : 500).json({
+          error:
+            ownerProfileError?.message ||
+            "Subscription owner profile email is required",
+        });
+        return;
+      }
 
-app.get("/subscriptions/:id/payfast-debug", async (req: AuthedRequest, res: Response) => {
-  if (!apiConfig.isDevelopment) {
-    res.status(404).json({ error: "Not found" });
-    return;
-  }
-
-  const user = req.user!;
-
-  try {
-    const requesterProfile = await getProfileForUser(user);
-    const isAdmin = isAdminUser(user);
-
-    let subscriptionQuery = adminSupabase
-      .from("subscriptions")
-      .select("*")
-      .eq("id", req.params.id);
-
-    if (!isAdmin) {
-      subscriptionQuery = subscriptionQuery.eq("user_id", requesterProfile.id);
-    }
-
-    const { data: subscription, error: subscriptionError } = await subscriptionQuery.single();
-    if (subscriptionError || !subscription?.id) {
-      res.status(subscriptionError?.code === "PGRST116" ? 404 : 500).json({
-        error: subscriptionError?.message || "Subscription not found",
-      });
-      return;
-    }
-
-    const { data: plan, error: planError } = await adminSupabase
-      .from("plans")
-      .select("*")
-      .eq("id", subscription.plan_id)
-      .single();
-
-    if (planError || !plan?.id) {
-      res.status(planError?.code === "PGRST116" ? 404 : 500).json({
-        error: planError?.message || "Plan not found for subscription",
-      });
-      return;
-    }
-
-    const { data: ownerProfile, error: ownerProfileError } = await adminSupabase
-      .from("profiles")
-      .select("*")
-      .eq("id", subscription.user_id)
-      .single();
-
-    if (ownerProfileError || !ownerProfile?.id) {
-      res.status(ownerProfileError?.code === "PGRST116" ? 404 : 500).json({
-        error: ownerProfileError?.message || "Subscription owner profile not found",
-      });
-      return;
-    }
-
-    const checkout = buildTrialSubscriptionCheckout({
-      userId: ownerProfile.id,
-      userEmail: ownerProfile.business_email || "",
-      userName: ownerProfile.full_name || "Customer",
-      amount: Number(plan.price || 0),
-      subscriptionId: subscription.id,
-      planId: plan.id,
-      planName: String(plan.name || "InvoicePro"),
-      trialDays: Number(plan.trial_days || 0),
-      billingCycle: plan.billing_cycle === "yearly" ? "yearly" : "monthly",
-    });
-
-    res.json({
-      data: {
+      const checkout = await initializePaystackSubscriptionCheckout({
+        email: ownerProfile.business_email,
+        amount: Number(plan.price || 0),
         subscriptionId: subscription.id,
         planId: plan.id,
-        planName: plan.name,
-        debug: checkout.debug,
-        url: checkout.url,
-      },
-    });
-  } catch (error) {
-    console.error("[API] failed to build PayFast debug payload", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to build PayFast debug payload") });
-  }
-});
+        planName: String(plan.name || "InvoicePro"),
+        userId: ownerProfile.id,
+        trialDays: Number(plan.trial_days || 0),
+        billingCycle: plan.billing_cycle === "yearly" ? "yearly" : "monthly",
+      });
+
+      res.json({
+        data: {
+          provider: "paystack",
+          authorizationUrl: checkout.authorizationUrl,
+          reference: checkout.reference,
+          accessCode: checkout.accessCode,
+        },
+      });
+    } catch (error) {
+      console.error("[API] failed to initialize Paystack checkout", error);
+      res.status(500).json({
+        error: getErrorMessage(error, "Failed to initialize Paystack checkout"),
+      });
+    }
+  },
+);
+
+app.post(
+  "/subscriptions/:id/paypal-checkout",
+  async (req: AuthedRequest, res: Response) => {
+    const user = req.user!;
+    const body = (req.body || {}) as { planId?: string };
+
+    if (!isPayPalConfigured()) {
+      res.status(500).json({ error: "PayPal is not configured on the API." });
+      return;
+    }
+
+    try {
+      const requesterProfile = await getProfileForUser(user);
+      const isAdmin = isAdminUser(user);
+
+      let subscriptionQuery = adminSupabase
+        .from("subscriptions")
+        .select("*")
+        .eq("id", req.params.id);
+      if (!isAdmin) {
+        subscriptionQuery = subscriptionQuery.eq(
+          "user_id",
+          requesterProfile.id,
+        );
+      }
+
+      const { data: subscription, error: subscriptionError } =
+        await subscriptionQuery.single();
+      if (subscriptionError || !subscription?.id) {
+        res.status(subscriptionError?.code === "PGRST116" ? 404 : 500).json({
+          error: subscriptionError?.message || "Subscription not found",
+        });
+        return;
+      }
+
+      const { data: plan, error: planError } = await adminSupabase
+        .from("plans")
+        .select("*")
+        .eq("id", body.planId || subscription.plan_id)
+        .single();
+
+      if (planError || !plan?.id) {
+        res.status(planError?.code === "PGRST116" ? 404 : 500).json({
+          error: planError?.message || "Plan not found for subscription",
+        });
+        return;
+      }
+
+      const { data: ownerProfile, error: ownerProfileError } =
+        await adminSupabase
+          .from("profiles")
+          .select("*")
+          .eq("id", subscription.user_id)
+          .single();
+
+      if (
+        ownerProfileError ||
+        !ownerProfile?.id ||
+        !ownerProfile.business_email
+      ) {
+        res.status(ownerProfileError?.code === "PGRST116" ? 404 : 500).json({
+          error:
+            ownerProfileError?.message ||
+            "Subscription owner profile email is required",
+        });
+        return;
+      }
+
+      const checkout = await initializePayPalSubscriptionCheckout({
+        email: ownerProfile.business_email,
+        fullName: ownerProfile.full_name || "Customer",
+        amount: Number(plan.price || 0),
+        currency: String(plan.currency || "ZAR"),
+        subscriptionId: subscription.id,
+        planId: plan.id,
+        planName: String(plan.name || "InvoicePro"),
+        userId: ownerProfile.id,
+        trialDays: Number(plan.trial_days || 0),
+        billingCycle: plan.billing_cycle === "yearly" ? "yearly" : "monthly",
+      });
+
+      res.json({
+        data: {
+          provider: "paypal",
+          approvalUrl: checkout.approvalUrl,
+          paypalSubscriptionId: checkout.paypalSubscriptionId,
+        },
+      });
+    } catch (error) {
+      console.error("[API] failed to initialize PayPal checkout", error);
+      res.status(500).json({
+        error: getErrorMessage(error, "Failed to initialize PayPal checkout"),
+      });
+    }
+  },
+);
+
+app.post(
+  "/subscriptions/:id/paypal-verify",
+  async (req: AuthedRequest, res: Response) => {
+    const user = req.user!;
+    const body = (req.body || {}) as {
+      paypalSubscriptionId?: string;
+      planId?: string | null;
+    };
+
+    if (!body.paypalSubscriptionId) {
+      res.status(400).json({ error: "paypalSubscriptionId is required" });
+      return;
+    }
+
+    try {
+      const profile = await getProfileForUser(user);
+      const isAdmin = isAdminUser(user);
+
+      let subscriptionQuery = adminSupabase
+        .from("subscriptions")
+        .select("*")
+        .eq("id", req.params.id);
+      if (!isAdmin) {
+        subscriptionQuery = subscriptionQuery.eq("user_id", profile.id);
+      }
+
+      const { data: subscription, error: subscriptionError } =
+        await subscriptionQuery.single();
+      if (subscriptionError || !subscription?.id) {
+        res.status(subscriptionError?.code === "PGRST116" ? 404 : 500).json({
+          error: subscriptionError?.message || "Subscription not found",
+        });
+        return;
+      }
+
+      const details = await getPayPalSubscriptionDetails(
+        body.paypalSubscriptionId,
+      );
+      if (details.custom_id && details.custom_id !== subscription.id) {
+        res.status(400).json({
+          error: "PayPal subscription does not match this subscription",
+        });
+        return;
+      }
+
+      if (body.planId) {
+        const { data: plan, error: planError } = await adminSupabase
+          .from("plans")
+          .select("*")
+          .eq("id", body.planId)
+          .eq("is_active", true)
+          .single();
+
+        if (planError || !plan?.id) {
+          res
+            .status(404)
+            .json({ error: planError?.message || "Selected plan not found" });
+          return;
+        }
+
+        const { error: updatePlanError } = await adminSupabase
+          .from("subscriptions")
+          .update({
+            plan_id: plan.id,
+            auto_renew: Boolean(plan.auto_renew),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", subscription.id);
+
+        if (updatePlanError) {
+          res.status(500).json({ error: updatePlanError.message });
+          return;
+        }
+      }
+
+      const { data: activePlan } = await adminSupabase
+        .from("plans")
+        .select("*")
+        .eq("id", body.planId || subscription.plan_id)
+        .maybeSingle();
+      const result = await applyPayPalSubscriptionAuthorization({
+        subscriptionId: subscription.id,
+        paypalSubscriptionId: details.id,
+        amount: Number(activePlan?.price || 0),
+        currency: String(activePlan?.currency || "ZAR"),
+        recordPayment: subscription.status !== "trial",
+      });
+
+      res.json({ data: result.subscription });
+    } catch (error) {
+      console.error("[API] failed to verify PayPal subscription", error);
+      res.status(500).json({
+        error: getErrorMessage(error, "Failed to verify PayPal subscription"),
+      });
+    }
+  },
+);
+
+app.post(
+  "/subscriptions/:id/paystack-verify",
+  async (req: AuthedRequest, res: Response) => {
+    const user = req.user!;
+    const body = (req.body || {}) as {
+      reference?: string;
+      planId?: string | null;
+    };
+
+    if (!body.reference) {
+      res.status(400).json({ error: "reference is required" });
+      return;
+    }
+
+    try {
+      const profile = await getProfileForUser(user);
+      const isAdmin = isAdminUser(user);
+
+      let subscriptionQuery = adminSupabase
+        .from("subscriptions")
+        .select("*")
+        .eq("id", req.params.id);
+      if (!isAdmin) {
+        subscriptionQuery = subscriptionQuery.eq("user_id", profile.id);
+      }
+
+      const { data: subscription, error: subscriptionError } =
+        await subscriptionQuery.single();
+      if (subscriptionError || !subscription?.id) {
+        res.status(subscriptionError?.code === "PGRST116" ? 404 : 500).json({
+          error: subscriptionError?.message || "Subscription not found",
+        });
+        return;
+      }
+
+      const verification = await verifyPaystackTransaction(body.reference);
+      if (verification.status !== "success") {
+        res.status(400).json({
+          error:
+            verification.gateway_response ||
+            "Paystack transaction was not successful",
+        });
+        return;
+      }
+
+      const metadataSubscriptionId =
+        typeof verification.metadata?.subscriptionId === "string"
+          ? verification.metadata.subscriptionId
+          : subscription.id;
+      if (metadataSubscriptionId !== subscription.id) {
+        res.status(400).json({
+          error: "Paystack reference does not match this subscription",
+        });
+        return;
+      }
+
+      if (body.planId) {
+        const { data: plan, error: planError } = await adminSupabase
+          .from("plans")
+          .select("*")
+          .eq("id", body.planId)
+          .eq("is_active", true)
+          .single();
+
+        if (planError || !plan?.id) {
+          res
+            .status(404)
+            .json({ error: planError?.message || "Selected plan not found" });
+          return;
+        }
+
+        const { error: updatePlanError } = await adminSupabase
+          .from("subscriptions")
+          .update({
+            plan_id: plan.id,
+            auto_renew: Boolean(plan.auto_renew),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", subscription.id);
+
+        if (updatePlanError) {
+          res.status(500).json({ error: updatePlanError.message });
+          return;
+        }
+      }
+
+      const result = await applyPaystackChargeToSubscription({
+        subscriptionId: subscription.id,
+        reference: verification.reference,
+        amount: Number(verification.amount || 0) / 100,
+        currency: verification.currency || "ZAR",
+        customerCode: verification.customer?.customer_code || null,
+        authorizationCode:
+          verification.authorization?.authorization_code || null,
+      });
+
+      res.json({ data: result.subscription });
+    } catch (error) {
+      console.error("[API] failed to verify Paystack transaction", error);
+      res.status(500).json({
+        error: getErrorMessage(error, "Failed to verify Paystack transaction"),
+      });
+    }
+  },
+);
+
+app.post(
+  "/subscriptions/:id/activate-bypass",
+  async (req: AuthedRequest, res: Response) => {
+    const user = req.user!;
+
+    if (!apiConfig.isDevelopment || !apiConfig.trialBypassEnabled) {
+      res.status(403).json({ error: "Trial bypass is disabled" });
+      return;
+    }
+
+    try {
+      const profile = await getProfileForUser(user);
+      const isAdmin = isAdminUser(user);
+
+      let subscriptionQuery = adminSupabase
+        .from("subscriptions")
+        .select("*")
+        .eq("id", req.params.id);
+      if (!isAdmin) {
+        subscriptionQuery = subscriptionQuery.eq("user_id", profile.id);
+      }
+
+      const { data: subscription, error: subscriptionError } =
+        await subscriptionQuery.single();
+      if (subscriptionError || !subscription?.id) {
+        res.status(subscriptionError?.code === "PGRST116" ? 404 : 500).json({
+          error: subscriptionError?.message || "Subscription not found",
+        });
+        return;
+      }
+
+      const { data: updatedSubscription, error: updateError } =
+        await adminSupabase
+          .from("subscriptions")
+          .update({
+            payfast_token: subscription.payfast_token || "TRIAL_BYPASS",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", subscription.id)
+          .select("*")
+          .single();
+
+      if (updateError || !updatedSubscription) {
+        res.status(500).json({
+          error: updateError?.message || "Failed to activate bypass trial",
+        });
+        return;
+      }
+
+      res.json({ data: updatedSubscription });
+    } catch (error) {
+      console.error("[API] failed to activate bypass trial", error);
+      res.status(500).json({
+        error: getErrorMessage(error, "Failed to activate bypass trial"),
+      });
+    }
+  },
+);
+
+app.post(
+  "/subscriptions/:id/payfast-checkout",
+  async (req: AuthedRequest, res: Response) => {
+    const user = req.user!;
+    const body = (req.body || {}) as { planId?: string };
+
+    try {
+      const requesterProfile = await getProfileForUser(user);
+      const isAdmin = isAdminUser(user);
+
+      let subscriptionQuery = adminSupabase
+        .from("subscriptions")
+        .select("*")
+        .eq("id", req.params.id);
+
+      if (!isAdmin) {
+        subscriptionQuery = subscriptionQuery.eq(
+          "user_id",
+          requesterProfile.id,
+        );
+      }
+
+      const { data: subscription, error: subscriptionError } =
+        await subscriptionQuery.single();
+      if (subscriptionError || !subscription?.id) {
+        res.status(subscriptionError?.code === "PGRST116" ? 404 : 500).json({
+          error: subscriptionError?.message || "Subscription not found",
+        });
+        return;
+      }
+
+      let planQuery = adminSupabase
+        .from("plans")
+        .select("*")
+        .eq("id", body.planId || subscription.plan_id)
+        .single();
+
+      const { data: plan, error: planError } = await planQuery;
+
+      if (planError || !plan?.id) {
+        res.status(planError?.code === "PGRST116" ? 404 : 500).json({
+          error: planError?.message || "Plan not found for subscription",
+        });
+        return;
+      }
+
+      const { data: ownerProfile, error: ownerProfileError } =
+        await adminSupabase
+          .from("profiles")
+          .select("*")
+          .eq("id", subscription.user_id)
+          .single();
+
+      if (ownerProfileError || !ownerProfile?.id) {
+        res.status(ownerProfileError?.code === "PGRST116" ? 404 : 500).json({
+          error:
+            ownerProfileError?.message ||
+            "Subscription owner profile not found",
+        });
+        return;
+      }
+
+      const checkout = buildTrialSubscriptionCheckout({
+        userId: ownerProfile.id,
+        userEmail: ownerProfile.business_email || "",
+        userName: ownerProfile.full_name || "Customer",
+        amount: Number(plan.price || 0),
+        subscriptionId: subscription.id,
+        planId: plan.id,
+        planName: String(plan.name || "InvoicePro"),
+        trialDays: Number(plan.trial_days || 0),
+        billingCycle: plan.billing_cycle === "yearly" ? "yearly" : "monthly",
+      });
+
+      res.json({ data: checkout });
+    } catch (error) {
+      console.error("[API] failed to build PayFast checkout", error);
+      res.status(500).json({
+        error: getErrorMessage(error, "Failed to build PayFast checkout"),
+      });
+    }
+  },
+);
+
+app.get(
+  "/subscriptions/:id/payfast-debug",
+  async (req: AuthedRequest, res: Response) => {
+    if (!apiConfig.isDevelopment) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    const user = req.user!;
+
+    try {
+      const requesterProfile = await getProfileForUser(user);
+      const isAdmin = isAdminUser(user);
+
+      let subscriptionQuery = adminSupabase
+        .from("subscriptions")
+        .select("*")
+        .eq("id", req.params.id);
+
+      if (!isAdmin) {
+        subscriptionQuery = subscriptionQuery.eq(
+          "user_id",
+          requesterProfile.id,
+        );
+      }
+
+      const { data: subscription, error: subscriptionError } =
+        await subscriptionQuery.single();
+      if (subscriptionError || !subscription?.id) {
+        res.status(subscriptionError?.code === "PGRST116" ? 404 : 500).json({
+          error: subscriptionError?.message || "Subscription not found",
+        });
+        return;
+      }
+
+      const { data: plan, error: planError } = await adminSupabase
+        .from("plans")
+        .select("*")
+        .eq("id", subscription.plan_id)
+        .single();
+
+      if (planError || !plan?.id) {
+        res.status(planError?.code === "PGRST116" ? 404 : 500).json({
+          error: planError?.message || "Plan not found for subscription",
+        });
+        return;
+      }
+
+      const { data: ownerProfile, error: ownerProfileError } =
+        await adminSupabase
+          .from("profiles")
+          .select("*")
+          .eq("id", subscription.user_id)
+          .single();
+
+      if (ownerProfileError || !ownerProfile?.id) {
+        res.status(ownerProfileError?.code === "PGRST116" ? 404 : 500).json({
+          error:
+            ownerProfileError?.message ||
+            "Subscription owner profile not found",
+        });
+        return;
+      }
+
+      const checkout = buildTrialSubscriptionCheckout({
+        userId: ownerProfile.id,
+        userEmail: ownerProfile.business_email || "",
+        userName: ownerProfile.full_name || "Customer",
+        amount: Number(plan.price || 0),
+        subscriptionId: subscription.id,
+        planId: plan.id,
+        planName: String(plan.name || "InvoicePro"),
+        trialDays: Number(plan.trial_days || 0),
+        billingCycle: plan.billing_cycle === "yearly" ? "yearly" : "monthly",
+      });
+
+      res.json({
+        data: {
+          subscriptionId: subscription.id,
+          planId: plan.id,
+          planName: plan.name,
+          debug: checkout.debug,
+          url: checkout.url,
+        },
+      });
+    } catch (error) {
+      console.error("[API] failed to build PayFast debug payload", error);
+      res.status(500).json({
+        error: getErrorMessage(error, "Failed to build PayFast debug payload"),
+      });
+    }
+  },
+);
 
 app.post("/emails/test", async (req: AuthedRequest, res: Response) => {
   const user = req.user!;
@@ -3442,7 +4072,10 @@ app.post("/emails/test", async (req: AuthedRequest, res: Response) => {
 
     res.json({ ok: true, id: result.id, to: email });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : "Failed to send test email" });
+    res.status(500).json({
+      error:
+        error instanceof Error ? error.message : "Failed to send test email",
+    });
   }
 });
 
@@ -3462,20 +4095,33 @@ app.post("/emails/invoice", async (req: AuthedRequest, res: Response) => {
     pdfBase64?: string;
   };
 
-  if (!body.to || !body.invoiceNumber || !body.invoiceTotal || !body.invoiceDate || !body.dueDate || !body.invoiceStatus || !body.businessName) {
+  if (
+    !body.to ||
+    !body.invoiceNumber ||
+    !body.invoiceTotal ||
+    !body.invoiceDate ||
+    !body.dueDate ||
+    !body.invoiceStatus ||
+    !body.businessName
+  ) {
     res.status(400).json({ error: "Missing required invoice email fields" });
     return;
   }
 
   try {
-    const pdfBase64 = body.pdfBase64?.includes(",") ? body.pdfBase64.split(",")[1] : body.pdfBase64;
+    const pdfBase64 = body.pdfBase64?.includes(",")
+      ? body.pdfBase64.split(",")[1]
+      : body.pdfBase64;
     const result = await sendInvoiceEmail({
       ...body,
       pdfBase64,
     });
     res.json({ ok: true, id: result.id });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : "Failed to send invoice email" });
+    res.status(500).json({
+      error:
+        error instanceof Error ? error.message : "Failed to send invoice email",
+    });
   }
 });
 
@@ -3510,7 +4156,9 @@ app.post("/emails/expense", async (req: AuthedRequest, res: Response) => {
     res.json({ ok: true, id: response.id });
   } catch (error) {
     console.error("[API] failed to send expense receipt email", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to send expense receipt email") });
+    res.status(500).json({
+      error: getErrorMessage(error, "Failed to send expense receipt email"),
+    });
   }
 });
 
@@ -3518,7 +4166,11 @@ app.post("/emails/trial", async (req: AuthedRequest, res: Response) => {
   const body = req.body as {
     to: string;
     toName: string;
-    event?: "trial_started" | "trial_ending" | "subscription_activated" | "payment_failed";
+    event?:
+      | "trial_started"
+      | "trial_ending"
+      | "subscription_activated"
+      | "payment_failed";
     planName?: string;
     planPrice?: string;
     trialEndDate?: string;
@@ -3559,7 +4211,10 @@ app.post("/emails/trial", async (req: AuthedRequest, res: Response) => {
         });
     res.json({ ok: true, id: result.id });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : "Failed to send trial email" });
+    res.status(500).json({
+      error:
+        error instanceof Error ? error.message : "Failed to send trial email",
+    });
   }
 });
 
@@ -3573,7 +4228,11 @@ app.post("/auth/sync-profile", async (req: AuthedRequest, res: Response) => {
   };
 
   const resolvedName =
-    body.fullName?.trim() || user.name || user.nickname || user.email || (body.mode === "admin-login" ? "Admin" : "User");
+    body.fullName?.trim() ||
+    user.name ||
+    user.nickname ||
+    user.email ||
+    (body.mode === "admin-login" ? "Admin" : "User");
   const resolvedEmail = body.email?.trim() || user.email || null;
 
   const { data: existingProfile, error: existingError } = await adminSupabase
@@ -3587,7 +4246,8 @@ app.post("/auth/sync-profile", async (req: AuthedRequest, res: Response) => {
     return;
   }
 
-  const resolvedRole = existingProfile?.role === "admin" || isAdmin ? "admin" : "user";
+  const resolvedRole =
+    existingProfile?.role === "admin" || isAdmin ? "admin" : "user";
   const payload = {
     auth0_user_id: user.sub,
     auth_provider: "auth0",
