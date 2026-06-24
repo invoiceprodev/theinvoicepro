@@ -1,0 +1,9 @@
+api/
+db/
+scripts/
+README.md
+DEPLOYMENT.md
+plan.md
+*.md
+.vscode/
+.git/

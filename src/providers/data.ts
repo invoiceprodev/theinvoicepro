@@ -23,7 +23,7 @@ const isAdminRoute = () => typeof window !== "undefined" && isAdminContext(windo
 
 const useApiForResource = (resource: string, originalResource?: string) =>
   hasApiBaseUrl() &&
-  (["clients", "invoices", "invoice_items", "expenses"].includes(resource) ||
+  (["clients", "invoices", "invoice_items", "expenses", "contracts"].includes(resource) ||
     isAdminPlanResource(originalResource || resource) ||
     (isAdminRoute() && isAdminOnlyResource(originalResource || resource)));
 

@@ -90,7 +90,7 @@ ORDER BY tablename, indexname;
 
 | Check        | Expected                                             |
 | ------------ | ---------------------------------------------------- |
-| Tables       | 10 tables, all with `rls_enabled = true`             |
+| Tables       | 12 tables, all with `rls_enabled = true`             |
 | Plans        | Starter/Trial R150, Pro R320, Enterprise R480 |
 | Foreign keys | 8+ constraints across tables                         |
 | Indexes      | 30+ indexes                                          |
@@ -115,6 +115,24 @@ SUPABASE_BRANDING_BUCKET=company-branding
 
 See `db/setup/STORAGE_BUCKET_SETUP.md` for full bucket policy details.
 
+### Step 5 — Create the AI Contracts Storage Bucket (Manual)
+
+The contract upload feature requires a private Supabase Storage bucket:
+
+1. In the Supabase Dashboard go to **Storage**
+2. Click **New bucket**
+3. Name it: `contract-documents`
+4. Set it to **Private**
+5. Click **Create bucket**
+
+This should match:
+
+```env
+SUPABASE_CONTRACTS_BUCKET=contract-documents
+```
+
+The API can create the bucket automatically when the service role key has permission, but creating it up front is recommended for new environments.
+
 ---
 
 ## What the Script Creates
@@ -133,6 +151,8 @@ See `db/setup/STORAGE_BUCKET_SETUP.md` for full bucket policy details.
 | `trial_conversions`    | Trial-to-paid conversion tracking                       |
 | `webhook_logs`         | PayFast webhook event audit log                         |
 | `subscription_history` | Audit trail of all subscription changes                 |
+| `uploaded_documents`   | Uploaded PDF/DOCX source documents for contract drafting |
+| `contracts`            | Saved AI-generated contract drafts                       |
 
 ### Functions & Triggers
 
@@ -158,6 +178,8 @@ See `db/setup/STORAGE_BUCKET_SETUP.md` for full bucket policy details.
 | `trial_conversions`    | View own                     | View, insert, update all |
 | `webhook_logs`         | View own-related logs        | View all                 |
 | `subscription_history` | View own                     | View all                 |
+| `uploaded_documents`   | Full CRUD on own records     | Full CRUD                |
+| `contracts`            | Full CRUD on own records     | Full CRUD                |
 
 ### Seed Data
 
@@ -175,6 +197,7 @@ If the project has already been created from an older schema, also run the newer
 
 - [`db/migrations/AUTH0_IDENTITY_ALIGNMENT.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/AUTH0_IDENTITY_ALIGNMENT.sql)
 - [`db/migrations/AUTH0_PROFILE_DECOUPLING.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/AUTH0_PROFILE_DECOUPLING.sql)
+- [`db/migrations/AI_CONTRACTS_MVP.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/AI_CONTRACTS_MVP.sql)
 - [`db/migrations/PLAN_METADATA_ALIGNMENT.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/PLAN_METADATA_ALIGNMENT.sql)
 - [`db/migrations/EXPENSE_RECIPIENT_DETAILS.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/EXPENSE_RECIPIENT_DETAILS.sql)
 
@@ -261,5 +284,6 @@ The policy `"Plans are publicly readable"` should have `qual = '(true)'`.
 | `db/supabase/DATABASE_SCHEMA.md`   | Detailed column-level schema docs   |
 | `db/supabase/RLS_POLICIES.md`      | RLS policy rationale and patterns   |
 | `db/setup/STORAGE_BUCKET_SETUP.md` | Storage bucket for business logos   |
+| `db/docs/AI_CONTRACTS_SETUP.md`    | AI contracts schema and env setup   |
 | `db/seeds/seed-data.sql`           | Optional sample client/invoice data |
 | `db/setup/RLS_TEST_GUIDE.sql`      | Queries to verify RLS is working    |

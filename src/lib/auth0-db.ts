@@ -1,4 +1,5 @@
 import { getAuth0Config, type AuthAppKind } from "@/lib/auth0-config";
+import { apiRequest, hasApiBaseUrl } from "@/lib/api-client";
 
 export interface Auth0DbErrorShape {
   name: string;
@@ -40,79 +41,6 @@ function toUserFacingSignupMessage(error: Auth0DbErrorShape): string {
   return error.message;
 }
 
-function normalizeAuth0Error(payload: unknown, fallback: string): Auth0DbErrorShape {
-  if (typeof payload === "string") {
-    const text = payload.trim();
-    return {
-      name: "Auth0RequestError",
-      message: text || fallback,
-    };
-  }
-
-  if (payload && typeof payload === "object") {
-    const record = payload as Record<string, unknown>;
-    const description =
-      typeof record.description === "string"
-        ? record.description
-        : typeof record.error_description === "string"
-          ? record.error_description
-          : typeof record.message === "string"
-            ? record.message
-            : typeof record.error === "string"
-              ? record.error
-              : fallback;
-
-    return {
-      name: typeof record.error === "string" ? record.error : "Auth0RequestError",
-      code: typeof record.code === "string" ? record.code : undefined,
-      message: description,
-    };
-  }
-
-  return {
-    name: "Auth0RequestError",
-    message: fallback,
-  };
-}
-
-async function auth0DbRequest<T>(
-  appKind: AuthAppKind,
-  path: string,
-  body: Record<string, unknown>,
-  parseAsText = false,
-): Promise<T> {
-  const config = getAuth0Config(appKind);
-
-  if (!config.domain || !config.clientId || !config.connection) {
-    throw {
-      name: "Auth0ConfigError",
-      message: `Missing Auth0 ${appKind} database connection configuration. Check the ${appKind.toUpperCase()} Auth0 connection env vars.`,
-    } satisfies Auth0DbErrorShape;
-  }
-
-  const response = await fetch(`https://${config.domain}${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      client_id: config.clientId,
-      connection: config.connection,
-      ...body,
-    }),
-  });
-
-  const contentType = response.headers.get("content-type") || "";
-  const payload =
-    parseAsText || !contentType.includes("application/json") ? await response.text() : await response.json();
-
-  if (!response.ok) {
-    throw normalizeAuth0Error(payload, `Auth0 request failed with status ${response.status}.`);
-  }
-
-  return payload as T;
-}
-
 export async function signupWithAuth0Database(input: {
   appKind: AuthAppKind;
   name: string;
@@ -121,16 +49,38 @@ export async function signupWithAuth0Database(input: {
   password: string;
 }) {
   try {
-    return await auth0DbRequest<Record<string, unknown>>(input.appKind, "/dbconnections/signup", {
-      username: input.username,
-      email: input.email,
-      password: input.password,
-      name: input.name,
-      given_name: input.name,
-      user_metadata: {
-        full_name: input.name,
-      },
+    const config = getAuth0Config(input.appKind);
+
+    if (!config.domain || !config.clientId || !config.connection) {
+      throw {
+        name: "Auth0ConfigError",
+        message: `Missing Auth0 ${input.appKind} database connection configuration.`,
+      } satisfies Auth0DbErrorShape;
+    }
+
+    // Check if we have an API base URL, otherwise fall back to direct call (not recommended for production)
+    if (!hasApiBaseUrl()) {
+      throw {
+        name: "ConfigError",
+        message: "API gateway is not configured. Please check your environment setup.",
+      } satisfies Auth0DbErrorShape;
+    }
+
+    // Call the backend API endpoint instead of Auth0 directly
+    const result = await apiRequest<Record<string, unknown>>("/auth/signup", {
+      method: "POST",
+      body: JSON.stringify({
+        domain: config.domain,
+        clientId: config.clientId,
+        connection: config.connection,
+        name: input.name,
+        username: input.username,
+        email: input.email,
+        password: input.password,
+      }),
     });
+
+    return result;
   } catch (error) {
     const normalized =
       error && typeof error === "object" && "message" in error
@@ -148,12 +98,31 @@ export async function signupWithAuth0Database(input: {
 }
 
 export async function sendAuth0PasswordResetEmail(input: { appKind: AuthAppKind; email: string }) {
-  return auth0DbRequest<string>(
-    input.appKind,
-    "/dbconnections/change_password",
-    {
+  const config = getAuth0Config(input.appKind);
+
+  if (!config.domain || !config.clientId || !config.connection) {
+    throw {
+      name: "Auth0ConfigError",
+      message: `Missing Auth0 ${input.appKind} database connection configuration.`,
+    } satisfies Auth0DbErrorShape;
+  }
+
+  // Check if we have an API base URL
+  if (!hasApiBaseUrl()) {
+    throw {
+      name: "ConfigError",
+      message: "API gateway is not configured. Please check your environment setup.",
+    } satisfies Auth0DbErrorShape;
+  }
+
+  // Call the backend API endpoint instead of Auth0 directly
+  return apiRequest<{ message: string }>("/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({
+      domain: config.domain,
+      clientId: config.clientId,
+      connection: config.connection,
       email: input.email,
-    },
-    true,
-  );
+    }),
+  });
 }

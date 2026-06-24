@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateView } from "@/components/refine-ui/views/create-view";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -582,25 +583,68 @@ export const InvoiceCreatePage: React.FC<InvoiceCreatePageProps> = ({ documentTy
 
             <Separator />
 
-            {/* Notes */}
-            <div className="space-y-4">
-              <h2 className="text-base font-semibold">Notes</h2>
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <textarea
-                        placeholder="Add any notes or payment terms..."
-                        className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] lg:items-start">
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-base font-semibold">Notes</h2>
+                  <p className="text-sm text-muted-foreground">Add any payment terms or extra context for the client.</p>
+                </div>
+                <FormField
+                  control={form.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <textarea
+                          placeholder="Add any notes or payment terms..."
+                          className="flex min-h-[220px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-base font-semibold">From / Your Company</h2>
+                  <p className="text-sm text-muted-foreground">
+                    These business details will appear as the sender information on the invoice.
+                  </p>
+                </div>
+
+                <Card className="border-primary/15 bg-muted/20">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">{businessProfile?.company_name || "Your business details"}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid gap-4">
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Business Name</p>
+                        <p className="font-medium">{businessProfile?.company_name || "Not set"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Email</p>
+                        <p className="font-medium break-words">{businessProfile?.business_email || "Not set"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Phone</p>
+                        <p className="font-medium">{businessProfile?.business_phone || "Not set"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Registration Number</p>
+                        <p className="font-medium">{businessProfile?.registration_number || "Not set"}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Address</p>
+                      <p className="font-medium whitespace-pre-line">{businessProfile?.business_address || "Not set"}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
 
             <InvoiceTemplatePreview

@@ -35,6 +35,9 @@ export const apiConfig = {
   customerAppUrl: process.env.CUSTOMER_APP_URL || "http://127.0.0.1:5173",
   adminAppUrl: process.env.ADMIN_APP_URL || "http://127.0.0.1:5173/admin",
   apiBaseUrl: process.env.API_BASE_URL || process.env.VITE_API_URL || `http://127.0.0.1:${Number(process.env.PORT || 3000)}`,
+  openAiApiKey: process.env.OPENAI_API_KEY || "",
+  openAiContractModel: process.env.OPENAI_CONTRACT_MODEL || process.env.OPENAI_MODEL || "gpt-4.1-mini",
+  llamaParseApiKey: process.env.LLAMA_PARSE_API_KEY || process.env.LLAMA_CLOUD_API_KEY || "",
   payfastNotifyUrl: process.env.PAYFAST_NOTIFY_URL || "",
   payfastProcessUrl: process.env.PAYFAST_PROCESS_URL || "",
   payfastMerchantId: process.env.PAYFAST_MERCHANT_ID || "",
@@ -51,6 +54,7 @@ export const apiConfig = {
   paypalMode: (process.env.PAYPAL_MODE || "sandbox").toLowerCase(),
   paypalCallbackUrl: process.env.PAYPAL_CALLBACK_URL || "",
   supabaseBrandingBucket: process.env.SUPABASE_BRANDING_BUCKET || "company-branding",
+  supabaseContractsBucket: process.env.SUPABASE_CONTRACTS_BUCKET || "contract-documents",
   trialBypassEnabled:
     (process.env.NODE_ENV !== "production") &&
     (envFlag("TRIAL_BYPASS_ENABLED") || envFlag("VITE_TRIAL_BYPASS_ENABLED")),
