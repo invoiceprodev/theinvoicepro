@@ -1011,6 +1011,60 @@ app.post("/paypal/webhook", async (req: Request, res: Response) => {
   }
 });
 
+app.get("/public/plans", async (req: Request, res: Response) => {
+  const filters = parseJsonQueryParam<CrudFilter[]>(req.query.filters, []);
+  const sorters = parseJsonQueryParam<CrudSorter[]>(req.query.sorters, []);
+  const pagination = parseJsonQueryParam<CrudPagination>(req.query.pagination, {});
+
+  try {
+    let query = adminSupabase
+      .from("plans")
+      .select("*", { count: "exact" });
+
+    query = applyCrudFilters(query, filters);
+    query = applyCrudSorters(query, sorters);
+    query = applyCrudPagination(query, pagination);
+    query = query.order("price", { ascending: true }).order("created_at", { ascending: true });
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    res.json({ data: data || [], total: count || 0 });
+  } catch (error) {
+    console.error("[API] failed to load public plans", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to load public plans") });
+  }
+});
+
+app.get("/public/plans/:id", async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await adminSupabase
+      .from("plans")
+      .select("*")
+      .eq("id", req.params.id)
+      .maybeSingle();
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    if (!data) {
+      res.status(404).json({ error: "Plan not found" });
+      return;
+    }
+
+    res.json({ data });
+  } catch (error) {
+    console.error("[API] failed to load public plan", error);
+    res.status(500).json({ error: getErrorMessage(error, "Failed to load public plan") });
+  }
+});
+
 app.use(async (req: AuthedRequest, res: Response, next: NextFunction) => {
   if (
     req.path === "/health" ||

@@ -23,7 +23,7 @@ const isAdminRoute = () => typeof window !== "undefined" && isAdminContext(windo
 
 const useApiForResource = (resource: string, originalResource?: string) =>
   hasApiBaseUrl() &&
-  (["clients", "invoices", "invoice_items", "expenses", "contracts"].includes(resource) ||
+  (["plans", "clients", "invoices", "invoice_items", "expenses", "contracts"].includes(resource) ||
     isAdminPlanResource(originalResource || resource) ||
     (isAdminRoute() && isAdminOnlyResource(originalResource || resource)));
 
@@ -147,6 +147,20 @@ export const dataProvider: DataProvider = {
     const resource = resolveResource(params.resource);
     try {
       if (useApiForResource(resource, originalResource)) {
+        if (resource === "plans") {
+          const path = isAdminRoute()
+            ? `/plans${buildCrudQueryString({
+                filters: params.filters,
+                sorters: params.sorters,
+                pagination: params.pagination,
+              })}`
+            : `/public/plans${buildCrudQueryString({
+                filters: params.filters,
+                sorters: params.sorters,
+                pagination: params.pagination,
+              })}`;
+          return await apiRequest<{ data: unknown[]; total: number }>(path);
+        }
         if (isAdminPlanResource(originalResource)) {
           return await apiRequest<{ data: unknown[]; total: number }>(
             `/plans${buildCrudQueryString({
@@ -190,6 +204,10 @@ export const dataProvider: DataProvider = {
     const resource = resolveResource(params.resource);
     try {
       if (useApiForResource(resource, originalResource)) {
+        if (resource === "plans") {
+          const path = isAdminRoute() ? `/plans/${params.id}` : `/public/plans/${params.id}`;
+          return await apiRequest<{ data: unknown }>(path);
+        }
         if (isAdminPlanResource(originalResource)) {
           return await apiRequest<{ data: unknown }>(`/plans/${params.id}`);
         }
