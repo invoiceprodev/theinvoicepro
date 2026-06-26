@@ -396,3 +396,4 @@ db/
 - complete PayFast recurring billing against a recurring-capable merchant setup only if PayFast remains needed as a legacy fallback
 # theinvoicepro
 # invoicepro
+# theinvoicepro
