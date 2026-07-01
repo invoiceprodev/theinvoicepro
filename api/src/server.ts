@@ -846,9 +846,10 @@ app.post("/subscribe", async (req: Request, res: Response) => {
     res.json({ ok: true, id: result.id });
   } catch (error) {
     console.error("[API] failed to send footer subscription email", error);
-    res
-      .status(500)
-      .json({ error: getErrorMessage(error, "Failed to submit subscription") });
+    res.json({
+      ok: true,
+      warning: getErrorMessage(error, "Footer subscription email was not sent"),
+    });
   }
 });
 
