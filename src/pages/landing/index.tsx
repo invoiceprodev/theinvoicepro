@@ -32,6 +32,7 @@ import { mockPlans } from "@/data/plans";
 import type { Plan } from "@/types";
 import { setSelectedPlanCheckout } from "@/lib/plan-selection";
 import { canStartTrialWithoutCard, planRequiresCard } from "@/lib/trial-bypass";
+import { getFallbackPlans, shouldUsePlanFallback } from "@/lib/plan-fallback";
 
 const testimonials = [
   {
@@ -118,9 +119,9 @@ export const LandingPage = () => {
           };
           return rank(a) - rank(b) || a.price - b.price;
         })
-      : plansResult
+      : plansResult && !shouldUsePlanFallback((plansResult as { error?: unknown }).error)
       ? mockPlans
-      : [];
+      : getFallbackPlans();
   const publicTrialPlans = pricingPlans.filter((plan) =>
     canStartTrialWithoutCard(plan),
   );

@@ -13,6 +13,7 @@ import { clearSelectedPlanCheckout, setSelectedPlanCheckout } from "@/lib/plan-s
 import { useSubscriptionState } from "@/hooks/use-subscription-state";
 import { setSubscriptionBridgeSnapshot } from "@/lib/subscription-bridge";
 import { canStartTrialWithoutCard, planRequiresCard } from "@/lib/trial-bypass";
+import { getFallbackPlans, shouldUsePlanFallback } from "@/lib/plan-fallback";
 
 type DialogState =
   | { open: false }
@@ -57,8 +58,9 @@ export function PlansPage() {
 
   const plans = useMemo(() => {
     const source = (result?.data as Plan[]) || [];
-    return [...source].sort((a, b) => getPlanPriority(a) - getPlanPriority(b) || a.price - b.price);
-  }, [result?.data]);
+    const resolvedPlans = source.length > 0 ? source : shouldUsePlanFallback(query.error) ? getFallbackPlans() : [];
+    return [...resolvedPlans].sort((a, b) => getPlanPriority(a) - getPlanPriority(b) || a.price - b.price);
+  }, [query.error, result?.data]);
   const plansErrorMessage =
     query.error instanceof Error ? query.error.message : "Failed to load subscription plans from the live catalog.";
   const hasSavedPaymentMethod = Boolean(
