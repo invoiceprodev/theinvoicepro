@@ -745,9 +745,26 @@ if (apiConfig.customerAppUrl.startsWith("https://theinvoicepro.co.za")) {
   allowedCorsOrigins.add("https://www.theinvoicepro.co.za");
 }
 
+const vercelPreviewOriginPattern = /^(https:\/\/)?[a-z0-9-]+\.vercel\.app$/i;
+
 app.use(
   cors({
-    origin: Array.from(allowedCorsOrigins),
+    origin: (origin, callback) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      if (
+        allowedCorsOrigins.has(origin) ||
+        vercelPreviewOriginPattern.test(origin)
+      ) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`Origin ${origin} is not allowed by CORS`));
+    },
     credentials: false,
   }),
 );
