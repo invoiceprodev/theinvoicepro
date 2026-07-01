@@ -37,6 +37,11 @@ import { adminSupabase } from "./supabase.js";
 import { getEmailPreview, listEmailPreviews } from "./emails/previews.js";
 import { contractsRouter } from "./contracts/routes.js";
 import { authRouter } from "./auth-routes.js";
+import {
+  getFallbackPlanById,
+  isSupabaseConnectivityError,
+  publicPlanFallbacks,
+} from "./plans-fallback.js";
 
 type AuthedRequest = Request & { user?: AuthenticatedUser };
 
@@ -1058,12 +1063,22 @@ app.get("/public/plans", async (req: Request, res: Response) => {
     const { data, error, count } = await query;
 
     if (error) {
+      if (isSupabaseConnectivityError(error)) {
+        console.warn("[API] falling back to public plan catalog for /public/plans", error);
+        return res.json({ data: publicPlanFallbacks, total: publicPlanFallbacks.length });
+      }
+
       res.status(500).json({ error: error.message });
       return;
     }
 
     res.json({ data: data || [], total: count || 0 });
   } catch (error) {
+    if (isSupabaseConnectivityError(error)) {
+      console.warn("[API] falling back to public plan catalog for /public/plans", error);
+      return res.json({ data: publicPlanFallbacks, total: publicPlanFallbacks.length });
+    }
+
     console.error("[API] failed to load public plans", error);
     res
       .status(500)
@@ -1080,17 +1095,41 @@ app.get("/public/plans/:id", async (req: Request, res: Response) => {
       .maybeSingle();
 
     if (error) {
+      if (isSupabaseConnectivityError(error)) {
+        const planId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        const fallback = getFallbackPlanById(planId);
+        if (fallback) {
+          console.warn("[API] falling back to public plan catalog for /public/plans/:id", error);
+          return res.json({ data: fallback });
+        }
+      }
+
       res.status(500).json({ error: error.message });
       return;
     }
 
     if (!data) {
+      const planId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const fallback = getFallbackPlanById(planId);
+      if (fallback) {
+        return res.json({ data: fallback });
+      }
+
       res.status(404).json({ error: "Plan not found" });
       return;
     }
 
     res.json({ data });
   } catch (error) {
+    if (isSupabaseConnectivityError(error)) {
+      const planId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const fallback = getFallbackPlanById(planId);
+      if (fallback) {
+        console.warn("[API] falling back to public plan catalog for /public/plans/:id", error);
+        return res.json({ data: fallback });
+      }
+    }
+
     console.error("[API] failed to load public plan", error);
     res
       .status(500)
