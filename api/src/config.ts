@@ -14,7 +14,9 @@ function requiredOneOf(...names: string[]) {
     }
   }
 
-  throw new Error(`Missing required environment variable. Set one of: ${names.join(", ")}`);
+  throw new Error(
+    `Missing required environment variable. Set one of: ${names.join(", ")}`,
+  );
 }
 
 function envFlag(name: string) {
@@ -31,13 +33,20 @@ export const apiConfig = {
   supabaseUrl: requiredOneOf("SUPABASE_URL", "VITE_SUPABASE_URL"),
   supabaseServiceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY"),
   resendApiKey: process.env.RESEND_API_KEY || "",
-  resendFromEmail: process.env.RESEND_FROM_EMAIL || "noreply@theinvoicepro.co.za",
+  resendFromEmail: process.env.RESEND_FROM_EMAIL || "",
   customerAppUrl: process.env.CUSTOMER_APP_URL || "http://127.0.0.1:5173",
   adminAppUrl: process.env.ADMIN_APP_URL || "http://127.0.0.1:5173/admin",
-  apiBaseUrl: process.env.API_BASE_URL || process.env.VITE_API_URL || `http://127.0.0.1:${Number(process.env.PORT || 3000)}`,
+  apiBaseUrl:
+    process.env.API_BASE_URL ||
+    process.env.VITE_API_URL ||
+    `http://127.0.0.1:${Number(process.env.PORT || 3000)}`,
   openAiApiKey: process.env.OPENAI_API_KEY || "",
-  openAiContractModel: process.env.OPENAI_CONTRACT_MODEL || process.env.OPENAI_MODEL || "gpt-4.1-mini",
-  llamaParseApiKey: process.env.LLAMA_PARSE_API_KEY || process.env.LLAMA_CLOUD_API_KEY || "",
+  openAiContractModel:
+    process.env.OPENAI_CONTRACT_MODEL ||
+    process.env.OPENAI_MODEL ||
+    "gpt-4.1-mini",
+  llamaParseApiKey:
+    process.env.LLAMA_PARSE_API_KEY || process.env.LLAMA_CLOUD_API_KEY || "",
   payfastNotifyUrl: process.env.PAYFAST_NOTIFY_URL || "",
   payfastProcessUrl: process.env.PAYFAST_PROCESS_URL || "",
   payfastMerchantId: process.env.PAYFAST_MERCHANT_ID || "",
@@ -46,19 +55,25 @@ export const apiConfig = {
   payfastMode: process.env.PAYFAST_MODE || "sandbox",
   paystackPublicKey: process.env.PAYSTACK_PUBLIC_KEY || "",
   paystackSecretKey: process.env.PAYSTACK_SECRET_KEY || "",
-  paystackWebhookSecret: process.env.PAYSTACK_WEBHOOK_SECRET || process.env.PAYSTACK_SECRET_KEY || "",
+  paystackWebhookSecret:
+    process.env.PAYSTACK_WEBHOOK_SECRET ||
+    process.env.PAYSTACK_SECRET_KEY ||
+    "",
   paystackCallbackUrl: process.env.PAYSTACK_CALLBACK_URL || "",
   paypalClientId: process.env.PAYPAL_CLIENT_ID || "",
   paypalClientSecret: process.env.PAYPAL_CLIENT_SECRET || "",
   paypalWebhookId: process.env.PAYPAL_WEBHOOK_ID || "",
   paypalMode: (process.env.PAYPAL_MODE || "sandbox").toLowerCase(),
   paypalCallbackUrl: process.env.PAYPAL_CALLBACK_URL || "",
-  supabaseBrandingBucket: process.env.SUPABASE_BRANDING_BUCKET || "company-branding",
-  supabaseContractsBucket: process.env.SUPABASE_CONTRACTS_BUCKET || "contract-documents",
+  supabaseBrandingBucket:
+    process.env.SUPABASE_BRANDING_BUCKET || "company-branding",
+  supabaseContractsBucket:
+    process.env.SUPABASE_CONTRACTS_BUCKET || "contract-documents",
   trialBypassEnabled:
-    (process.env.NODE_ENV !== "production") &&
+    process.env.NODE_ENV !== "production" &&
     (envFlag("TRIAL_BYPASS_ENABLED") || envFlag("VITE_TRIAL_BYPASS_ENABLED")),
   adminAccessBypassEnabled:
-    (process.env.NODE_ENV !== "production") &&
-    (envFlag("ADMIN_ACCESS_BYPASS_ENABLED") || envFlag("VITE_ADMIN_ACCESS_BYPASS_ENABLED")),
+    process.env.NODE_ENV !== "production" &&
+    (envFlag("ADMIN_ACCESS_BYPASS_ENABLED") ||
+      envFlag("VITE_ADMIN_ACCESS_BYPASS_ENABLED")),
 };

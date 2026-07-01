@@ -834,6 +834,14 @@ app.post("/subscribe", async (req: Request, res: Response) => {
   }
 
   try {
+    if (!isResendConfigured()) {
+      console.info(
+        "[API] resend is not configured; skipping footer subscription email",
+      );
+      res.json({ ok: true });
+      return;
+    }
+
     const result = await sendFooterSubscriptionEmail({ name, email });
     res.json({ ok: true, id: result.id });
   } catch (error) {
@@ -1014,17 +1022,20 @@ app.post("/paypal/webhook", async (req: Request, res: Response) => {
 app.get("/public/plans", async (req: Request, res: Response) => {
   const filters = parseJsonQueryParam<CrudFilter[]>(req.query.filters, []);
   const sorters = parseJsonQueryParam<CrudSorter[]>(req.query.sorters, []);
-  const pagination = parseJsonQueryParam<CrudPagination>(req.query.pagination, {});
+  const pagination = parseJsonQueryParam<CrudPagination>(
+    req.query.pagination,
+    {},
+  );
 
   try {
-    let query = adminSupabase
-      .from("plans")
-      .select("*", { count: "exact" });
+    let query = adminSupabase.from("plans").select("*", { count: "exact" });
 
     query = applyCrudFilters(query, filters);
     query = applyCrudSorters(query, sorters);
     query = applyCrudPagination(query, pagination);
-    query = query.order("price", { ascending: true }).order("created_at", { ascending: true });
+    query = query
+      .order("price", { ascending: true })
+      .order("created_at", { ascending: true });
 
     const { data, error, count } = await query;
 
@@ -1036,7 +1047,9 @@ app.get("/public/plans", async (req: Request, res: Response) => {
     res.json({ data: data || [], total: count || 0 });
   } catch (error) {
     console.error("[API] failed to load public plans", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load public plans") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to load public plans") });
   }
 });
 
@@ -1061,7 +1074,9 @@ app.get("/public/plans/:id", async (req: Request, res: Response) => {
     res.json({ data });
   } catch (error) {
     console.error("[API] failed to load public plan", error);
-    res.status(500).json({ error: getErrorMessage(error, "Failed to load public plan") });
+    res
+      .status(500)
+      .json({ error: getErrorMessage(error, "Failed to load public plan") });
   }
 });
 
