@@ -52,6 +52,39 @@
   />
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="app-loading-overlay" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(0deg,rgba(255,255,255,0.9),rgba(255,255,255,0.6));z-index:9999;">
+      <div style="text-align:center;max-width:420px;padding:20px;border-radius:12px;box-shadow:0 6px 18px rgba(16,24,40,0.08);background:white;color:#0f172a;font-family:Inter,system-ui,Helvetica,Arial,sans-serif;">
+        <div id="app-loading-message" style="font-size:18px;font-weight:600;margin-bottom:8px;">Loading The Invoice Pro…</div>
+        <div style="font-size:13px;color:#475569;margin-bottom:12px;">If this message persists, try reloading or disabling ad-block/privacy extensions.</div>
+        <div style="display:flex;gap:8px;justify-content:center;">
+          <button id="app-loading-reload" style="padding:8px 12px;border-radius:8px;border:1px solid #e6eef2;background:#f8fafc;color:#0f172a;">Reload</button>
+          <button id="app-loading-hide" style="padding:8px 12px;border-radius:8px;border:1px solid transparent;background:#0f766e;color:white;">Continue Anyway</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function(){
+        var overlay = document.getElementById('app-loading-overlay');
+        var reloadBtn = document.getElementById('app-loading-reload');
+        var hideBtn = document.getElementById('app-loading-hide');
+        reloadBtn?.addEventListener('click', function(){ location.reload(); });
+        hideBtn?.addEventListener('click', function(){ overlay && (overlay.style.display='none'); });
+
+        // If app hasn't signalled readiness within 7s, show a more explicit message (overlay already visible)
+        var waited = 0;
+        var interval = setInterval(function(){
+          if (window.__APP_LOADED) { overlay && (overlay.style.display='none'); clearInterval(interval); return; }
+          waited += 250;
+          if (waited >= 7000) {
+            // leave overlay visible, update message
+            var msg = document.getElementById('app-loading-message');
+            if (msg) msg.textContent = 'App failed to initialize';
+            clearInterval(interval);
+          }
+        }, 250);
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/index.tsx"></script>
     <!--

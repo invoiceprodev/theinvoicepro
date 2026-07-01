@@ -17,3 +17,10 @@ root.render(
     <App />
   </StrictMode>,
 );
+
+// Signal to the inline loading overlay that the app has successfully started
+try {
+  (window as any).__APP_LOADED = true;
+} catch (e) {
+  // ignore in environments without window
+}
