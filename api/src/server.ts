@@ -746,9 +746,23 @@ const allowedCorsOrigins = new Set<string>([
   apiConfig.adminAppUrl,
 ]);
 
-if (apiConfig.customerAppUrl.startsWith("https://theinvoicepro.co.za")) {
-  allowedCorsOrigins.add("https://www.theinvoicepro.co.za");
+function addAlternateTheInvoiceProOrigin(origin: string) {
+  if (!origin.startsWith("https://")) {
+    return;
+  }
+
+  const normalized = origin.replace(/\/+$/, "");
+  if (normalized === "https://theinvoicepro.co.za") {
+    allowedCorsOrigins.add("https://www.theinvoicepro.co.za");
+  }
+
+  if (normalized === "https://www.theinvoicepro.co.za") {
+    allowedCorsOrigins.add("https://theinvoicepro.co.za");
+  }
 }
+
+addAlternateTheInvoiceProOrigin(apiConfig.customerAppUrl);
+addAlternateTheInvoiceProOrigin(apiConfig.adminAppUrl);
 
 const vercelPreviewOriginPattern = /^(https:\/\/)?[a-z0-9-]+\.vercel\.app$/i;
 
