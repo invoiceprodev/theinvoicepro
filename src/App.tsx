@@ -500,19 +500,8 @@ function CustomerApp() {
 
 // ─── Path-based Router ────────────────────────────────────────────────────────
 function DomainRedirect() {
-  const apexHost = "theinvoicepro.co.za";
-  const wwwHost = `www.${apexHost}`;
-
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  if (window.location.hostname === wwwHost) {
-    const url = new URL(window.location.href);
-    url.hostname = apexHost;
-    window.location.replace(url.toString());
-  }
-
+  // Support both the apex and www customer domains without client-side
+  // redirects, since the frontend can be served from either host.
   return null;
 }
 
