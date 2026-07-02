@@ -236,6 +236,15 @@ export function getCurrentSubscriptionState(subscription?: Subscription | null):
   }
 
   if (subscription.status === "trial") {
+    // If the trial end date has passed, consider the subscription expired
+    try {
+      const trialEnd = subscription.trial_end_date ? new Date(subscription.trial_end_date) : null;
+      if (trialEnd && trialEnd.getTime() < Date.now()) {
+        return "expired";
+      }
+    } catch (e) {
+      // Ignore parse errors and continue with existing logic
+    }
     const planName = String(subscription.plan?.name || "").toLowerCase();
     const starterStylePlan = planName.includes("starter") || planName.includes("trial") || planName === "basic";
     const canRunTrialWithoutCard = Boolean(subscription.plan?.trial_days) && starterStylePlan;
