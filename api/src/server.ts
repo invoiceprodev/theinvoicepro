@@ -766,6 +766,27 @@ function addAlternateTheInvoiceProOrigin(origin: string) {
 addAlternateTheInvoiceProOrigin(apiConfig.customerAppUrl);
 addAlternateTheInvoiceProOrigin(apiConfig.adminAppUrl);
 
+function addLocalHostAlias(origin: string) {
+  if (!origin) return;
+  try {
+    const url = new URL(origin);
+    const host = url.hostname;
+    if (host === "127.0.0.1") {
+      const alias = origin.replace("127.0.0.1", "localhost");
+      allowedCorsOrigins.add(alias.replace(/\/+$/, ""));
+    }
+    if (host === "localhost") {
+      const alias = origin.replace("localhost", "127.0.0.1");
+      allowedCorsOrigins.add(alias.replace(/\/+$/, ""));
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+addLocalHostAlias(apiConfig.customerAppUrl);
+addLocalHostAlias(apiConfig.adminAppUrl);
+
 const vercelPreviewOriginPattern = /^(https:\/\/)?[a-z0-9-]+\.vercel\.app$/i;
 
 app.use(
@@ -1226,7 +1247,10 @@ app.use(async (req: AuthedRequest, res: Response, next: NextFunction) => {
     try {
       if (apiConfig.isDevelopment) {
         const authHeader = req.headers.authorization;
-        const raw = typeof authHeader === "string" && authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+        const raw =
+          typeof authHeader === "string" && authHeader.startsWith("Bearer ")
+            ? authHeader.slice(7)
+            : null;
         if (raw) {
           try {
             const decoded = decodeJwt(raw);
