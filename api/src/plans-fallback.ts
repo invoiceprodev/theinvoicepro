@@ -99,11 +99,13 @@ export const publicPlanFallbacks: PublicPlanFallback[] = [
 ];
 
 export function isSupabaseConnectivityError(error: unknown) {
-  if (!(error instanceof Error)) {
-    return false;
-  }
+  const message =
+    error instanceof Error
+      ? error.message
+      : error && typeof error === "object" && "message" in error
+      ? String((error as { message?: unknown }).message || "")
+      : "";
 
-  const message = error.message || "";
   return /fetch failed|ENOTFOUND|ECONNREFUSED|timed out|network/i.test(message);
 }
 
