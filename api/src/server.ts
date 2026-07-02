@@ -6,6 +6,8 @@ import express, {
 } from "express";
 import { apiConfig } from "./config.js";
 import { verifyAccessToken, type AuthenticatedUser } from "./auth.js";
+import { decodeJwt } from "jose";
+import { apiConfig } from "./config.js";
 import {
   buildTrialSubscriptionCheckout,
   verifyPayFastSignature,
@@ -1078,8 +1080,14 @@ app.get("/public/plans", async (req: Request, res: Response) => {
 
     if (error) {
       if (isSupabaseConnectivityError(error)) {
-        console.warn("[API] falling back to public plan catalog for /public/plans", error);
-        return res.json({ data: publicPlanFallbacks, total: publicPlanFallbacks.length });
+        console.warn(
+          "[API] falling back to public plan catalog for /public/plans",
+          error,
+        );
+        return res.json({
+          data: publicPlanFallbacks,
+          total: publicPlanFallbacks.length,
+        });
       }
 
       res.status(500).json({ error: error.message });
@@ -1089,8 +1097,14 @@ app.get("/public/plans", async (req: Request, res: Response) => {
     res.json({ data: data || [], total: count || 0 });
   } catch (error) {
     if (isSupabaseConnectivityError(error)) {
-      console.warn("[API] falling back to public plan catalog for /public/plans", error);
-      return res.json({ data: publicPlanFallbacks, total: publicPlanFallbacks.length });
+      console.warn(
+        "[API] falling back to public plan catalog for /public/plans",
+        error,
+      );
+      return res.json({
+        data: publicPlanFallbacks,
+        total: publicPlanFallbacks.length,
+      });
     }
 
     console.error("[API] failed to load public plans", error);
@@ -1110,10 +1124,15 @@ app.get("/public/plans/:id", async (req: Request, res: Response) => {
 
     if (error) {
       if (isSupabaseConnectivityError(error)) {
-        const planId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        const planId = Array.isArray(req.params.id)
+          ? req.params.id[0]
+          : req.params.id;
         const fallback = getFallbackPlanById(planId);
         if (fallback) {
-          console.warn("[API] falling back to public plan catalog for /public/plans/:id", error);
+          console.warn(
+            "[API] falling back to public plan catalog for /public/plans/:id",
+            error,
+          );
           return res.json({ data: fallback });
         }
       }
@@ -1123,7 +1142,9 @@ app.get("/public/plans/:id", async (req: Request, res: Response) => {
     }
 
     if (!data) {
-      const planId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const planId = Array.isArray(req.params.id)
+        ? req.params.id[0]
+        : req.params.id;
       const fallback = getFallbackPlanById(planId);
       if (fallback) {
         return res.json({ data: fallback });
@@ -1136,10 +1157,15 @@ app.get("/public/plans/:id", async (req: Request, res: Response) => {
     res.json({ data });
   } catch (error) {
     if (isSupabaseConnectivityError(error)) {
-      const planId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const planId = Array.isArray(req.params.id)
+        ? req.params.id[0]
+        : req.params.id;
       const fallback = getFallbackPlanById(planId);
       if (fallback) {
-        console.warn("[API] falling back to public plan catalog for /public/plans/:id", error);
+        console.warn(
+          "[API] falling back to public plan catalog for /public/plans/:id",
+          error,
+        );
         return res.json({ data: fallback });
       }
     }
@@ -1196,6 +1222,32 @@ app.use(async (req: AuthedRequest, res: Response, next: NextFunction) => {
     next();
   } catch (error) {
     console.error("[API] token verification failed", error);
+    // In development, decode the token (without verifying) to help debug audience/issuer mismatches
+    try {
+      if (apiConfig.isDevelopment) {
+        const authHeader = req.headers.authorization;
+        const raw = typeof authHeader === "string" && authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+        if (raw) {
+          try {
+            const decoded = decodeJwt(raw);
+            console.error("[API] decoded token claims:", {
+              aud: decoded.aud,
+              iss: decoded.iss,
+              sub: decoded.sub,
+              exp: decoded.exp,
+              iat: decoded.iat,
+            });
+          } catch (decodeErr) {
+            console.error("[API] failed to decode token for debug:", decodeErr);
+          }
+        } else {
+          console.error("[API] no raw bearer token present for debug");
+        }
+      }
+    } catch (e) {
+      console.error("[API] debug decode failed", e);
+    }
+
     res.status(401).json({ error: "Invalid token" });
   }
 });
