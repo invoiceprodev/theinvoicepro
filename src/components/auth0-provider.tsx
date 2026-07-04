@@ -3,7 +3,7 @@ import { Auth0Provider, useAuth0 } from "@auth0/auth0-react";
 import { getAuth0Config, isAuth0Configured, type AuthAppKind } from "@/lib/auth0-config";
 import { setAuth0BridgeSnapshot } from "@/lib/auth0-bridge";
 import { isAuth0EmailVerified } from "@/lib/auth0-identity";
-import { apiRequest, hasApiBaseUrl } from "@/lib/api-client";
+import { apiRequest, hasApiBaseUrl, ApiClientError } from "@/lib/api-client";
 import { setProfileBridgeSnapshot } from "@/lib/profile-bridge";
 import { setSubscriptionBridgeSnapshot } from "@/lib/subscription-bridge";
 import { clearPendingAuthHandoff, getPendingAuthHandoff } from "@/lib/auth0-handoff";
@@ -144,14 +144,35 @@ function Auth0BridgeSync({ appKind }: { appKind: AuthAppKind }) {
       try {
         const handoff = getPendingAuthHandoff();
 
-        await apiRequest<{ profile: Profile; created: boolean }>("/auth/sync-profile", {
-          method: "POST",
-          body: JSON.stringify({
-            email: handoff?.email ?? user.email ?? null,
-            fullName: handoff?.fullName ?? user.name ?? user.nickname ?? user.email ?? "User",
-            mode: handoff?.mode ?? "login",
-          }),
-        });
+        let lastError: unknown;
+        const maxAttempts = 3;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            await apiRequest<{ profile: Profile; created: boolean }>("/auth/sync-profile", {
+              method: "POST",
+              body: JSON.stringify({
+                email: handoff?.email ?? user.email ?? null,
+                fullName: handoff?.fullName ?? user.name ?? user.nickname ?? user.email ?? "User",
+                mode: handoff?.mode ?? "login",
+              }),
+            });
+            lastError = undefined;
+            break;
+          } catch (err) {
+            const isClientError =
+              err instanceof ApiClientError && err.status >= 400 && err.status < 500;
+            if (isClientError || attempt === maxAttempts) {
+              throw err;
+            }
+            lastError = err;
+            console.warn(
+              `[Auth0] profile sync attempt ${attempt} failed, retrying in ${attempt}s…`,
+              lastError,
+            );
+            await new Promise((r) => setTimeout(r, attempt * 1000));
+          }
+        }
+
         const response = await apiRequest<{ profile: Profile | null; auth0: Record<string, unknown> }>("/me");
 
         let subscription: Subscription | null = null;
@@ -174,7 +195,18 @@ function Auth0BridgeSync({ appKind }: { appKind: AuthAppKind }) {
           subscription,
         });
       } catch (syncError) {
-        console.error("[Auth0] profile sync failed", syncError);
+        const isTimeout =
+          syncError instanceof DOMException && syncError.name === "TimeoutError";
+        const isNetworkError =
+          syncError instanceof TypeError && syncError.message.toLowerCase().includes("fetch");
+        if (isTimeout || isNetworkError) {
+          console.error(
+            "[Auth0] profile sync failed — API server is unreachable. Check that VITE_API_URL is set correctly and the API is running.",
+            syncError,
+          );
+        } else {
+          console.error("[Auth0] profile sync failed", syncError);
+        }
         if (cancelled) return;
         setProfileBridgeSnapshot({
           isLoading: false,

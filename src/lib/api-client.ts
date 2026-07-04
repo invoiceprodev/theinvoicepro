@@ -42,6 +42,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers,
+    signal: init.signal ?? AbortSignal.timeout(15000),
   });
 
   const contentType = response.headers.get("content-type") || "";
@@ -82,6 +83,7 @@ export async function apiRequestBlob(path: string, init: RequestInit = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers,
+    signal: init.signal ?? AbortSignal.timeout(15000),
   });
 
   if (!response.ok) {
