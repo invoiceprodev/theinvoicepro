@@ -38,56 +38,59 @@ import {
   Layers,
 } from "lucide-react";
 
+import { lazy, Suspense } from "react";
+import { PublicOnlyRoute } from "@/pages/auth/callback";
+
 // Customer app pages
-import { LandingPage } from "@/pages/landing/index";
-import { DashboardPage } from "@/pages/dashboard/index";
-import { InvoiceListPage } from "@/pages/dashboard/invoices/list";
-import { InvoiceCreatePage } from "@/pages/dashboard/invoices/create";
-import { InvoiceShowPage } from "@/pages/dashboard/invoices/show";
-import { InvoiceEditPage } from "@/pages/dashboard/invoices/edit";
-import { ClientListPage } from "@/pages/dashboard/clients/list";
-import { ClientCreatePage } from "@/pages/dashboard/clients/create";
-import { ClientEditPage } from "@/pages/dashboard/clients/edit";
-import { PlansPage } from "@/pages/dashboard/plans/index";
-import { ExpenseListPage } from "@/pages/dashboard/expenses/list";
-import { ExpenseCreatePage } from "@/pages/dashboard/expenses/create";
-import { ExpenseEditPage } from "@/pages/dashboard/expenses/edit";
-import { ExpenseShowPage } from "@/pages/dashboard/expenses/show";
-import { ContractListPage } from "@/pages/dashboard/contracts/list";
-import { ContractCreatePage } from "@/pages/dashboard/contracts/create";
-import { ContractShowPage } from "@/pages/dashboard/contracts/show";
-import { CompliancePage } from "@/pages/dashboard/compliance/index";
-import { SettingsPage } from "@/pages/dashboard/settings/index";
-import { LoginPage } from "@/pages/auth/login";
-import { ForgotPasswordPage } from "@/pages/auth/forgot-password";
-import { RegisterPage } from "./pages/auth/register";
-import { VerifyEmailPage } from "@/pages/auth/verify-email";
-import { CardSetupPage } from "@/pages/auth/card-setup";
-import CardSetupSuccess from "./pages/auth/card-setup-success";
-import { AuthCallbackPage, PublicOnlyRoute } from "@/pages/auth/callback";
-import { PricingPage } from "@/pages/services/pricing";
-import { SignupPage } from "@/pages/services/signup";
-import { AboutPage } from "@/pages/about/index";
-import { ServicesPage } from "@/pages/services/index";
-import { BlogPage } from "@/pages/blog/index";
-import { BlogArticlePage } from "@/pages/blog/article";
-import { PrivacyPolicyPage } from "@/pages/legal/privacy";
-import { TermsOfServicePage } from "@/pages/legal/terms";
-import { RefundPolicyPage } from "@/pages/legal/refund-policy";
-import { CookiePolicyPage } from "@/pages/legal/cookie-policy";
-import { AcceptableUsePolicyPage } from "@/pages/legal/acceptable-use";
+const LandingPage = lazy(() => import("@/pages/landing/index").then(m => ({ default: m.LandingPage })));
+const DashboardPage = lazy(() => import("@/pages/dashboard/index").then(m => ({ default: m.DashboardPage })));
+const InvoiceListPage = lazy(() => import("@/pages/dashboard/invoices/list").then(m => ({ default: m.InvoiceListPage })));
+const InvoiceCreatePage = lazy(() => import("@/pages/dashboard/invoices/create").then(m => ({ default: m.InvoiceCreatePage })));
+const InvoiceShowPage = lazy(() => import("@/pages/dashboard/invoices/show").then(m => ({ default: m.InvoiceShowPage })));
+const InvoiceEditPage = lazy(() => import("@/pages/dashboard/invoices/edit").then(m => ({ default: m.InvoiceEditPage })));
+const ClientListPage = lazy(() => import("@/pages/dashboard/clients/list").then(m => ({ default: m.ClientListPage })));
+const ClientCreatePage = lazy(() => import("@/pages/dashboard/clients/create").then(m => ({ default: m.ClientCreatePage })));
+const ClientEditPage = lazy(() => import("@/pages/dashboard/clients/edit").then(m => ({ default: m.ClientEditPage })));
+const PlansPage = lazy(() => import("@/pages/dashboard/plans/index").then(m => ({ default: m.PlansPage })));
+const ExpenseListPage = lazy(() => import("@/pages/dashboard/expenses/list").then(m => ({ default: m.ExpenseListPage })));
+const ExpenseCreatePage = lazy(() => import("@/pages/dashboard/expenses/create").then(m => ({ default: m.ExpenseCreatePage })));
+const ExpenseEditPage = lazy(() => import("@/pages/dashboard/expenses/edit").then(m => ({ default: m.ExpenseEditPage })));
+const ExpenseShowPage = lazy(() => import("@/pages/dashboard/expenses/show").then(m => ({ default: m.ExpenseShowPage })));
+const ContractListPage = lazy(() => import("@/pages/dashboard/contracts/list").then(m => ({ default: m.ContractListPage })));
+const ContractCreatePage = lazy(() => import("@/pages/dashboard/contracts/create").then(m => ({ default: m.ContractCreatePage })));
+const ContractShowPage = lazy(() => import("@/pages/dashboard/contracts/show").then(m => ({ default: m.ContractShowPage })));
+const CompliancePage = lazy(() => import("@/pages/dashboard/compliance/index").then(m => ({ default: m.CompliancePage })));
+const SettingsPage = lazy(() => import("@/pages/dashboard/settings/index").then(m => ({ default: m.SettingsPage })));
+const LoginPage = lazy(() => import("@/pages/auth/login").then(m => ({ default: m.LoginPage })));
+const ForgotPasswordPage = lazy(() => import("@/pages/auth/forgot-password").then(m => ({ default: m.ForgotPasswordPage })));
+const RegisterPage = lazy(() => import("./pages/auth/register").then(m => ({ default: m.RegisterPage })));
+const VerifyEmailPage = lazy(() => import("@/pages/auth/verify-email").then(m => ({ default: m.VerifyEmailPage })));
+const CardSetupPage = lazy(() => import("@/pages/auth/card-setup").then(m => ({ default: m.CardSetupPage })));
+const CardSetupSuccess = lazy(() => import("./pages/auth/card-setup-success"));
+const AuthCallbackPage = lazy(() => import("@/pages/auth/callback").then(m => ({ default: m.AuthCallbackPage })));
+const PricingPage = lazy(() => import("@/pages/services/pricing").then(m => ({ default: m.PricingPage })));
+const SignupPage = lazy(() => import("@/pages/services/signup").then(m => ({ default: m.SignupPage })));
+const AboutPage = lazy(() => import("@/pages/about/index").then(m => ({ default: m.AboutPage })));
+const ServicesPage = lazy(() => import("@/pages/services/index").then(m => ({ default: m.ServicesPage })));
+const BlogPage = lazy(() => import("@/pages/blog/index").then(m => ({ default: m.BlogPage })));
+const BlogArticlePage = lazy(() => import("@/pages/blog/article").then(m => ({ default: m.BlogArticlePage })));
+const PrivacyPolicyPage = lazy(() => import("@/pages/legal/privacy").then(m => ({ default: m.PrivacyPolicyPage })));
+const TermsOfServicePage = lazy(() => import("@/pages/legal/terms").then(m => ({ default: m.TermsOfServicePage })));
+const RefundPolicyPage = lazy(() => import("@/pages/legal/refund-policy").then(m => ({ default: m.RefundPolicyPage })));
+const CookiePolicyPage = lazy(() => import("@/pages/legal/cookie-policy").then(m => ({ default: m.CookiePolicyPage })));
+const AcceptableUsePolicyPage = lazy(() => import("@/pages/legal/acceptable-use").then(m => ({ default: m.AcceptableUsePolicyPage })));
 
 // Admin app pages
-import { AdminDashboard } from "@/pages/admin/index";
-import PlanListPage from "@/pages/admin/plans/list";
-import CreatePlanPage from "@/pages/admin/plans/create";
-import EditPlanPage from "@/pages/admin/plans/edit";
-import SubscriptionListPage from "@/pages/admin/subscriptions/list";
-import { AdminLoginPage } from "@/pages/admin/login";
-import { AdminRegisterPage } from "@/pages/admin/register";
-import { TenantListPage } from "@/pages/admin/tenants/list";
-import TenantShowPage from "@/pages/admin/tenants/show";
-import AdminSettingsPage from "@/pages/admin/settings/index";
+const AdminDashboard = lazy(() => import("@/pages/admin/index").then(m => ({ default: m.AdminDashboard })));
+const PlanListPage = lazy(() => import("@/pages/admin/plans/list"));
+const CreatePlanPage = lazy(() => import("@/pages/admin/plans/create"));
+const EditPlanPage = lazy(() => import("@/pages/admin/plans/edit"));
+const SubscriptionListPage = lazy(() => import("@/pages/admin/subscriptions/list"));
+const AdminLoginPage = lazy(() => import("@/pages/admin/login").then(m => ({ default: m.AdminLoginPage })));
+const AdminRegisterPage = lazy(() => import("@/pages/admin/register").then(m => ({ default: m.AdminRegisterPage })));
+const TenantListPage = lazy(() => import("@/pages/admin/tenants/list").then(m => ({ default: m.TenantListPage })));
+const TenantShowPage = lazy(() => import("@/pages/admin/tenants/show"));
+const AdminSettingsPage = lazy(() => import("@/pages/admin/settings/index"));
 
 function AdminPrefixedRedirect() {
   const location = useLocation();
@@ -164,100 +167,106 @@ function AdminApp({ adminHost }: { adminHost: boolean }) {
             },
           ]}
         >
-          <Routes>
-            {/* Admin root redirects */}
-            <Route
-              path="/"
-              element={<Navigate to={adminRoute("/login")} replace />}
-            />
-            <Route
-              path="/admin"
-              element={<Navigate to={adminRoute("/login")} replace />}
-            />
+          <Suspense fallback={
+            <div className="flex items-center justify-center min-h-screen bg-slate-50">
+              <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          }>
+            <Routes>
+              {/* Admin root redirects */}
+              <Route
+                path="/"
+                element={<Navigate to={adminRoute("/login")} replace />}
+              />
+              <Route
+                path="/admin"
+                element={<Navigate to={adminRoute("/login")} replace />}
+              />
 
-            {/* Admin Public Route */}
-            <Route
-              path={adminRoute("/login")}
-              element={
-                <PublicOnlyRoute>
-                  <AdminLoginPage />
-                </PublicOnlyRoute>
-              }
-            />
-            <Route
-              path={adminRoute("/register")}
-              element={
-                <PublicOnlyRoute>
-                  <AdminRegisterPage />
-                </PublicOnlyRoute>
-              }
-            />
-            <Route
-              path={adminRoute("/forgot-password")}
-              element={
-                <PublicOnlyRoute>
-                  <ForgotPasswordPage appKind="admin" />
-                </PublicOnlyRoute>
-              }
-            />
-            <Route
-              path={adminRoute("/verify-email")}
-              element={<VerifyEmailPage />}
-            />
-            <Route
-              path={adminRoute("/callback")}
-              element={<AuthCallbackPage />}
-            />
+              {/* Admin Public Route */}
+              <Route
+                path={adminRoute("/login")}
+                element={
+                  <PublicOnlyRoute>
+                    <AdminLoginPage />
+                  </PublicOnlyRoute>
+                }
+              />
+              <Route
+                path={adminRoute("/register")}
+                element={
+                  <PublicOnlyRoute>
+                    <AdminRegisterPage />
+                  </PublicOnlyRoute>
+                }
+              />
+              <Route
+                path={adminRoute("/forgot-password")}
+                element={
+                  <PublicOnlyRoute>
+                    <ForgotPasswordPage appKind="admin" />
+                  </PublicOnlyRoute>
+                }
+              />
+              <Route
+                path={adminRoute("/verify-email")}
+                element={<VerifyEmailPage />}
+              />
+              <Route
+                path={adminRoute("/callback")}
+                element={<AuthCallbackPage />}
+              />
 
-            {/* Admin Protected Routes */}
-            <Route
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Outlet />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            >
+              {/* Admin Protected Routes */}
               <Route
-                path={adminRoute("/dashboard")}
-                element={<AdminDashboard />}
-              />
-              <Route path={adminRoute("/tiers")} element={<PlanListPage />} />
-              <Route
-                path={adminRoute("/tiers/create")}
-                element={<CreatePlanPage />}
-              />
-              <Route
-                path={adminRoute("/tiers/:id/edit")}
-                element={<EditPlanPage />}
-              />
-              <Route
-                path={adminRoute("/subscriptions")}
-                element={<SubscriptionListPage />}
-              />
-              <Route
-                path={adminRoute("/tenants")}
-                element={<TenantListPage />}
-              />
-              <Route
-                path={adminRoute("/tenants/:id")}
-                element={<TenantShowPage />}
-              />
-              <Route
-                path={adminRoute("/settings")}
-                element={<AdminSettingsPage />}
-              />
-            </Route>
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Outlet />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              >
+                <Route
+                  path={adminRoute("/dashboard")}
+                  element={<AdminDashboard />}
+                />
+                <Route path={adminRoute("/tiers")} element={<PlanListPage />} />
+                <Route
+                  path={adminRoute("/tiers/create")}
+                  element={<CreatePlanPage />}
+                />
+                <Route
+                  path={adminRoute("/tiers/:id/edit")}
+                  element={<EditPlanPage />}
+                />
+                <Route
+                  path={adminRoute("/subscriptions")}
+                  element={<SubscriptionListPage />}
+                />
+                <Route
+                  path={adminRoute("/tenants")}
+                  element={<TenantListPage />}
+                />
+                <Route
+                  path={adminRoute("/tenants/:id")}
+                  element={<TenantShowPage />}
+                />
+                <Route
+                  path={adminRoute("/settings")}
+                  element={<AdminSettingsPage />}
+                />
+              </Route>
 
-            {adminHost ? (
-              <Route path="/admin/*" element={<AdminPrefixedRedirect />} />
-            ) : null}
-            <Route
-              path={adminHost ? "*" : "/admin/*"}
-              element={<RefineAiErrorComponent />}
-            />
-          </Routes>
+              {adminHost ? (
+                <Route path="/admin/*" element={<AdminPrefixedRedirect />} />
+              ) : null}
+              <Route
+                path={adminHost ? "*" : "/admin/*"}
+                element={<RefineAiErrorComponent />}
+              />
+            </Routes>
+          </Suspense>
           <Toaster />
         </Refine>
       </AuthProvider>
@@ -371,126 +380,132 @@ function CustomerApp() {
             },
           ]}
         >
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/services" element={<ServicesPage />} />
-            <Route path="/privacy" element={<PrivacyPolicyPage />} />
-            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-            <Route path="/terms" element={<TermsOfServicePage />} />
-            <Route path="/refund-policy" element={<RefundPolicyPage />} />
-            <Route path="/cookie-policy" element={<CookiePolicyPage />} />
-            <Route
-              path="/acceptable-use"
-              element={<AcceptableUsePolicyPage />}
-            />
-            <Route path="/blog" element={<BlogPage />} />
-            <Route path="/blog/:slug" element={<BlogArticlePage />} />
-            <Route path="/services/pricing" element={<PricingPage />} />
-            <Route path="/services/signup" element={<SignupPage />} />
+          <Suspense fallback={
+            <div className="flex items-center justify-center min-h-screen bg-slate-50">
+              <div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          }>
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/services" element={<ServicesPage />} />
+              <Route path="/privacy" element={<PrivacyPolicyPage />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+              <Route path="/terms" element={<TermsOfServicePage />} />
+              <Route path="/refund-policy" element={<RefundPolicyPage />} />
+              <Route path="/cookie-policy" element={<CookiePolicyPage />} />
+              <Route
+                path="/acceptable-use"
+                element={<AcceptableUsePolicyPage />}
+              />
+              <Route path="/blog" element={<BlogPage />} />
+              <Route path="/blog/:slug" element={<BlogArticlePage />} />
+              <Route path="/services/pricing" element={<PricingPage />} />
+              <Route path="/services/signup" element={<SignupPage />} />
 
-            {/* Auth Routes */}
-            <Route
-              path="/login"
-              element={
-                <PublicOnlyRoute>
-                  <LoginPage />
-                </PublicOnlyRoute>
-              }
-            />
-            <Route
-              path="/register"
-              element={
-                <PublicOnlyRoute>
-                  <RegisterPage />
-                </PublicOnlyRoute>
-              }
-            />
-            <Route
-              path="/forgot-password"
-              element={
-                <PublicOnlyRoute>
-                  <ForgotPasswordPage />
-                </PublicOnlyRoute>
-              }
-            />
-            <Route path="/verify-email" element={<VerifyEmailPage />} />
-            <Route
-              path="/signup"
-              element={
-                <PublicOnlyRoute>
-                  <SignupPage />
-                </PublicOnlyRoute>
-              }
-            />
-            <Route
-              path="/auth/signup"
-              element={
-                <PublicOnlyRoute>
-                  <SignupPage />
-                </PublicOnlyRoute>
-              }
-            />
-            <Route path="/auth/callback" element={<AuthCallbackPage />} />
-            <Route path="/auth/card-setup" element={<CardSetupPage />} />
-            <Route
-              path="/auth/card-setup/success"
-              element={<CardSetupSuccess />}
-            />
-            <Route path="/card-setup/success" element={<CardSetupSuccess />} />
+              {/* Auth Routes */}
+              <Route
+                path="/login"
+                element={
+                  <PublicOnlyRoute>
+                    <LoginPage />
+                  </PublicOnlyRoute>
+                }
+              />
+              <Route
+                path="/register"
+                element={
+                  <PublicOnlyRoute>
+                    <RegisterPage />
+                  </PublicOnlyRoute>
+                }
+              />
+              <Route
+                path="/forgot-password"
+                element={
+                  <PublicOnlyRoute>
+                    <ForgotPasswordPage />
+                  </PublicOnlyRoute>
+                }
+              />
+              <Route path="/verify-email" element={<VerifyEmailPage />} />
+              <Route
+                path="/signup"
+                element={
+                  <PublicOnlyRoute>
+                    <SignupPage />
+                  </PublicOnlyRoute>
+                }
+              />
+              <Route
+                path="/auth/signup"
+                element={
+                  <PublicOnlyRoute>
+                    <SignupPage />
+                  </PublicOnlyRoute>
+                }
+              />
+              <Route path="/auth/callback" element={<AuthCallbackPage />} />
+              <Route path="/auth/card-setup" element={<CardSetupPage />} />
+              <Route
+                path="/auth/card-setup/success"
+                element={<CardSetupSuccess />}
+              />
+              <Route path="/card-setup/success" element={<CardSetupSuccess />} />
 
-            {/* Dashboard Routes */}
-            <Route
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Outlet />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            >
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/invoices" element={<InvoiceListPage />} />
-              <Route path="/invoices/create" element={<InvoiceCreatePage />} />
-              <Route path="/invoices/:id" element={<InvoiceShowPage />} />
-              <Route path="/invoices/:id/edit" element={<InvoiceEditPage />} />
+              {/* Dashboard Routes */}
               <Route
-                path="/quotes"
-                element={<InvoiceListPage documentType="quote" />}
-              />
-              <Route
-                path="/quotes/create"
-                element={<InvoiceCreatePage documentType="quote" />}
-              />
-              <Route
-                path="/quotes/:id"
-                element={<InvoiceShowPage documentType="quote" />}
-              />
-              <Route
-                path="/quotes/:id/edit"
-                element={<InvoiceEditPage documentType="quote" />}
-              />
-              <Route path="/clients" element={<ClientListPage />} />
-              <Route path="/clients/create" element={<ClientCreatePage />} />
-              <Route path="/clients/:id/edit" element={<ClientEditPage />} />
-              <Route path="/plans" element={<PlansPage />} />
-              <Route path="/dashboard/plans" element={<PlansPage />} />
-              <Route path="/expenses" element={<ExpenseListPage />} />
-              <Route path="/expenses/create" element={<ExpenseCreatePage />} />
-              <Route path="/expenses/:id" element={<ExpenseShowPage />} />
-              <Route path="/expenses/:id/edit" element={<ExpenseEditPage />} />
-              <Route path="/contracts" element={<ContractListPage />} />
-              <Route
-                path="/contracts/create"
-                element={<ContractCreatePage />}
-              />
-              <Route path="/contracts/:id" element={<ContractShowPage />} />
-              <Route path="/compliance" element={<CompliancePage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-            </Route>
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Outlet />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/invoices" element={<InvoiceListPage />} />
+                <Route path="/invoices/create" element={<InvoiceCreatePage />} />
+                <Route path="/invoices/:id" element={<InvoiceShowPage />} />
+                <Route path="/invoices/:id/edit" element={<InvoiceEditPage />} />
+                <Route
+                  path="/quotes"
+                  element={<InvoiceListPage documentType="quote" />}
+                />
+                <Route
+                  path="/quotes/create"
+                  element={<InvoiceCreatePage documentType="quote" />}
+                />
+                <Route
+                  path="/quotes/:id"
+                  element={<InvoiceShowPage documentType="quote" />}
+                />
+                <Route
+                  path="/quotes/:id/edit"
+                  element={<InvoiceEditPage documentType="quote" />}
+                />
+                <Route path="/clients" element={<ClientListPage />} />
+                <Route path="/clients/create" element={<ClientCreatePage />} />
+                <Route path="/clients/:id/edit" element={<ClientEditPage />} />
+                <Route path="/plans" element={<PlansPage />} />
+                <Route path="/dashboard/plans" element={<PlansPage />} />
+                <Route path="/expenses" element={<ExpenseListPage />} />
+                <Route path="/expenses/create" element={<ExpenseCreatePage />} />
+                <Route path="/expenses/:id" element={<ExpenseShowPage />} />
+                <Route path="/expenses/:id/edit" element={<ExpenseEditPage />} />
+                <Route path="/contracts" element={<ContractListPage />} />
+                <Route
+                  path="/contracts/create"
+                  element={<ContractCreatePage />}
+                />
+                <Route path="/contracts/:id" element={<ContractShowPage />} />
+                <Route path="/compliance" element={<CompliancePage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+              </Route>
 
-            <Route path="*" element={<RefineAiErrorComponent />} />
-          </Routes>
+              <Route path="*" element={<RefineAiErrorComponent />} />
+            </Routes>
+          </Suspense>
           <Toaster />
         </Refine>
       </AuthProvider>
