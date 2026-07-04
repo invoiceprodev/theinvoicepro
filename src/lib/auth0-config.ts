@@ -16,16 +16,24 @@ export function getAuth0Config(appKind: AuthAppKind): ResolvedAuth0Config {
 
   return {
     domain: isAdmin
-      ? import.meta.env.VITE_ADMIN_AUTH0_DOMAIN || import.meta.env.VITE_AUTH0_DOMAIN
-      : import.meta.env.VITE_CUSTOMER_AUTH0_DOMAIN || import.meta.env.VITE_AUTH0_DOMAIN,
+      ? import.meta.env.VITE_ADMIN_AUTH0_DOMAIN ||
+        import.meta.env.VITE_AUTH0_DOMAIN
+      : import.meta.env.VITE_CUSTOMER_AUTH0_DOMAIN ||
+        import.meta.env.VITE_AUTH0_DOMAIN,
     clientId: isAdmin
-      ? import.meta.env.VITE_ADMIN_AUTH0_CLIENT_ID || import.meta.env.VITE_AUTH0_CLIENT_ID
-      : import.meta.env.VITE_CUSTOMER_AUTH0_CLIENT_ID || import.meta.env.VITE_AUTH0_CLIENT_ID,
+      ? import.meta.env.VITE_ADMIN_AUTH0_CLIENT_ID ||
+        import.meta.env.VITE_AUTH0_CLIENT_ID
+      : import.meta.env.VITE_CUSTOMER_AUTH0_CLIENT_ID ||
+        import.meta.env.VITE_AUTH0_CLIENT_ID,
     audience: isAdmin
-      ? import.meta.env.VITE_ADMIN_AUTH0_AUDIENCE || import.meta.env.VITE_AUTH0_AUDIENCE
-      : import.meta.env.VITE_CUSTOMER_AUTH0_AUDIENCE || import.meta.env.VITE_AUTH0_AUDIENCE || "https://api.theinvoicepro.co.za",
+      ? import.meta.env.VITE_ADMIN_AUTH0_AUDIENCE ||
+        import.meta.env.VITE_AUTH0_AUDIENCE
+      : import.meta.env.VITE_CUSTOMER_AUTH0_AUDIENCE ||
+        import.meta.env.VITE_AUTH0_AUDIENCE ||
+        "https://api.theinvoicepro.co.za",
     redirectUri: isAdmin
-      ? import.meta.env.VITE_ADMIN_AUTH0_REDIRECT_URI || `${window.location.origin}/admin/callback`
+      ? import.meta.env.VITE_ADMIN_AUTH0_REDIRECT_URI ||
+        `${window.location.origin}/admin/callback`
       : import.meta.env.VITE_CUSTOMER_AUTH0_REDIRECT_URI ||
         import.meta.env.VITE_AUTH0_REDIRECT_URI ||
         `${window.location.origin}/auth/callback`,

@@ -4,7 +4,11 @@
 
 export type Currency = "ZAR" | "USD" | "EUR";
 
-export const CURRENCIES: Array<{ value: Currency; label: string; symbol: string }> = [
+export const CURRENCIES: Array<{
+  value: Currency;
+  label: string;
+  symbol: string;
+}> = [
   { value: "ZAR", label: "South African Rand", symbol: "R" },
   { value: "USD", label: "US Dollar", symbol: "$" },
   { value: "EUR", label: "Euro", symbol: "EUR " },
@@ -23,7 +27,12 @@ export function getCurrencySymbol(currency?: string): string {
 }
 
 export type InvoiceStatus = "draft" | "sent" | "paid" | "pending" | "overdue";
-export type LegacyInvoiceStatus = "Draft" | "Sent" | "Paid" | "Pending" | "Overdue";
+export type LegacyInvoiceStatus =
+  | "Draft"
+  | "Sent"
+  | "Paid"
+  | "Pending"
+  | "Overdue";
 export type AnyInvoiceStatus = InvoiceStatus | LegacyInvoiceStatus;
 
 export function normalizeInvoiceStatus(status?: string | null): InvoiceStatus {
@@ -42,7 +51,9 @@ export function normalizeInvoiceStatus(status?: string | null): InvoiceStatus {
   }
 }
 
-export function formatInvoiceStatus(status?: string | null): LegacyInvoiceStatus {
+export function formatInvoiceStatus(
+  status?: string | null,
+): LegacyInvoiceStatus {
   switch (normalizeInvoiceStatus(status)) {
     case "draft":
       return "Draft";
@@ -76,7 +87,12 @@ export function normalizeClientStatus(status?: string | null): ClientStatus {
   }
 }
 
-export type ExpenseCategory = "Pay Client" | "Pay Salary" | "Subscription" | "Operating Cost" | "Other";
+export type ExpenseCategory =
+  | "Pay Client"
+  | "Pay Salary"
+  | "Subscription"
+  | "Operating Cost"
+  | "Other";
 export type ExpenseStatus = "Pending" | "Paid" | "Cancelled";
 
 export interface InvoiceItem {
@@ -219,7 +235,10 @@ export interface TeamMember {
   invited_at?: string;
   created_at?: string;
   updated_at?: string;
-  member_profile?: Pick<Profile, "id" | "full_name" | "business_email" | "company_name"> | null;
+  member_profile?: Pick<
+    Profile,
+    "id" | "full_name" | "business_email" | "company_name"
+  > | null;
 }
 
 export type CurrentSubscriptionState =
@@ -230,7 +249,9 @@ export type CurrentSubscriptionState =
   | "cancelled"
   | "expired";
 
-export function getCurrentSubscriptionState(subscription?: Subscription | null): CurrentSubscriptionState {
+export function getCurrentSubscriptionState(
+  subscription?: Subscription | null,
+): CurrentSubscriptionState {
   if (!subscription) {
     return "none";
   }
@@ -238,7 +259,9 @@ export function getCurrentSubscriptionState(subscription?: Subscription | null):
   if (subscription.status === "trial") {
     // If the trial end date has passed, consider the subscription expired
     try {
-      const trialEnd = subscription.trial_end_date ? new Date(subscription.trial_end_date) : null;
+      const trialEnd = subscription.trial_end_date
+        ? new Date(subscription.trial_end_date)
+        : null;
       if (trialEnd && trialEnd.getTime() < Date.now()) {
         return "expired";
       }
@@ -246,9 +269,16 @@ export function getCurrentSubscriptionState(subscription?: Subscription | null):
       // Ignore parse errors and continue with existing logic
     }
     const planName = String(subscription.plan?.name || "").toLowerCase();
-    const starterStylePlan = planName.includes("starter") || planName.includes("trial") || planName === "basic";
-    const canRunTrialWithoutCard = Boolean(subscription.plan?.trial_days) && starterStylePlan;
-    return subscription.payfast_token || subscription.paystack_authorization_code || subscription.subscription_token || canRunTrialWithoutCard
+    const starterStylePlan =
+      planName.includes("starter") ||
+      planName.includes("trial") ||
+      planName === "basic";
+    const canRunTrialWithoutCard =
+      Boolean(subscription.plan?.trial_days) && starterStylePlan;
+    return subscription.payfast_token ||
+      subscription.paystack_authorization_code ||
+      subscription.subscription_token ||
+      canRunTrialWithoutCard
       ? "trial_active"
       : "trial_pending";
   }
@@ -272,7 +302,13 @@ export interface SubscriptionHistory {
   new_plan_id?: string;
   old_status?: string;
   new_status?: string;
-  action_type: "created" | "plan_changed" | "status_changed" | "cancelled" | "upgraded" | "downgraded";
+  action_type:
+    | "created"
+    | "plan_changed"
+    | "status_changed"
+    | "cancelled"
+    | "upgraded"
+    | "downgraded";
   changed_at: string;
   notes?: string;
   old_plan?: Plan;
@@ -366,7 +402,11 @@ export interface WebhookLog {
   payment_id?: string;
 }
 
-export type TrialConversionStatus = "active_trial" | "converted" | "cancelled" | "failed";
+export type TrialConversionStatus =
+  | "active_trial"
+  | "converted"
+  | "cancelled"
+  | "failed";
 
 export interface TrialConversion {
   id: string;

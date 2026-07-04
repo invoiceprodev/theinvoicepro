@@ -44,7 +44,7 @@ export const apiConfig = {
   openAiContractModel:
     process.env.OPENAI_CONTRACT_MODEL ||
     process.env.OPENAI_MODEL ||
-    "gpt-4.1-mini",
+    "gpt-4o",
   llamaParseApiKey:
     process.env.LLAMA_PARSE_API_KEY || process.env.LLAMA_CLOUD_API_KEY || "",
   payfastNotifyUrl: process.env.PAYFAST_NOTIFY_URL || "",

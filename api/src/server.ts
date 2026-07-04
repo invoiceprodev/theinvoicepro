@@ -7,7 +7,6 @@ import express, {
 import { apiConfig } from "./config.js";
 import { verifyAccessToken, type AuthenticatedUser } from "./auth.js";
 import { decodeJwt } from "jose";
-import { apiConfig } from "./config.js";
 import {
   buildTrialSubscriptionCheckout,
   verifyPayFastSignature,
@@ -743,51 +742,50 @@ async function applyPayPalSubscriptionAuthorization(input: {
   return { subscription: updatedSubscription };
 }
 
-const allowedCorsOrigins = new Set<string>([
-  apiConfig.customerAppUrl,
-  apiConfig.adminAppUrl,
-]);
+const allowedCorsOrigins = new Set<string>();
 
-function addAlternateTheInvoiceProOrigin(origin: string) {
-  if (!origin.startsWith("https://")) {
-    return;
-  }
-
-  const normalized = origin.replace(/\/+$/, "");
-  if (normalized === "https://theinvoicepro.co.za") {
-    allowedCorsOrigins.add("https://www.theinvoicepro.co.za");
-  }
-
-  if (normalized === "https://www.theinvoicepro.co.za") {
-    allowedCorsOrigins.add("https://theinvoicepro.co.za");
+function safeAddOrigin(urlStr: string) {
+  if (!urlStr) return;
+  try {
+    const parsed = new URL(urlStr);
+    allowedCorsOrigins.add(parsed.origin.toLowerCase());
+  } catch (e) {
+    allowedCorsOrigins.add(urlStr.trim().replace(/\/+$/, "").toLowerCase());
   }
 }
 
-addAlternateTheInvoiceProOrigin(apiConfig.customerAppUrl);
-addAlternateTheInvoiceProOrigin(apiConfig.adminAppUrl);
+// Add configured customer and admin URLs
+safeAddOrigin(apiConfig.customerAppUrl);
+safeAddOrigin(apiConfig.adminAppUrl);
 
-function addLocalHostAlias(origin: string) {
-  if (!origin) return;
+// Create a copy of current origins to iterate over and generate aliases
+const baseOrigins = Array.from(allowedCorsOrigins);
+for (const origin of baseOrigins) {
+  // Add local host alias (127.0.0.1 <-> localhost)
   try {
-    const url = new URL(origin);
-    const host = url.hostname;
+    const parsed = new URL(origin);
+    const host = parsed.hostname;
+    const port = parsed.port ? `:${parsed.port}` : "";
+    const protocol = parsed.protocol;
     if (host === "127.0.0.1") {
-      const alias = origin.replace("127.0.0.1", "localhost");
-      allowedCorsOrigins.add(alias.replace(/\/+$/, ""));
-    }
-    if (host === "localhost") {
-      const alias = origin.replace("localhost", "127.0.0.1");
-      allowedCorsOrigins.add(alias.replace(/\/+$/, ""));
+      allowedCorsOrigins.add(`${protocol}//localhost${port}`);
+    } else if (host === "localhost") {
+      allowedCorsOrigins.add(`${protocol}//127.0.0.1${port}`);
     }
   } catch (e) {
     // ignore
   }
+
+  // Add www / non-www alternates for theinvoicepro.co.za
+  if (origin === "https://theinvoicepro.co.za") {
+    allowedCorsOrigins.add("https://www.theinvoicepro.co.za");
+  } else if (origin === "https://www.theinvoicepro.co.za") {
+    allowedCorsOrigins.add("https://theinvoicepro.co.za");
+  }
 }
 
-addLocalHostAlias(apiConfig.customerAppUrl);
-addLocalHostAlias(apiConfig.adminAppUrl);
-
 const vercelPreviewOriginPattern = /^(https:\/\/)?[a-z0-9-]+\.vercel\.app$/i;
+const theInvoiceProPattern = /^https:\/\/(.*\.)?theinvoicepro\.co\.za$/i;
 
 app.use(
   cors({
@@ -797,15 +795,19 @@ app.use(
         return;
       }
 
+      const originLower = origin.toLowerCase();
+
       if (
-        allowedCorsOrigins.has(origin) ||
-        vercelPreviewOriginPattern.test(origin)
+        allowedCorsOrigins.has(originLower) ||
+        vercelPreviewOriginPattern.test(originLower) ||
+        theInvoiceProPattern.test(originLower)
       ) {
         callback(null, true);
         return;
       }
 
-      callback(new Error(`Origin ${origin} is not allowed by CORS`));
+      console.warn(`[CORS] Origin rejected: ${origin}`);
+      callback(null, false);
     },
     credentials: false,
   }),
