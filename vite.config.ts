@@ -63,10 +63,6 @@ export default defineConfig({
           if (id.includes('@tanstack')) {
             return 'tanstack';
           }
-          // React + react-dom — always cached separately
-          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
-            return 'react';
-          }
           // Everything else in node_modules → vendor
           if (id.includes('node_modules')) {
             return 'vendor';
