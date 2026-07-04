@@ -144,11 +144,11 @@ function Auth0BridgeSync({ appKind }: { appKind: AuthAppKind }) {
       try {
         const handoff = getPendingAuthHandoff();
 
-        let lastError: unknown;
+        let syncProfile: Profile | null = null;
         const maxAttempts = 3;
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
           try {
-            await apiRequest<{ profile: Profile; created: boolean }>("/auth/sync-profile", {
+            const syncResponse = await apiRequest<{ profile: Profile; created: boolean }>("/auth/sync-profile", {
               method: "POST",
               body: JSON.stringify({
                 email: handoff?.email ?? user.email ?? null,
@@ -156,7 +156,8 @@ function Auth0BridgeSync({ appKind }: { appKind: AuthAppKind }) {
                 mode: handoff?.mode ?? "login",
               }),
             });
-            lastError = undefined;
+            // Use the profile returned by sync immediately — avoids an extra /me round-trip
+            syncProfile = syncResponse.profile ?? null;
             break;
           } catch (err) {
             const isClientError =
@@ -164,22 +165,23 @@ function Auth0BridgeSync({ appKind }: { appKind: AuthAppKind }) {
             if (isClientError || attempt === maxAttempts) {
               throw err;
             }
-            lastError = err;
             console.warn(
               `[Auth0] profile sync attempt ${attempt} failed, retrying in ${attempt}s…`,
-              lastError,
+              err,
             );
             await new Promise((r) => setTimeout(r, attempt * 1000));
           }
         }
 
-        const response = await apiRequest<{ profile: Profile | null; auth0: Record<string, unknown> }>("/me");
-
-        let subscription: Subscription | null = null;
-        if (appKind !== "admin") {
-          const subscriptionResponse = await apiRequest<{ data: Subscription | null }>("/subscription/current");
-          subscription = subscriptionResponse.data;
-        }
+        // Run /me and /subscription/current in parallel to cut one RTT from the critical path
+        const [meResponse, subscriptionResponse] = await Promise.all([
+          syncProfile
+            ? Promise.resolve({ profile: syncProfile, auth0: user as Record<string, unknown> })
+            : apiRequest<{ profile: Profile | null; auth0: Record<string, unknown> }>("/me"),
+          appKind !== "admin"
+            ? apiRequest<{ data: Subscription | null }>("/subscription/current")
+            : Promise.resolve({ data: null }),
+        ]);
 
         if (cancelled) return;
 
@@ -187,12 +189,12 @@ function Auth0BridgeSync({ appKind }: { appKind: AuthAppKind }) {
 
         setProfileBridgeSnapshot({
           isLoading: false,
-          profile: response.profile,
-          auth0User: response.auth0,
+          profile: meResponse.profile,
+          auth0User: meResponse.auth0,
         });
         setSubscriptionBridgeSnapshot({
           isLoading: false,
-          subscription,
+          subscription: subscriptionResponse.data,
         });
       } catch (syncError) {
         const isTimeout =
