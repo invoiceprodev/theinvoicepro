@@ -748,35 +748,33 @@ function safeAddOrigin(urlStr: string) {
   if (!urlStr) return;
   try {
     const parsed = new URL(urlStr);
-    allowedCorsOrigins.add(parsed.origin.toLowerCase());
+    const normalizedOrigin = parsed.origin.toLowerCase();
+    allowedCorsOrigins.add(normalizedOrigin);
+
+    const host = parsed.hostname.toLowerCase();
+    const port = parsed.port ? `:${parsed.port}` : "";
+    const protocol = parsed.protocol;
+    if (host === "127.0.0.1" || host === "localhost" || host === "[::1]") {
+      allowedCorsOrigins.add(`${protocol}//localhost${port}`);
+      allowedCorsOrigins.add(`${protocol}//127.0.0.1${port}`);
+      allowedCorsOrigins.add(`${protocol}//[::1]${port}`);
+    }
   } catch (e) {
     allowedCorsOrigins.add(urlStr.trim().replace(/\/+$/, "").toLowerCase());
   }
 }
 
-// Add configured customer and admin URLs
+// Add configured customer and admin URLs plus common local dev origins
 safeAddOrigin(apiConfig.customerAppUrl);
 safeAddOrigin(apiConfig.adminAppUrl);
+safeAddOrigin(apiConfig.apiBaseUrl);
+safeAddOrigin("http://127.0.0.1:5173");
+safeAddOrigin("http://localhost:5173");
+safeAddOrigin("http://127.0.0.1:3000");
+safeAddOrigin("http://localhost:3000");
 
-// Create a copy of current origins to iterate over and generate aliases
-const baseOrigins = Array.from(allowedCorsOrigins);
-for (const origin of baseOrigins) {
-  // Add local host alias (127.0.0.1 <-> localhost)
-  try {
-    const parsed = new URL(origin);
-    const host = parsed.hostname;
-    const port = parsed.port ? `:${parsed.port}` : "";
-    const protocol = parsed.protocol;
-    if (host === "127.0.0.1") {
-      allowedCorsOrigins.add(`${protocol}//localhost${port}`);
-    } else if (host === "localhost") {
-      allowedCorsOrigins.add(`${protocol}//127.0.0.1${port}`);
-    }
-  } catch (e) {
-    // ignore
-  }
-
-  // Add www / non-www alternates for theinvoicepro.co.za
+// Add www / non-www alternates for theinvoicepro.co.za
+for (const origin of Array.from(allowedCorsOrigins)) {
   if (origin === "https://theinvoicepro.co.za") {
     allowedCorsOrigins.add("https://www.theinvoicepro.co.za");
   } else if (origin === "https://www.theinvoicepro.co.za") {
@@ -784,7 +782,10 @@ for (const origin of baseOrigins) {
   }
 }
 
+const localDevOriginPattern = /^(https?:\/\/)(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i;
 const vercelPreviewOriginPattern = /^(https:\/\/)?[a-z0-9-]+\.vercel\.app$/i;
+const netlifyPreviewOriginPattern = /^(https:\/\/)?[a-z0-9-]+\.netlify\.app$/i;
+const railwayOriginPattern = /^https:\/\/[a-z0-9-]+\.up\.railway\.app$/i;
 const theInvoiceProPattern = /^https:\/\/(.*\.)?theinvoicepro\.co\.za$/i;
 
 app.use(
@@ -799,7 +800,10 @@ app.use(
 
       if (
         allowedCorsOrigins.has(originLower) ||
+        localDevOriginPattern.test(originLower) ||
         vercelPreviewOriginPattern.test(originLower) ||
+        netlifyPreviewOriginPattern.test(originLower) ||
+        railwayOriginPattern.test(originLower) ||
         theInvoiceProPattern.test(originLower)
       ) {
         callback(null, true);
@@ -809,7 +813,10 @@ app.use(
       console.warn(`[CORS] Origin rejected: ${origin}`);
       callback(null, false);
     },
+    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
     credentials: false,
+    optionsSuccessStatus: 204,
   }),
 );
 app.use("/paystack/webhook", express.raw({ type: "application/json" }));

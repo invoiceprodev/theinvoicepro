@@ -1,6 +1,20 @@
 import { getAuth0BridgeSnapshot } from "@/lib/auth0-bridge";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "";
+function getDefaultApiBaseUrl() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const hostname = window.location.hostname;
+  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]") {
+    const host = hostname === "localhost" ? "localhost" : "127.0.0.1";
+    return `http://${host}:3000`;
+  }
+
+  return "";
+}
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || getDefaultApiBaseUrl();
 
 export class ApiClientError extends Error {
   status: number;
