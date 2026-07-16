@@ -1,0 +1,139 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#020617"/>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="132" cy="94" r="220" fill="#10B981" fill-opacity="0.18"/>
+  <circle cx="1016" cy="132" r="214" fill="#38BDF8" fill-opacity="0.16"/>
+  <circle cx="992" cy="554" r="232" fill="#14B8A6" fill-opacity="0.12"/>
+
+  <rect x="70" y="62" width="1060" height="506" rx="32" fill="white" fill-opacity="0.04" stroke="white" stroke-opacity="0.08"/>
+
+  <rect x="110" y="110" width="186" height="42" rx="21" fill="white" fill-opacity="0.08" stroke="white" stroke-opacity="0.1"/>
+  <text fill="white" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="600">
+    <tspan x="142" y="137.364">Trusted by growing teams</tspan>
+  </text>
+
+  <text fill="white" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="66" font-weight="800">
+    <tspan x="111" y="235.988">Your Invoicing,</tspan>
+    <tspan x="111" y="312.988">Simplified.</tspan>
+  </text>
+  <text fill="#CBD5E1" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="500">
+    <tspan x="113" y="383.34">Create invoices, manage clients, track expenses,</tspan>
+    <tspan x="113" y="422.34">and get paid faster with The Invoice Pro.</tspan>
+  </text>
+
+  <rect x="112" y="474" width="232" height="62" rx="31" fill="white"/>
+  <text fill="#0F172A" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">
+    <tspan x="158" y="513.184">Start Free Trial</tspan>
+  </text>
+
+  <g transform="translate(760 78) rotate(-11 160 235)">
+    <rect x="0" y="0" width="318" height="500" rx="48" fill="url(#phoneBody)" stroke="white" stroke-opacity="0.16" stroke-width="3"/>
+    <rect x="10" y="10" width="298" height="480" rx="40" fill="#020617"/>
+    <rect x="98" y="18" width="122" height="22" rx="11" fill="#020617"/>
+    <rect x="138" y="26" width="42" height="6" rx="3" fill="#1E293B"/>
+    <circle cx="126" cy="29" r="5" fill="#1E293B"/>
+
+    <rect x="22" y="44" width="274" height="430" rx="31" fill="#FFFFFF"/>
+    <rect x="22" y="44" width="274" height="58" rx="31" fill="#FFFFFF"/>
+    <line x1="22" y1="102.5" x2="296" y2="102.5" stroke="#E2E8F0"/>
+
+    <text fill="#64748B" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="10" font-weight="700">
+      <tspan x="38" y="67.64">9:41</tspan>
+    </text>
+    <text fill="#64748B" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="9" font-weight="600">
+      <tspan x="254" y="67.152">5G</tspan>
+    </text>
+    <rect x="266" y="58" width="18" height="10" rx="5" stroke="#94A3B8" stroke-width="1.5"/>
+    <rect x="246" y="61" width="3" height="7" rx="1.5" fill="#94A3B8"/>
+    <rect x="240" y="63" width="3" height="5" rx="1.5" fill="#94A3B8"/>
+    <rect x="234" y="65" width="3" height="3" rx="1.5" fill="#94A3B8"/>
+
+    <rect x="38" y="78" width="242" height="18" rx="9" fill="#F8FAFC" stroke="#E2E8F0"/>
+    <text fill="#475569" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="10" font-weight="600">
+      <tspan x="74" y="90.64">theinvoicepro.co.za</tspan>
+    </text>
+    <circle cx="54" cy="87" r="4" fill="#0EA5E9"/>
+
+    <rect x="38" y="118" width="242" height="224" rx="10" fill="#FFFFFF" stroke="#CBD5E1"/>
+    <line x1="38" y1="152.5" x2="280" y2="152.5" stroke="#E2E8F0"/>
+    <text fill="#64748B" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="9" font-weight="700">
+      <tspan x="52" y="140.276">INVOICE</tspan>
+      <tspan x="227" y="140.276">CONTACT</tspan>
+    </text>
+
+    <line x1="38" y1="192.5" x2="280" y2="192.5" stroke="#E2E8F0"/>
+    <text fill="#0F172A" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="600">
+      <tspan x="52" y="174.004">Lerato Catering PTY LTD</tspan>
+    </text>
+    <text fill="#64748B" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="8" font-weight="500">
+      <tspan x="52" y="186.728">Cape Town, South Africa</tspan>
+      <tspan x="209" y="174.728">Client Ref 40.187</tspan>
+      <tspan x="244" y="186.728">10:09</tspan>
+    </text>
+
+    <rect x="52" y="206" width="214" height="52" rx="10" fill="#FFFFFF" stroke="#CBD5E1"/>
+    <text fill="#0F172A" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="10" font-weight="700">
+      <tspan x="66" y="226.64">Lerato Catering</tspan>
+      <tspan x="66" y="239.64">PTY LTD</tspan>
+    </text>
+    <text fill="#64748B" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="8" font-weight="500">
+      <tspan x="66" y="251.728">Company</tspan>
+      <tspan x="205" y="226.728">INV-2025-0042</tspan>
+      <tspan x="220" y="239.728">30 Apr 2025</tspan>
+    </text>
+
+    <line x1="38" y1="275.5" x2="280" y2="275.5" stroke="#E2E8F0"/>
+    <text fill="#64748B" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="8" font-weight="600">
+      <tspan x="52" y="269.728">Invoice</tspan>
+      <tspan x="151" y="269.728">Subtotal</tspan>
+      <tspan x="245" y="269.728">100%</tspan>
+    </text>
+
+    <line x1="38" y1="302.5" x2="280" y2="302.5" stroke="#CBD5E1"/>
+    <line x1="170.5" y1="275" x2="170.5" y2="342" stroke="#CBD5E1"/>
+    <line x1="229.5" y1="275" x2="229.5" y2="342" stroke="#CBD5E1"/>
+    <line x1="38" y1="319.5" x2="280" y2="319.5" stroke="#CBD5E1"/>
+    <line x1="38" y1="336.5" x2="280" y2="336.5" stroke="#CBD5E1"/>
+
+    <text fill="#0F172A" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="8" font-weight="500">
+      <tspan x="52" y="296.728">The Company</tspan>
+      <tspan x="52" y="313.728">Cliquot</tspan>
+      <tspan x="52" y="330.728">Consulting</tspan>
+      <tspan x="183" y="296.728">New design</tspan>
+      <tspan x="192" y="313.728">SEO</tspan>
+      <tspan x="188" y="330.728">4 hours</tspan>
+      <tspan x="244" y="296.728">R 12k</tspan>
+      <tspan x="242" y="313.728">R 3.5k</tspan>
+      <tspan x="242" y="330.728">R 3.4k</tspan>
+    </text>
+
+    <text fill="#64748B" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="8" font-weight="600">
+      <tspan x="42" y="371.728">TOTAL DUE</tspan>
+      <tspan x="212" y="371.728">Invoice terms</tspan>
+    </text>
+    <text fill="#0F172A" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="700">
+      <tspan x="42" y="392.184">R 21,235.00</tspan>
+    </text>
+    <text fill="#0F172A" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="8" font-weight="600">
+      <tspan x="242" y="385.728">Net 30</tspan>
+    </text>
+
+    <rect x="38" y="410" width="242" height="40" rx="16" fill="#0F172A"/>
+    <text fill="white" xml:space="preserve" style="white-space: pre" font-family="Inter, Arial, sans-serif" font-size="10" font-weight="700">
+      <tspan x="113" y="434.64">SEND INVOICE NOW</tspan>
+    </text>
+  </g>
+
+  <defs>
+    <linearGradient id="bg" x1="87" y1="44" x2="1112" y2="615" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="0.52" stop-color="#111827"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="phoneBody" x1="159" y1="0" x2="159" y2="500" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3F3F46"/>
+      <stop offset="0.24" stop-color="#18181B"/>
+      <stop offset="1" stop-color="#09090B"/>
+    </linearGradient>
+  </defs>
+</svg>

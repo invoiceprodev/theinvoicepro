@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /auth
+Disallow: /auth/
+Disallow: /login
+Disallow: /register
+Disallow: /signup
+Disallow: /verify-email
+Disallow: /card-setup
+Disallow: /card-setup/
+Disallow: /services/signup
+
+Sitemap: https://theinvoicepro.co.za/sitemap.xml

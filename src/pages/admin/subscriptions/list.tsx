@@ -1,0 +1,472 @@
+import { useTable } from "@refinedev/react-table";
+import { createColumnHelper } from "@tanstack/react-table";
+import { useState } from "react";
+import type { Subscription, Plan, Profile } from "@/types";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ListView } from "@/components/refine-ui/views/list-view";
+import { DataTable } from "@/components/refine-ui/data-table/data-table";
+import { RefreshButton } from "@/components/refine-ui/buttons/refresh";
+import { Breadcrumb } from "@/components/refine-ui/layout/breadcrumb";
+import { Separator } from "@/components/ui/separator";
+import { ManageSubscriptionModal } from "@/components/manage-subscription-modal";
+import {
+  DataTableFilterDropdownText,
+  DataTableFilterCombobox,
+} from "@/components/refine-ui/data-table/data-table-filter";
+import { formatCurrency } from "@/lib/utils";
+import { Settings, CreditCard } from "lucide-react";
+import { useMemo } from "react";
+import { useList, useNotification, useUpdate } from "@refinedev/core";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
+import { apiRequest } from "@/lib/api-client";
+import { submitPayFastForm } from "@/lib/payfast-form";
+
+const columnHelper = createColumnHelper<Subscription>();
+
+// Status badge variant mapping
+const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  active: "default",
+  trial: "secondary",
+  cancelled: "destructive",
+  expired: "outline",
+};
+
+function formatPlanAmount(plan?: Plan) {
+  if (!plan) return "N/A";
+  if (plan.currency && plan.currency !== "ZAR") {
+    return `${plan.currency} ${Number(plan.price || 0).toFixed(2)}`;
+  }
+  return formatCurrency(Number(plan.price || 0));
+}
+
+export default function SubscriptionListPage() {
+  const [selectedSubscription, setSelectedSubscription] = useState<{
+    subscription: Subscription;
+    currentPlan: Plan;
+    profile: Profile;
+  } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{
+    type: "cancel" | "reactivate" | "extend-trial";
+    subscription: Subscription;
+    days?: number;
+  } | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [payingSubscriptionId, setPayingSubscriptionId] = useState<string | null>(null);
+  const paymentProvider = (import.meta.env.VITE_PAYMENT_PROVIDER || "paystack").toLowerCase();
+  const paymentProviderLabel = paymentProvider === "paystack" ? "Paystack" : "PayFast";
+
+  const { mutate: updateSubscription } = useUpdate();
+  const { open: openNotification } = useNotification();
+
+  const { result: plansResult } = useList<Plan>({
+    resource: "plans",
+    filters: [{ field: "is_active", operator: "eq", value: true }],
+    pagination: { mode: "off" },
+  });
+
+  // Get unique plans for filter options
+  const planFilterOptions = useMemo(() => {
+    if (!plansResult?.data) return [];
+    return plansResult.data.map((plan: Plan) => ({
+      label: plan.name,
+      value: plan.id,
+    }));
+  }, [plansResult?.data]);
+
+  const handleActionConfirm = () => {
+    if (!confirmAction) return;
+
+    const { type, subscription, days } = confirmAction;
+    let values: Partial<Subscription> = {};
+    let successMessage = "";
+
+    switch (type) {
+      case "cancel":
+        values = { status: "cancelled", updated_at: new Date().toISOString() };
+        successMessage = "Subscription cancelled successfully";
+        break;
+      case "reactivate":
+        values = { status: "active", updated_at: new Date().toISOString() };
+        successMessage = "Subscription reactivated successfully";
+        break;
+      case "extend-trial":
+        if (days && subscription.trial_end_date) {
+          const trialEndDate = new Date(subscription.trial_end_date);
+          trialEndDate.setDate(trialEndDate.getDate() + days);
+          values = {
+            trial_end_date: trialEndDate.toISOString(),
+            renewal_date: trialEndDate.toISOString().split("T")[0],
+            updated_at: new Date().toISOString(),
+          };
+          successMessage = `Trial extended by ${days} days`;
+        }
+        break;
+    }
+
+    setIsUpdating(true);
+
+    updateSubscription(
+      {
+        resource: "subscriptions",
+        id: subscription.id,
+        values,
+      },
+      {
+        onSuccess: () => {
+          setIsUpdating(false);
+          openNotification?.({
+            type: "success",
+            message: "Success",
+            description: successMessage,
+          });
+          setConfirmAction(null);
+        },
+        onError: (error) => {
+          setIsUpdating(false);
+          openNotification?.({
+            type: "error",
+            message: "Action Failed",
+            description: error.message || "Failed to update subscription",
+          });
+        },
+      },
+    );
+  };
+
+  const handlePayNow = async (subscription: Subscription, plan: Plan, profile: Profile) => {
+    setPayingSubscriptionId(subscription.id);
+
+    try {
+      const paymentWindow = window.open("", `payment-${subscription.id}`, "width=800,height=600,scrollbars=yes");
+
+      if (!paymentWindow) {
+        openNotification?.({
+          type: "error",
+          message: "Popup Blocked",
+          description: "Please allow popups to complete payment.",
+        });
+        return;
+      }
+
+      if (paymentProvider === "paystack") {
+        const response = await apiRequest<{
+          data: {
+            authorizationUrl: string;
+            reference: string;
+          };
+        }>(`/subscriptions/${subscription.id}/paystack-checkout`, {
+          method: "POST",
+          body: JSON.stringify({ planId: plan.id }),
+        });
+
+        paymentWindow.location.href = response.data.authorizationUrl;
+      } else {
+        const response = await apiRequest<{
+          data: {
+            action: string;
+            fields: Record<string, string | number | boolean>;
+          };
+        }>(`/subscriptions/${subscription.id}/payfast-checkout`, {
+          method: "POST",
+          body: JSON.stringify({ planId: plan.id }),
+        });
+
+        submitPayFastForm(response.data.action, response.data.fields, paymentWindow.name);
+      }
+
+      openNotification?.({
+        type: "success",
+        message: "Payment Initiated",
+        description: `${paymentProviderLabel} checkout opened for ${profile.full_name || profile.business_email || plan.name}.`,
+      });
+    } catch (error) {
+      openNotification?.({
+        type: "error",
+        message: "Payment Error",
+        description:
+          error instanceof Error ? error.message : `Failed to open ${paymentProviderLabel} checkout.`,
+      });
+    } finally {
+      setPayingSubscriptionId(null);
+    }
+  };
+
+  const columns = useMemo(
+    () => [
+      columnHelper.accessor("user_id", {
+      id: "client_name",
+      size: 145,
+      header: ({ column, table }) => (
+        <div className="flex items-center gap-1">
+          <span>Client Name</span>
+          <DataTableFilterDropdownText
+            defaultOperator="contains"
+            column={column}
+            table={table}
+            placeholder="Search name..."
+          />
+        </div>
+      ),
+      cell: (info) => {
+        const profile = info.row.original.profile;
+        return <span className="font-medium">{profile?.full_name || "N/A"}</span>;
+      },
+      }),
+      columnHelper.accessor("user_id", {
+      id: "client_email",
+      size: 230,
+      header: "Email",
+      cell: (info) => {
+        const profile = info.row.original.profile;
+        return <span className="text-sm text-muted-foreground">{profile?.business_email || "N/A"}</span>;
+      },
+      }),
+      columnHelper.accessor("plan_id", {
+      size: 160,
+      header: ({ column }) => (
+        <div className="flex items-center gap-1">
+          <span>Plan</span>
+          <DataTableFilterCombobox column={column} defaultOperator="eq" multiple={false} options={planFilterOptions} />
+        </div>
+      ),
+      cell: (info) => {
+        const plan = info.row.original.plan;
+        return <span className="font-medium">{plan?.name || "N/A"}</span>;
+      },
+      }),
+      columnHelper.accessor("status", {
+      size: 105,
+      header: ({ column }) => (
+        <div className="flex items-center gap-1">
+          <span>Status</span>
+          <DataTableFilterCombobox
+            column={column}
+            defaultOperator="eq"
+            multiple={false}
+            options={[
+              { label: "Active", value: "active" },
+              { label: "Trial", value: "trial" },
+              { label: "Cancelled", value: "cancelled" },
+              { label: "Expired", value: "expired" },
+            ]}
+          />
+        </div>
+      ),
+      cell: (info) => {
+        const status = info.getValue();
+        return (
+          <Badge variant={statusVariants[status] || "outline"}>
+            {status.charAt(0).toUpperCase() + status.slice(1)}
+          </Badge>
+        );
+      },
+      }),
+      columnHelper.accessor("renewal_date", {
+      size: 115,
+      header: "Renewal Date",
+      cell: (info) => {
+        const date = info.getValue();
+        if (!date) return <span className="text-muted-foreground">N/A</span>;
+        return <span>{new Date(date).toLocaleDateString()}</span>;
+      },
+      }),
+      columnHelper.accessor("plan_id", {
+      id: "amount",
+      size: 95,
+      header: "Amount",
+      cell: (info) => {
+        const plan = info.row.original.plan;
+        if (!plan) return <span className="text-muted-foreground">N/A</span>;
+        return <span className="font-semibold">{formatPlanAmount(plan)}</span>;
+      },
+      }),
+      columnHelper.display({
+      id: "actions",
+      size: 245,
+      header: "Actions",
+      cell: (info) => {
+        const subscription = info.row.original;
+        const profile = subscription.profile as Profile | undefined;
+        const plan = subscription.plan as Plan | undefined;
+
+        if (!profile || !plan) {
+          return <span className="text-muted-foreground text-sm">Missing related data</span>;
+        }
+
+        const isActive = subscription.status === "active";
+        const isTrial = subscription.status === "trial";
+        const isCancelled = subscription.status === "cancelled";
+        const isExpired = subscription.status === "expired";
+        const isPaying = payingSubscriptionId === subscription.id;
+
+        return (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => handlePayNow(subscription, plan, profile)}
+              disabled={isPaying || isUpdating}>
+              <CreditCard className="h-4 w-4 mr-1" />
+              {isPaying ? "Processing..." : "Pay Now"}
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="px-2"
+              onClick={() =>
+                setSelectedSubscription({
+                  subscription,
+                  currentPlan: plan,
+                  profile,
+                })
+              }>
+              <Settings className="h-4 w-4 mr-1" />
+              Manage
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="px-2" disabled={isUpdating}>
+                  Quick Actions
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+
+                {(isActive || isTrial) && (
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onSelect={() => setConfirmAction({ type: "cancel", subscription })}>
+                    Cancel Subscription
+                  </DropdownMenuItem>
+                )}
+
+                {(isCancelled || isExpired) && (
+                  <DropdownMenuItem onSelect={() => setConfirmAction({ type: "reactivate", subscription })}>
+                    Reactivate Subscription
+                  </DropdownMenuItem>
+                )}
+
+                {isTrial && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-xs">Extend Trial</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onSelect={() => setConfirmAction({ type: "extend-trial", subscription, days: 7 })}>
+                      + 7 days
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => setConfirmAction({ type: "extend-trial", subscription, days: 14 })}>
+                      + 14 days
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => setConfirmAction({ type: "extend-trial", subscription, days: 30 })}>
+                      + 30 days
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        );
+      },
+      }),
+    ],
+    [isUpdating, payingSubscriptionId, paymentProviderLabel, planFilterOptions],
+  );
+
+  const table = useTable<Subscription>({
+    columns,
+    refineCoreProps: {
+      resource: "subscriptions",
+    },
+  });
+
+  return (
+    <>
+      <ListView>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center relative gap-2">
+            <div className="bg-background z-[2] pr-4">
+              <Breadcrumb />
+            </div>
+            <Separator className="absolute left-0 right-0 z-[1]" />
+          </div>
+          <div className="flex justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold">Client Subscriptions</h2>
+              <p className="text-muted-foreground">Manage all client subscriptions and plans</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <RefreshButton resource="subscriptions" />
+            </div>
+          </div>
+        </div>
+        <DataTable table={table} />
+      </ListView>
+
+      {selectedSubscription && (
+        <ManageSubscriptionModal
+          subscription={selectedSubscription.subscription}
+          currentPlan={selectedSubscription.currentPlan}
+          profile={selectedSubscription.profile}
+          open={!!selectedSubscription}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedSubscription(null);
+            }
+          }}
+        />
+      )}
+
+      <AlertDialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmAction?.type === "cancel" && "Cancel Subscription"}
+              {confirmAction?.type === "reactivate" && "Reactivate Subscription"}
+              {confirmAction?.type === "extend-trial" && "Extend Trial Period"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction?.type === "cancel" &&
+                "This will cancel the subscription. The client will lose access at the end of their billing period. This action can be undone by reactivating."}
+              {confirmAction?.type === "reactivate" &&
+                "This will reactivate the subscription and restore client access. The renewal date will remain unchanged."}
+              {confirmAction?.type === "extend-trial" &&
+                `This will extend the trial period by ${confirmAction?.days} days. The renewal date will be updated accordingly.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isUpdating}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleActionConfirm}
+              disabled={isUpdating}
+              className={confirmAction?.type === "cancel" ? "bg-destructive hover:bg-destructive/90" : ""}>
+              {isUpdating ? "Processing..." : "Confirm"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
