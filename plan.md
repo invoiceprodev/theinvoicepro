@@ -6,7 +6,7 @@ Migrate the current app to the target production architecture:
 
 - Customer app: `https://theinvoicepro.co.za`
 - Admin app: `https://admin.theinvoicepro.co.za`
-- Backend API: `https://api.theinvoicepro.co.za`
+- Backend API (temporary Railway URL): `https://theinvoicepro-production-b54c.up.railway.app`
 - Frontend hosting: `Vercel`
 - Backend hosting: `Railway`
 - Database and storage: `Supabase`
@@ -20,7 +20,7 @@ The target deployment architecture is now live.
 
 - Customer frontend is live on `Vercel`
 - Admin frontend is live on `Vercel`
-- Railway API is live and healthy at `https://api.theinvoicepro.co.za/health`
+- Railway API is live and healthy at `https://theinvoicepro-production-b54c.up.railway.app/health` (temporary URL)
 - Auth is now Auth0-based for customer and admin flows
 - Resend delivery is API-owned
 - Admin pricing, tenants, and subscriptions are API-backed
@@ -30,7 +30,7 @@ The target deployment architecture is now live.
 ## Immediate Next Focus
 
 - Validate end-to-end PayFast checkout and recurring setup against a recurring-capable merchant account
-- Confirm live webhook handling on `https://api.theinvoicepro.co.za/payfast/webhook`
+- Confirm live webhook handling on `https://theinvoicepro-production-b54c.up.railway.app/payfast/webhook`
 - Re-test card-required trial start and paid-plan change flows after PayFast hardening
 
 ## Traceability Rules

@@ -27,7 +27,7 @@ Current live deployment:
 
 - customer frontend: `https://theinvoicepro.co.za`
 - admin frontend: `https://admin.theinvoicepro.co.za`
-- API: `https://api.theinvoicepro.co.za`
+- API (temporary Railway URL): `https://theinvoicepro-production-b54c.up.railway.app`
 
 Deployment guide:
 
@@ -63,7 +63,7 @@ Local note:
 - admin pricing, tenant, subscription, trial conversion, and plan management pages using live API-backed data
 - invoice email send with PDF attachment through Resend
 - expense receipt email with PDF attachment through Resend
-- Railway production API health endpoint at `https://api.theinvoicepro.co.za/health`
+- Railway production API health endpoint at `https://theinvoicepro-production-b54c.up.railway.app/health` (temporary URL)
 
 ## Known Caveats
 

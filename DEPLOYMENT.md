@@ -4,7 +4,7 @@ Target production surfaces:
 
 - customer frontend: `https://theinvoicepro.co.za`
 - admin frontend: `https://admin.theinvoicepro.co.za`
-- API: `https://api.theinvoicepro.co.za`
+- API (temporary Railway URL): `https://theinvoicepro-production-b54c.up.railway.app`
 
 Use [`.env.example`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/.env.example) as the canonical variable map.
 
@@ -149,7 +149,7 @@ Root/start expectations:
 Set these environment variables in Railway:
 
 ```env
-API_BASE_URL=https://api.theinvoicepro.co.za
+API_BASE_URL=https://theinvoicepro-production-b54c.up.railway.app
 CUSTOMER_APP_URL=https://theinvoicepro.co.za
 ADMIN_APP_URL=https://admin.theinvoicepro.co.za
 
@@ -180,7 +180,7 @@ PAYPAL_CALLBACK_URL=https://theinvoicepro.co.za/auth/card-setup/success?provider
 
 After deploy, confirm:
 
-- `https://api.theinvoicepro.co.za/health` responds
+- `https://theinvoicepro-production-b54c.up.railway.app/health` responds
 - Paystack checkout opens and returns to the customer app
 - PayPal checkout opens and returns to the customer app when enabled
 
@@ -200,7 +200,7 @@ Set these environment variables:
 
 ```env
 VITE_APP_URL=https://theinvoicepro.co.za
-VITE_API_URL=https://api.theinvoicepro.co.za
+VITE_API_URL=https://theinvoicepro-production-b54c.up.railway.app
 
 VITE_SUPABASE_URL=https://your-project-id.supabase.co
 VITE_SUPABASE_ANON_KEY=...
@@ -231,7 +231,7 @@ Set these environment variables:
 
 ```env
 VITE_APP_URL=https://admin.theinvoicepro.co.za
-VITE_API_URL=https://api.theinvoicepro.co.za
+VITE_API_URL=https://theinvoicepro-production-b54c.up.railway.app
 
 VITE_SUPABASE_URL=https://your-project-id.supabase.co
 VITE_SUPABASE_ANON_KEY=...
@@ -269,8 +269,7 @@ In PayFast dashboard, confirm:
 - production merchant credentials are used
 - passphrase matches deployed env
 - tokenization / recurring billing is enabled
-- notify URL is:
-  - `https://api.theinvoicepro.co.za/payfast/webhook`
+- notify URL is `https://theinvoicepro-production-b54c.up.railway.app/payfast/webhook`
 
 ## 9. Production Checks
 
@@ -278,7 +277,7 @@ Verify in order:
 
 1. customer site loads at `https://theinvoicepro.co.za`
 2. admin site loads at `https://admin.theinvoicepro.co.za`
-3. API health responds at `https://api.theinvoicepro.co.za/health`
+3. API health responds at `https://theinvoicepro-production-b54c.up.railway.app/health`
 4. customer Auth0 login/signup callback works
 5. admin Auth0 login callback works
 6. customer creates a client and invoice successfully

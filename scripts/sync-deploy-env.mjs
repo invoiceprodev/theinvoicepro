@@ -4,8 +4,8 @@ import { spawn } from "node:child_process";
 const PROD = {
   customerAppUrl: "https://theinvoicepro.co.za",
   adminAppUrl: "https://admin.theinvoicepro.co.za",
-  apiUrl: "https://api.theinvoicepro.co.za",
-  payfastNotifyUrl: "https://api.theinvoicepro.co.za/payfast/webhook",
+  apiUrl: "https://theinvoicepro-production-b54c.up.railway.app",
+  payfastNotifyUrl: "https://theinvoicepro-production-b54c.up.railway.app/payfast/webhook",
   auth0Audience: "https://api.theinvoicepro.co.za",
   auth0RoleClaim: "https://theinvoicepro.co.za/roles",
 };
