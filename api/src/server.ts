@@ -1210,6 +1210,8 @@ app.get("/public/plans/:id", async (req: Request, res: Response) => {
 app.use(async (req: AuthedRequest, res: Response, next: NextFunction) => {
   if (
     req.path === "/health" ||
+    (req.method === "POST" &&
+      (req.path === "/auth/signup" || req.path === "/auth/forgot-password")) ||
     req.path === "/paystack/webhook" ||
     req.path === "/payfast/webhook" ||
     req.path === "/paypal/webhook" ||
