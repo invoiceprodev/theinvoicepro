@@ -107,15 +107,11 @@ export const LandingPage = () => {
       ? [...(plansResult.data as Plan[])].sort((a, b) => {
           const rank = (plan: Plan) => {
             const name = plan.name.toLowerCase();
-            if (
-              name.includes("starter") ||
-              name.includes("trial") ||
-              name === "basic"
-            )
-              return 0;
-            if (name === "pro") return 1;
-            if (name === "enterprise") return 2;
-            return 10;
+            if (name === "trial") return 0;
+            if (name === "starter" || name === "basic") return 1;
+            if (name === "pro") return 2;
+            if (name === "enterprise") return 3;
+            return 99;
           };
           return rank(a) - rank(b) || a.price - b.price;
         })
