@@ -68,6 +68,7 @@ export function TenantShowPage() {
   const { query: planQuery } = useOne<Plan>({
     resource: "plans",
     id: subscription?.plan_id ?? "",
+    meta: { useLivePricingCatalog: true },
     queryOptions: { enabled: !!subscription?.plan_id },
   });
   const plan = planQuery.data?.data;

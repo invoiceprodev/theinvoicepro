@@ -38,6 +38,7 @@ export const RegisterPage = () => {
   const selectedPlanId = searchParams.get("plan");
   const { result: plansResult } = useList<Plan>({
     resource: "plans",
+    meta: { useLivePricingCatalog: true },
     pagination: { mode: "off" },
     queryOptions: {
       enabled: !selectedPlan,

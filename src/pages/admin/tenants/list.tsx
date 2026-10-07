@@ -190,6 +190,7 @@ export function TenantListPage() {
   // Fetch all plans
   const { query: plansQuery } = useList<Plan>({
     resource: "plans",
+    meta: { useLivePricingCatalog: true },
     pagination: { pageSize: 100 },
     queryOptions: { enabled: planIds.length > 0 },
   });

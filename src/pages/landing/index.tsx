@@ -98,6 +98,7 @@ export const LandingPage = () => {
   const navigate = useNavigate();
   const { result: plansResult } = useList<Plan>({
     resource: "plans",
+    meta: { useLivePricingCatalog: true },
     filters: [{ field: "is_active", operator: "eq", value: true }],
     pagination: { mode: "off" },
   });

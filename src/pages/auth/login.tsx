@@ -30,6 +30,7 @@ export const LoginPage = () => {
   const selectedPlan = getSelectedPlanCheckout();
   const { result: plansResult } = useList<Plan>({
     resource: "plans",
+    meta: { useLivePricingCatalog: true },
     pagination: { mode: "off" },
     queryOptions: {
       enabled: !selectedPlan,
