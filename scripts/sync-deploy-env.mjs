@@ -5,7 +5,8 @@ const PROD = {
   customerAppUrl: "https://theinvoicepro.co.za",
   adminAppUrl: "https://admin.theinvoicepro.co.za",
   apiUrl: "https://theinvoicepro-production-b54c.up.railway.app",
-  payfastNotifyUrl: "https://theinvoicepro-production-b54c.up.railway.app/payfast/webhook",
+  payfastNotifyUrl:
+    "https://theinvoicepro-production-b54c.up.railway.app/payfast/webhook",
   auth0Audience: "https://api.theinvoicepro.co.za",
   auth0RoleClaim: "https://theinvoicepro.co.za/roles",
 };
@@ -29,12 +30,16 @@ function parseEnvFile(content) {
 function requireKeys(source, keys) {
   const missing = keys.filter((key) => !source[key]);
   if (missing.length > 0) {
-    throw new Error(`Missing required env values in .env: ${missing.join(", ")}`);
+    throw new Error(
+      `Missing required env values in .env: ${missing.join(", ")}`,
+    );
   }
 }
 
 function withOptionalValues(values) {
-  return Object.fromEntries(Object.entries(values).filter(([, value]) => value));
+  return Object.fromEntries(
+    Object.entries(values).filter(([, value]) => value),
+  );
 }
 
 function getTargetConfig(target, source) {
@@ -61,7 +66,8 @@ function getTargetConfig(target, source) {
         ADMIN_APP_URL: PROD.adminAppUrl,
         SUPABASE_URL: source.SUPABASE_URL,
         SUPABASE_SERVICE_ROLE_KEY: source.SUPABASE_SERVICE_ROLE_KEY,
-        SUPABASE_BRANDING_BUCKET: source.SUPABASE_BRANDING_BUCKET || "company-branding",
+        SUPABASE_BRANDING_BUCKET:
+          source.SUPABASE_BRANDING_BUCKET || "company-branding",
         AUTH0_DOMAIN: source.AUTH0_DOMAIN,
         AUTH0_AUDIENCE: source.AUTH0_AUDIENCE || PROD.auth0Audience,
         RESEND_API_KEY: source.RESEND_API_KEY,
@@ -98,13 +104,15 @@ function getTargetConfig(target, source) {
         VITE_API_URL: PROD.apiUrl,
         VITE_SUPABASE_URL: source.VITE_SUPABASE_URL,
         VITE_SUPABASE_ANON_KEY: source.VITE_SUPABASE_ANON_KEY,
-        VITE_AUTH0_ROLE_CLAIM: source.VITE_AUTH0_ROLE_CLAIM || PROD.auth0RoleClaim,
+        VITE_AUTH0_ROLE_CLAIM:
+          source.VITE_AUTH0_ROLE_CLAIM || PROD.auth0RoleClaim,
         VITE_AUTH_MODE: source.VITE_AUTH_MODE || "auth0",
         VITE_PAYMENT_PROVIDER: source.VITE_PAYMENT_PROVIDER || "payfast",
         VITE_PAYPAL_CLIENT_ID: source.VITE_PAYPAL_CLIENT_ID,
         VITE_CUSTOMER_AUTH0_DOMAIN: source.VITE_CUSTOMER_AUTH0_DOMAIN,
         VITE_CUSTOMER_AUTH0_CLIENT_ID: source.VITE_CUSTOMER_AUTH0_CLIENT_ID,
-        VITE_CUSTOMER_AUTH0_AUDIENCE: source.VITE_CUSTOMER_AUTH0_AUDIENCE || PROD.auth0Audience,
+        VITE_CUSTOMER_AUTH0_AUDIENCE:
+          source.VITE_CUSTOMER_AUTH0_AUDIENCE || PROD.auth0Audience,
         VITE_CUSTOMER_AUTH0_REDIRECT_URI: `${PROD.customerAppUrl}/auth/callback`,
         VITE_CUSTOMER_AUTH0_CONNECTION: source.VITE_CUSTOMER_AUTH0_CONNECTION,
       }),
@@ -129,19 +137,23 @@ function getTargetConfig(target, source) {
         VITE_API_URL: PROD.apiUrl,
         VITE_SUPABASE_URL: source.VITE_SUPABASE_URL,
         VITE_SUPABASE_ANON_KEY: source.VITE_SUPABASE_ANON_KEY,
-        VITE_AUTH0_ROLE_CLAIM: source.VITE_AUTH0_ROLE_CLAIM || PROD.auth0RoleClaim,
+        VITE_AUTH0_ROLE_CLAIM:
+          source.VITE_AUTH0_ROLE_CLAIM || PROD.auth0RoleClaim,
         VITE_AUTH_MODE: source.VITE_AUTH_MODE || "auth0",
         VITE_PAYMENT_PROVIDER: source.VITE_PAYMENT_PROVIDER || "payfast",
         VITE_ADMIN_AUTH0_DOMAIN: source.VITE_ADMIN_AUTH0_DOMAIN,
         VITE_ADMIN_AUTH0_CLIENT_ID: source.VITE_ADMIN_AUTH0_CLIENT_ID,
-        VITE_ADMIN_AUTH0_AUDIENCE: source.VITE_ADMIN_AUTH0_AUDIENCE || PROD.auth0Audience,
+        VITE_ADMIN_AUTH0_AUDIENCE:
+          source.VITE_ADMIN_AUTH0_AUDIENCE || PROD.auth0Audience,
         VITE_ADMIN_AUTH0_REDIRECT_URI: `${PROD.adminAppUrl}/callback`,
         VITE_ADMIN_AUTH0_CONNECTION: source.VITE_ADMIN_AUTH0_CONNECTION,
       }),
     };
   }
 
-  throw new Error(`Unknown target "${target}". Expected one of: railway, vercel-customer, vercel-admin.`);
+  throw new Error(
+    `Unknown target "${target}". Expected one of: railway, vercel-customer, vercel-admin.`,
+  );
 }
 
 function runCommand(command, args, options = {}) {
@@ -164,7 +176,9 @@ function runCommand(command, args, options = {}) {
         return;
       }
 
-      reject(new Error(`${command} ${args.join(" ")} exited with code ${code}`));
+      reject(
+        new Error(`${command} ${args.join(" ")} exited with code ${code}`),
+      );
     });
   });
 }
@@ -215,7 +229,9 @@ async function syncVercel(values, projectIdEnv) {
 async function main() {
   const target = process.argv[2];
   if (!target) {
-    throw new Error("Usage: node scripts/sync-deploy-env.mjs <railway|vercel-customer|vercel-admin>");
+    throw new Error(
+      "Usage: node scripts/sync-deploy-env.mjs <railway|vercel-customer|vercel-admin>",
+    );
   }
 
   const envContent = await readFile(".env", "utf8");

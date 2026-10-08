@@ -17,6 +17,6 @@
 BEGIN;
 
 DELETE FROM plans
-WHERE name NOT IN ('Starter/Trial', 'Pro', 'Enterprise');
+WHERE name NOT IN ('Free', 'Starter/Trial', 'Pro', 'Enterprise');
 
 COMMIT;

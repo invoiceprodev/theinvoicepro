@@ -5,7 +5,7 @@ import { getProfileBridgeSnapshot } from "@/lib/profile-bridge";
 import { setPendingAuthHandoff } from "@/lib/auth0-handoff";
 import { sendAuth0PasswordResetEmail, signupWithAuth0Database } from "@/lib/auth0-db";
 import { getSelectedPlanCheckout } from "@/lib/plan-selection";
-import { canStartTrialWithoutCard } from "@/lib/trial-bypass";
+import { canStartPlanWithoutCard } from "@/lib/trial-bypass";
 
 async function beginCustomerAuthFlow(
   mode: "login" | "signup",
@@ -46,7 +46,7 @@ export const authProvider: AuthProvider = {
   login: async ({ email, password }) => {
     void password;
     const selectedPlan = getSelectedPlanCheckout();
-    const returnTo = selectedPlan ? (canStartTrialWithoutCard(selectedPlan) ? "/plans" : "/auth/card-setup") : "/dashboard";
+    const returnTo = selectedPlan ? (canStartPlanWithoutCard(selectedPlan) ? "/plans" : "/auth/card-setup") : "/dashboard";
     return beginCustomerAuthFlow("login", email, undefined, returnTo);
   },
 

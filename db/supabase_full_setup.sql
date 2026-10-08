@@ -954,7 +954,7 @@ CREATE TRIGGER log_subscription_changes
 
 
 -- ======================== SEED DATA =========================
--- Plans — Starter/Trial, Pro, Enterprise (all priced in ZAR)
+-- Plans — Free, Starter/Trial, Pro, Enterprise (all priced in ZAR)
 -- Uses ON CONFLICT DO UPDATE so re-runs are safe.
 
 INSERT INTO plans (
@@ -971,6 +971,23 @@ INSERT INTO plans (
   is_active
 )
 VALUES
+  (
+    'Free',
+    'Essential invoicing with no subscription cost',
+    0.00,
+    'ZAR',
+    'monthly',
+    '[
+      "Unlimited Invoices / Quotes / Month",
+      "Unlimited Saved Clients",
+      "Unlimited Team Members"
+    ]'::jsonb,
+    false,
+    0,
+    false,
+    false,
+    true
+  ),
   (
     'Starter/Trial',
     'For freelancers and small businesses',

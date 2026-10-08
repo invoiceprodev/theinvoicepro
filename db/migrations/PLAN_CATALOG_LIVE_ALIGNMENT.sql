@@ -1,7 +1,7 @@
 -- ============================================================
 -- Live Plan Catalog Alignment
 -- ============================================================
--- Align the live catalog with the three pricing tiers shown by the app.
+-- Align the live catalog with the four pricing tiers shown by the app.
 -- Safe to re-run.
 --
 -- Existing subscriptions on legacy Trial/Starter/Basic, Pro, and
@@ -56,6 +56,23 @@ INSERT INTO desired_plans (
   is_active
 )
 VALUES
+  (
+    'Free',
+    'Essential invoicing with no subscription cost',
+    0.00,
+    'ZAR',
+    'monthly',
+    '[
+      "Unlimited Invoices / Quotes / Month",
+      "Unlimited Saved Clients",
+      "Unlimited Team Members"
+    ]'::jsonb,
+    false,
+    0,
+    false,
+    false,
+    true
+  ),
   (
     'Starter/Trial',
     'For freelancers and small businesses',
@@ -177,6 +194,7 @@ SET
 FROM plans AS old_plan
 JOIN plans AS target
   ON target.name = CASE
+    WHEN LOWER(old_plan.name) = 'free' THEN 'Free'
     WHEN LOWER(old_plan.name) IN ('trial', 'starter', 'basic', 'starter/trial')
       THEN 'Starter/Trial'
     WHEN LOWER(old_plan.name) = 'pro' THEN 'Pro'
@@ -191,7 +209,7 @@ BEGIN
     SELECT 1
     FROM subscriptions AS s
     JOIN plans AS p ON p.id = s.plan_id
-    WHERE p.name NOT IN ('Starter/Trial', 'Pro', 'Enterprise')
+    WHERE p.name NOT IN ('Free', 'Starter/Trial', 'Pro', 'Enterprise')
   ) THEN
     RAISE EXCEPTION
       'Plan catalog alignment stopped: subscriptions still reference non-canonical plans. Review those subscriptions before rerunning.';
@@ -202,9 +220,9 @@ END $$;
 -- from the public catalog.
 UPDATE plans
 SET
-  is_active = name IN ('Starter/Trial', 'Pro', 'Enterprise'),
+  is_active = name IN ('Free', 'Starter/Trial', 'Pro', 'Enterprise'),
   updated_at = NOW()
-WHERE is_active IS DISTINCT FROM (name IN ('Starter/Trial', 'Pro', 'Enterprise'));
+WHERE is_active IS DISTINCT FROM (name IN ('Free', 'Starter/Trial', 'Pro', 'Enterprise'));
 
 COMMIT;
 

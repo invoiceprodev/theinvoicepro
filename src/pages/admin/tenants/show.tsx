@@ -445,7 +445,9 @@ export function TenantShowPage() {
                   <div className="text-sm">
                     <div className="text-muted-foreground text-xs">Price</div>
                     <div>
-                      R{Number(plan.price).toFixed(2)} / {plan.billing_cycle || "month"}
+                      {Number(plan.price) === 0
+                        ? "Free"
+                        : `R${Number(plan.price).toFixed(2)} / ${plan.billing_cycle || "month"}`}
                     </div>
                   </div>
                 )}

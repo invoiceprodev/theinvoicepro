@@ -12,7 +12,11 @@ import { apiRequest } from "@/lib/api-client";
 import { clearSelectedPlanCheckout, setSelectedPlanCheckout } from "@/lib/plan-selection";
 import { useSubscriptionState } from "@/hooks/use-subscription-state";
 import { setSubscriptionBridgeSnapshot } from "@/lib/subscription-bridge";
-import { canStartTrialWithoutCard, planRequiresCard } from "@/lib/trial-bypass";
+import {
+  canStartPlanWithoutCard,
+  canStartTrialWithoutCard,
+  planRequiresCard,
+} from "@/lib/trial-bypass";
 import { getFallbackPlans, shouldUsePlanFallback } from "@/lib/plan-fallback";
 
 type DialogState =
@@ -24,13 +28,17 @@ type DialogState =
 
 function getPlanPriority(plan: Plan) {
   const name = plan.name.toLowerCase();
-  if (name.includes("starter") || name.includes("trial") || name === "basic") return 0;
-  if (name === "pro") return 1;
-  if (name === "enterprise") return 2;
+  if (name === "free") return 0;
+  if (name.includes("starter") || name.includes("trial") || name === "basic") return 1;
+  if (name === "pro") return 2;
+  if (name === "enterprise") return 3;
   return 10;
 }
 
 function getPlanCta(plan: Plan) {
+  if (canStartPlanWithoutCard(plan) && Number(plan.price) === 0) {
+    return "Start Free";
+  }
   if ((plan.trial_days || 0) > 0) {
     return "Start Trial";
   }
@@ -161,11 +169,11 @@ export function PlansPage() {
     }
   }
 
-  async function handleStartTrialWithoutCard(plan: Plan) {
+  async function handleStartPlanWithoutCard(plan: Plan) {
     setSubscriptionActionLoading("start");
 
     try {
-      const trialResponse = await apiRequest<{ data: { subscription: any } }>("/subscriptions/trial-setup", {
+      const activationResponse = await apiRequest<{ data: { subscription: any } }>("/subscriptions/trial-setup", {
         method: "POST",
         body: JSON.stringify({ planId: plan.id }),
       });
@@ -174,15 +182,18 @@ export function PlansPage() {
       setSubscriptionBridgeSnapshot({
         isLoading: false,
         subscription: {
-          ...trialResponse.data.subscription,
+          ...activationResponse.data.subscription,
           plan,
         },
       });
 
       openNotification?.({
         type: "success",
-        message: "Trial started",
-        description: `${plan.name} is now active without card setup.`,
+        message: Number(plan.price) === 0 ? "Free plan activated" : "Trial started",
+        description:
+          Number(plan.price) === 0
+            ? `${plan.name} is now active with no billing or card setup.`
+            : `${plan.name} is now active without card setup.`,
       });
     } catch (error) {
       openNotification?.({
@@ -214,8 +225,8 @@ export function PlansPage() {
       <div className="mb-10 text-center">
         <h1 className="mb-2 text-3xl font-bold tracking-tight">Subscription Plans</h1>
         <p className="text-base text-muted-foreground">
-          Plans are managed from admin and reflected here automatically. Starter/Trial can start immediately, while Pro
-          and Enterprise continue through {paymentProviderLabel} card setup.
+          Plans are managed from admin and reflected here automatically. Free and Starter/Trial can start without a card,
+          while Pro and Enterprise continue through {paymentProviderLabel} card setup.
         </p>
       </div>
 
@@ -287,13 +298,14 @@ export function PlansPage() {
           </CardContent>
         </Card>
       ) : (
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
         {plans.map((plan) => {
           const trialDays = Number(plan.trial_days || 0);
           const isPopular = !!(plan.is_popular || plan.isPopular);
           const requiresCard = planRequiresCard(plan);
           const autoRenew = !!plan.auto_renew;
-          const canStartPlan = canStartTrialWithoutCard(plan);
+          const canStartPlan = canStartPlanWithoutCard(plan);
+          const isFreePlan = Number(plan.price) === 0;
           const isCurrentPlan = subscription?.plan_id === plan.id && getCurrentSubscriptionState(subscription) !== "expired";
           const isPlanInactive = !isCurrentPlan && !canStartPlan && !requiresCard;
           const ctaLabel = isCurrentPlan
@@ -305,7 +317,9 @@ export function PlansPage() {
                   ? "Updating..."
                   : "Change Plan"
                 : subscriptionActionLoading === "start" && canStartPlan
-                  ? "Starting trial..."
+                  ? isFreePlan
+                    ? "Activating..."
+                    : "Starting trial..."
                   : getPlanCta(plan);
 
           return (
@@ -336,12 +350,17 @@ export function PlansPage() {
                 <CardDescription>{plan.description || "Professional invoicing plan"}</CardDescription>
                 <div>
                   <span className="text-3xl font-bold">
-                    {plan.currency === "ZAR" ? "R" : `${plan.currency} `}
-                    {Number(plan.price).toFixed(2)}
+                    {isFreePlan
+                      ? "Free"
+                      : `${plan.currency === "ZAR" ? "R" : `${plan.currency} `}${Number(plan.price).toFixed(2)}`}
                   </span>
-                  <span className="text-sm text-muted-foreground"> / {plan.billing_cycle}</span>
+                  {!isFreePlan && <span className="text-sm text-muted-foreground"> / {plan.billing_cycle}</span>}
                 </div>
-                {(trialDays > 0 || requiresCard) && (
+                {isFreePlan ? (
+                  <Badge variant="outline" className="w-fit border-green-600 text-green-700">
+                    Free forever
+                  </Badge>
+                ) : (trialDays > 0 || requiresCard) && (
                   <div className="pt-1">
                     <Badge
                       variant="outline"
@@ -391,8 +410,8 @@ export function PlansPage() {
                     if (isPlanInactive) {
                       return;
                     }
-                    if (!subscription && canStartTrialWithoutCard(plan)) {
-                      void handleStartTrialWithoutCard(plan);
+                    if (!subscription && canStartPlanWithoutCard(plan)) {
+                      void handleStartPlanWithoutCard(plan);
                       return;
                     }
                     if (!subscription && planRequiresCard(plan)) {

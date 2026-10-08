@@ -2,7 +2,8 @@
 -- Plan Catalog Upsert
 -- ============================================================
 -- Purpose:
--- Replace the existing plan catalog with the approved three-plan set:
+-- Replace the existing plan catalog with the approved four-plan set:
+-- - Free
 -- - Starter/Trial
 -- - Pro
 -- - Enterprise
@@ -65,6 +66,23 @@ INSERT INTO desired_plans (
   is_active
 )
 VALUES
+  (
+    'Free',
+    'Essential invoicing with no subscription cost',
+    0.00,
+    'ZAR',
+    'monthly',
+    '[
+      "Unlimited Invoices / Quotes / Month",
+      "Unlimited Saved Clients",
+      "Unlimited Team Members"
+    ]'::jsonb,
+    false,
+    0,
+    false,
+    false,
+    true
+  ),
   (
     'Starter/Trial',
     'For freelancers and small businesses',

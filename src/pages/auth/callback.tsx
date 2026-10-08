@@ -2,7 +2,7 @@ import { Navigate, useLocation } from "react-router";
 import { useAuth } from "@/contexts/auth-context";
 import { getSelectedPlanCheckout, hasSelectedPlanCheckout } from "@/lib/plan-selection";
 import { canAccessAdminPortal } from "@/lib/admin-access";
-import { canStartTrialWithoutCard } from "@/lib/trial-bypass";
+import { canStartPlanWithoutCard } from "@/lib/trial-bypass";
 import { getAdminRoute, isAdminContext } from "@/lib/admin-routing";
 
 function buildAdminLoginRedirect(reason?: string) {
@@ -46,7 +46,7 @@ export function AuthCallbackPage() {
 
   if (!isAdminCallback && hasSelectedPlanCheckout()) {
     const selectedPlan = getSelectedPlanCheckout();
-    return <Navigate to={canStartTrialWithoutCard(selectedPlan) ? "/plans" : "/auth/card-setup"} replace />;
+    return <Navigate to={canStartPlanWithoutCard(selectedPlan) ? "/plans" : "/auth/card-setup"} replace />;
   }
 
   return <Navigate to={isAdminCallback ? getAdminRoute("/dashboard") : "/dashboard"} replace />;

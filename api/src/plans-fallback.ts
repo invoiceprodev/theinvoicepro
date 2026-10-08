@@ -18,6 +18,27 @@ export type PublicPlanFallback = {
 
 export const publicPlanFallbacks: PublicPlanFallback[] = [
   {
+    id: "free",
+    name: "Free",
+    description: "Essential invoicing with no subscription cost",
+    price: 0,
+    currency: "ZAR",
+    billing_cycle: "monthly",
+    status: "Active",
+    features: [
+      "Unlimited Invoices / Quotes / Month",
+      "Unlimited Saved Clients",
+      "Unlimited Team Members",
+    ],
+    trial_days: 0,
+    requires_card: false,
+    auto_renew: false,
+    is_popular: false,
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
     id: "starter-trial",
     name: "Starter/Trial",
     description: "For freelancers and small businesses",

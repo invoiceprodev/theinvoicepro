@@ -3512,6 +3512,28 @@ app.post(
         return;
       }
 
+      const planName = String(plan.name || "").toLowerCase();
+      const trialDays = Number(plan.trial_days || 0);
+      const isEligibleTrial =
+        trialDays > 0 &&
+        !plan.requires_card &&
+        (planName.includes("starter") ||
+          planName.includes("trial") ||
+          planName === "basic");
+      const isEligibleFreePlan =
+        Number(plan.price) === 0 &&
+        trialDays === 0 &&
+        !plan.requires_card &&
+        !plan.auto_renew &&
+        planName === "free";
+
+      if (!isEligibleTrial && !isEligibleFreePlan) {
+        res.status(400).json({
+          error: "Selected plan cannot be activated without card setup.",
+        });
+        return;
+      }
+
       const { data: existingSubscription, error: existingSubscriptionError } =
         await adminSupabase
           .from("subscriptions")
@@ -3533,7 +3555,6 @@ app.post(
         return;
       }
 
-      const trialDays = Number(plan.trial_days || 0);
       const startDate = new Date();
       const renewalDate = new Date(startDate);
       renewalDate.setDate(
@@ -3545,7 +3566,9 @@ app.post(
         plan_id: plan.id,
         status: trialDays > 0 ? "trial" : "active",
         start_date: startDate.toISOString().split("T")[0],
-        renewal_date: renewalDate.toISOString().split("T")[0],
+        renewal_date: isEligibleFreePlan
+          ? null
+          : renewalDate.toISOString().split("T")[0],
         trial_start_date: trialDays > 0 ? startDate.toISOString() : null,
         trial_end_date: trialDays > 0 ? renewalDate.toISOString() : null,
         auto_renew: Boolean(plan.auto_renew),

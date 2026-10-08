@@ -79,6 +79,7 @@ Minimum migrations for existing projects:
 - [`db/migrations/AUTH0_PROFILE_DECOUPLING.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/AUTH0_PROFILE_DECOUPLING.sql) — required before Auth0 users can be provisioned; removes the `auth.users` foreign key from `profiles.id`
 - [`db/migrations/AI_CONTRACTS_MVP.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/AI_CONTRACTS_MVP.sql) — required for AI contract generation; creates the `contracts` and `uploaded_documents` tables and refreshes PostgREST's schema cache
 - [`db/migrations/PLAN_CATALOG_LIVE_ALIGNMENT.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/PLAN_CATALOG_LIVE_ALIGNMENT.sql) — align the live tiers and prices, remap supported legacy subscriptions, and deactivate old catalog rows while preserving history
+- [`db/migrations/PUBLIC_FREE_PLAN.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/PUBLIC_FREE_PLAN.sql) — add or refresh the public $0 Free plan
 - [`db/migrations/EXPENSE_RECIPIENT_DETAILS.sql`](/Users/jerry/Desktop/theinvoicepro-saas-invoicing-platform%202/db/migrations/EXPENSE_RECIPIENT_DETAILS.sql)
 
 For a fresh project, use:
