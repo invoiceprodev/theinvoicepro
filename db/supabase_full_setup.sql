@@ -380,17 +380,8 @@ COMMENT ON TABLE team_members IS 'Customer-managed workspace members and invite 
 
 
 -- ================== FOREIGN KEY CONSTRAINTS =================
--- profiles.id must reference auth.users(id)
--- Added separately because auth.users is a Supabase-managed table.
-
-ALTER TABLE profiles
-  DROP CONSTRAINT IF EXISTS fk_profiles_user_id;
-
-ALTER TABLE profiles
-  ADD CONSTRAINT fk_profiles_user_id
-  FOREIGN KEY (id)
-  REFERENCES auth.users(id)
-  ON DELETE CASCADE;
+-- Auth0-backed profiles use generated IDs and are intentionally decoupled
+-- from auth.users. See AUTH0_PROFILE_DECOUPLING.sql for existing projects.
 
 
 -- =========================== INDEXES ========================

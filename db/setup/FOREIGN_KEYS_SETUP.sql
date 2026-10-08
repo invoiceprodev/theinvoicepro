@@ -5,15 +5,9 @@
 -- Organization ID: <your-supabase-org-id>
 -- Project ID: <your-supabase-project-id>
 
--- 1. profiles.id → auth.users(id)
--- CASCADE DELETE: When auth user is deleted, profile is deleted
-ALTER TABLE profiles
-ADD CONSTRAINT fk_profiles_user_id 
-FOREIGN KEY (id) 
-REFERENCES auth.users(id) 
-ON DELETE CASCADE;
+-- Auth0-backed profiles.id is intentionally not linked to auth.users(id).
 
--- 2. clients.user_id → profiles.id
+-- 1. clients.user_id → profiles.id
 -- CASCADE DELETE: When profile is deleted, their clients are deleted
 ALTER TABLE clients
 ADD CONSTRAINT fk_clients_user_id 
@@ -21,7 +15,7 @@ FOREIGN KEY (user_id)
 REFERENCES profiles(id) 
 ON DELETE CASCADE;
 
--- 3. invoices.user_id → profiles.id
+-- 2. invoices.user_id → profiles.id
 -- CASCADE DELETE: When profile is deleted, their invoices are deleted
 ALTER TABLE invoices
 ADD CONSTRAINT fk_invoices_user_id 
@@ -29,7 +23,7 @@ FOREIGN KEY (user_id)
 REFERENCES profiles(id) 
 ON DELETE CASCADE;
 
--- 4. invoices.client_id → clients.id
+-- 3. invoices.client_id → clients.id
 -- RESTRICT DELETE: Cannot delete client if they have invoices
 -- (Protects data integrity - admin must reassign or delete invoices first)
 ALTER TABLE invoices
@@ -38,7 +32,7 @@ FOREIGN KEY (client_id)
 REFERENCES clients(id) 
 ON DELETE RESTRICT;
 
--- 5. invoice_items.invoice_id → invoices.id
+-- 4. invoice_items.invoice_id → invoices.id
 -- CASCADE DELETE: When invoice is deleted, all its line items are deleted
 ALTER TABLE invoice_items
 ADD CONSTRAINT fk_invoice_items_invoice_id 
@@ -46,7 +40,7 @@ FOREIGN KEY (invoice_id)
 REFERENCES invoices(id) 
 ON DELETE CASCADE;
 
--- 6. subscriptions.user_id → profiles.id
+-- 5. subscriptions.user_id → profiles.id
 -- CASCADE DELETE: When profile is deleted, their subscriptions are deleted
 ALTER TABLE subscriptions
 ADD CONSTRAINT fk_subscriptions_user_id 
@@ -54,7 +48,7 @@ FOREIGN KEY (user_id)
 REFERENCES profiles(id) 
 ON DELETE CASCADE;
 
--- 7. subscriptions.plan_id → plans.id
+-- 6. subscriptions.plan_id → plans.id
 -- RESTRICT DELETE: Cannot delete plan if users are subscribed to it
 -- (Protects data integrity - must migrate users first)
 ALTER TABLE subscriptions

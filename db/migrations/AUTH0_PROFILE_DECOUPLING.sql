@@ -9,12 +9,27 @@
 
 BEGIN;
 
-ALTER TABLE profiles
-  DROP CONSTRAINT IF EXISTS fk_profiles_user_id;
+DO $$
+DECLARE
+  profile_auth_constraint RECORD;
+BEGIN
+  FOR profile_auth_constraint IN
+    SELECT constraint_row.conname
+    FROM pg_constraint AS constraint_row
+    WHERE constraint_row.conrelid = 'public.profiles'::regclass
+      AND constraint_row.confrelid = 'auth.users'::regclass
+      AND constraint_row.contype = 'f'
+  LOOP
+    EXECUTE format(
+      'ALTER TABLE public.profiles DROP CONSTRAINT %I',
+      profile_auth_constraint.conname
+    );
+  END LOOP;
+END $$;
 
 ALTER TABLE profiles
   ALTER COLUMN id SET DEFAULT gen_random_uuid();
 
-COMMENT ON TABLE profiles IS 'User profile table decoupled from Supabase Auth for Auth0-backed identity';
+COMMENT ON TABLE profiles IS 'User profiles use generated IDs and Auth0 identity mappings; profiles.id does not reference auth.users';
 
 COMMIT;
