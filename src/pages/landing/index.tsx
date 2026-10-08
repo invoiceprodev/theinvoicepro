@@ -30,7 +30,11 @@ import {
 import { cn } from "@/lib/utils";
 import type { Plan } from "@/types";
 import { setSelectedPlanCheckout } from "@/lib/plan-selection";
-import { canStartTrialWithoutCard, planRequiresCard } from "@/lib/trial-bypass";
+import {
+  canStartPlanWithoutCard,
+  canStartTrialWithoutCard,
+  planRequiresCard,
+} from "@/lib/trial-bypass";
 import { getFallbackPlans, shouldUsePlanFallback } from "@/lib/plan-fallback";
 
 const testimonials = [
@@ -112,15 +116,20 @@ export const LandingPage = () => {
         : [];
     const rank = (plan: Plan) => {
       const name = plan.name.toLowerCase();
-      if (name.includes("starter") || name.includes("trial") || name === "basic") return 0;
-      if (name === "pro") return 1;
-      if (name === "enterprise") return 2;
+      if (name === "free") return 0;
+      if (name.includes("starter") || name.includes("trial") || name === "basic") return 1;
+      if (name === "pro") return 2;
+      if (name === "enterprise") return 3;
       return 99;
     };
 
     return [...resolvedPlans].sort((a, b) => rank(a) - rank(b) || a.price - b.price);
   }, [plansQuery.error, plansResult?.data]);
-  const publicTrialPlans = pricingPlans.filter((plan) =>
+
+  const visiblePricingPlans = pricingPlans.filter(
+    (plan) => Number(plan.price) > 0,
+  );
+  const publicTrialPlans = visiblePricingPlans.filter((plan) =>
     canStartTrialWithoutCard(plan),
   );
 
@@ -479,15 +488,19 @@ export const LandingPage = () => {
             <p className="text-center text-sm text-muted-foreground">
               Loading pricing plans...
             </p>
-          ) : pricingPlans.length > 0 ? (
-            <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
-              {pricingPlans.map((tier, index) => {
+          ) : visiblePricingPlans.length > 0 ? (
+            <div className="mx-auto grid max-w-7xl gap-6 md:grid-cols-2 xl:grid-cols-4 lg:gap-8">
+              {visiblePricingPlans.map((tier, index) => {
                 const trialDays = Number(tier.trial_days || 0);
                 const requiresCard = planRequiresCard(tier);
                 const isPopular = !!(tier.is_popular || tier.isPopular);
                 const canStartPublicTrial = canStartTrialWithoutCard(tier);
-                const canStartSignup = canStartPublicTrial || requiresCard;
-                const cta = canStartPublicTrial
+                const canStartWithoutCard = canStartPlanWithoutCard(tier);
+                const isFreePlan = Number(tier.price) === 0;
+                const canStartSignup = canStartWithoutCard || requiresCard;
+                const cta = isFreePlan
+                  ? "Start Free"
+                  : canStartPublicTrial
                   ? "Start Trial"
                   : requiresCard
                   ? "Get Started"
@@ -532,20 +545,22 @@ export const LandingPage = () => {
                       </CardDescription>
                       <div className="pt-4">
                         <span className="text-4xl font-bold">
-                          {tier.currency === "ZAR"
+                          {isFreePlan
+                            ? "Free"
+                            : tier.currency === "ZAR"
                             ? currencySymbols.ZAR
                             : tier.currency === "USD"
                             ? currencySymbols.USD
                             : tier.currency === "EUR"
                             ? currencySymbols.EUR
                             : `${tier.currency} `}
-                          {Number(tier.price).toFixed(2)}
+                          {!isFreePlan ? Number(tier.price).toFixed(2) : ""}
                         </span>
-                        <span className="text-slate-400">
+                        {!isFreePlan && <span className="text-slate-400">
                           /{tier.billing_cycle}
-                        </span>
+                        </span>}
                       </div>
-                      {(trialDays > 0 || requiresCard) && (
+                      {!isFreePlan && (trialDays > 0 || requiresCard) && (
                         <div className="pt-2">
                           <Badge
                             variant="outline"
