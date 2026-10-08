@@ -147,3 +147,5 @@ CREATE TRIGGER update_contracts_updated_at
   EXECUTE FUNCTION update_updated_at_column();
 
 COMMIT;
+
+NOTIFY pgrst, 'reload schema';
