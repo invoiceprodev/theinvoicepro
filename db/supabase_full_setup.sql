@@ -963,48 +963,100 @@ CREATE TRIGGER log_subscription_changes
 
 
 -- ======================== SEED DATA =========================
--- Plans — Trial, Starter, Pro, Enterprise (all priced in ZAR)
+-- Plans — Starter/Trial, Pro, Enterprise (all priced in ZAR)
 -- Uses ON CONFLICT DO UPDATE so re-runs are safe.
 
-INSERT INTO plans (name, price, currency, billing_cycle, features, is_active)
+INSERT INTO plans (
+  name,
+  description,
+  price,
+  currency,
+  billing_cycle,
+  features,
+  is_popular,
+  trial_days,
+  requires_card,
+  auto_renew,
+  is_active
+)
 VALUES
   (
-    'Trial',
-    170.00,
+    'Starter/Trial',
+    'For freelancers and small businesses',
+    150.00,
     'ZAR',
     'monthly',
-    '["Up to 5 invoices", "1 client", "PDF export", "14-day free trial", "Email support"]'::jsonb,
-    true
-  ),
-  (
-    'Starter',
-    170.00,
-    'ZAR',
-    'monthly',
-    '["Up to 20 invoices/month", "Up to 10 clients", "PDF export", "Email support", "Basic reporting"]'::jsonb,
+    '[
+      "150 Invoices / Quotes / Month",
+      "50 Saved Clients",
+      "5 Team Members",
+      "Unlimited Saved Items",
+      "Expenses & Compliance tracking",
+      "PDF Export",
+      "Custom Emails"
+    ]'::jsonb,
+    false,
+    60,
+    false,
+    true,
     true
   ),
   (
     'Pro',
-    899.00,
+    'For growing businesses',
+    320.00,
     'ZAR',
     'monthly',
-    '["Unlimited invoices", "Unlimited clients", "PDF export", "Priority support", "Advanced reporting", "Custom branding", "Recurring invoices"]'::jsonb,
+    '[
+      "250 Invoices / Quotes / Month",
+      "100 Saved Clients",
+      "5 Team Members",
+      "Unlimited Saved Items",
+      "Expenses & Compliance Tracking",
+      "Recurring Statements",
+      "PDF Export",
+      "Remove Branding",
+      "Custom Emails"
+    ]'::jsonb,
+    true,
+    0,
+    true,
+    true,
     true
   ),
   (
     'Enterprise',
-    1799.00,
+    'For large teams and organizations',
+    480.00,
     'ZAR',
     'monthly',
-    '["Everything in Pro", "Dedicated account manager", "API access", "Custom integrations", "SLA guarantee", "Team accounts", "Bulk operations"]'::jsonb,
+    '[
+      "Unlimited Invoices / Quotes / Month",
+      "Unlimited Saved Clients",
+      "10 Team Members",
+      "Unlimited Saved Items",
+      "Expenses & Compliance Tracking",
+      "Recurring Statements",
+      "PDF Export",
+      "Remove Branding",
+      "Custom Emails"
+    ]'::jsonb,
+    false,
+    0,
+    true,
+    true,
     true
   )
 ON CONFLICT (name) DO UPDATE SET
+  description   = EXCLUDED.description,
   price         = EXCLUDED.price,
   currency      = EXCLUDED.currency,
   billing_cycle = EXCLUDED.billing_cycle,
   features      = EXCLUDED.features,
+  is_popular    = EXCLUDED.is_popular,
+  trial_days    = EXCLUDED.trial_days,
+  requires_card = EXCLUDED.requires_card,
+  auto_renew    = EXCLUDED.auto_renew,
   is_active     = EXCLUDED.is_active,
   updated_at    = NOW();
 

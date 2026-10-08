@@ -6,29 +6,6 @@ import { supabaseClient } from "@/lib/supabase";
 
 // Export Supabase data provider configured with our client
 const baseDataProvider = supabaseDataProvider(supabaseClient);
-const LIVE_PUBLIC_PLANS_API_URL =
-  import.meta.env.VITE_LIVE_PUBLIC_PLANS_API_URL ||
-  "https://theinvoicepro-production-b54c.up.railway.app";
-
-const fetchLivePublicPlans = async <T,>(path: string): Promise<T> => {
-  const response = await fetch(`${LIVE_PUBLIC_PLANS_API_URL}${path}`, {
-    signal: AbortSignal.timeout(15000),
-  });
-  const body: unknown = await response.json();
-
-  if (!response.ok) {
-    const message =
-      typeof body === "object" &&
-      body !== null &&
-      "error" in body &&
-      typeof body.error === "string"
-        ? body.error
-        : `Live public plans request failed: ${response.status}`;
-    throw new ApiClientError(message, response.status, body);
-  }
-
-  return body as T;
-};
 
 // Helper to resolve resource name to actual table name
 const resolveResource = (resource: string) => {
@@ -169,20 +146,6 @@ export const dataProvider: DataProvider = {
     const originalResource = params.resource;
     const resource = resolveResource(params.resource);
     try {
-      if (
-        import.meta.env.DEV &&
-        resource === "plans" &&
-        params.meta?.useLivePricingCatalog === true
-      ) {
-        return await fetchLivePublicPlans<{ data: unknown[]; total: number }>(
-          `/public/plans${buildCrudQueryString({
-            filters: params.filters,
-            sorters: params.sorters,
-            pagination: params.pagination,
-          })}`,
-        );
-      }
-
       if (useApiForResource(resource, originalResource)) {
         if (resource === "plans") {
           const path = isAdminRoute()
@@ -240,16 +203,6 @@ export const dataProvider: DataProvider = {
     const originalResource = params.resource;
     const resource = resolveResource(params.resource);
     try {
-      if (
-        import.meta.env.DEV &&
-        resource === "plans" &&
-        params.meta?.useLivePricingCatalog === true
-      ) {
-        return await fetchLivePublicPlans<{ data: unknown }>(
-          `/public/plans/${encodeURIComponent(String(params.id))}`,
-        );
-      }
-
       if (useApiForResource(resource, originalResource)) {
         if (resource === "plans") {
           const path = isAdminRoute() ? `/plans/${params.id}` : `/public/plans/${params.id}`;
