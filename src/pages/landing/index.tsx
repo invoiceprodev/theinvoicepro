@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useList } from "@refinedev/core";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,6 @@ import {
   Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { mockPlans } from "@/data/plans";
 import type { Plan } from "@/types";
 import { setSelectedPlanCheckout } from "@/lib/plan-selection";
 import { canStartTrialWithoutCard, planRequiresCard } from "@/lib/trial-bypass";
@@ -96,29 +95,31 @@ export const LandingPage = () => {
   >("idle");
   const [subscribeMessage, setSubscribeMessage] = useState("");
   const navigate = useNavigate();
-  const { result: plansResult } = useList<Plan>({
+  const { result: plansResult, query: plansQuery } = useList<Plan>({
     resource: "plans",
     meta: { useLivePricingCatalog: true },
     filters: [{ field: "is_active", operator: "eq", value: true }],
     pagination: { mode: "off" },
   });
 
-  const pricingPlans =
-    plansResult?.data && plansResult.data.length > 0
-      ? [...(plansResult.data as Plan[])].sort((a, b) => {
-          const rank = (plan: Plan) => {
-            const name = plan.name.toLowerCase();
-            if (name === "trial") return 0;
-            if (name === "starter" || name === "basic") return 1;
-            if (name === "pro") return 2;
-            if (name === "enterprise") return 3;
-            return 99;
-          };
-          return rank(a) - rank(b) || a.price - b.price;
-        })
-      : plansResult && !shouldUsePlanFallback((plansResult as { error?: unknown }).error)
-      ? mockPlans
-      : getFallbackPlans();
+  const pricingPlans = useMemo(() => {
+    const source = (plansResult?.data as Plan[]) || [];
+    const resolvedPlans =
+      source.length > 0
+        ? source
+        : shouldUsePlanFallback(plansQuery.error)
+        ? getFallbackPlans()
+        : [];
+    const rank = (plan: Plan) => {
+      const name = plan.name.toLowerCase();
+      if (name.includes("starter") || name.includes("trial") || name === "basic") return 0;
+      if (name === "pro") return 1;
+      if (name === "enterprise") return 2;
+      return 99;
+    };
+
+    return [...resolvedPlans].sort((a, b) => rank(a) - rank(b) || a.price - b.price);
+  }, [plansQuery.error, plansResult?.data]);
   const publicTrialPlans = pricingPlans.filter((plan) =>
     canStartTrialWithoutCard(plan),
   );
@@ -474,7 +475,11 @@ export const LandingPage = () => {
             </div>
           </div>
 
-          {plansResult ? (
+          {plansQuery.isLoading ? (
+            <p className="text-center text-sm text-muted-foreground">
+              Loading pricing plans...
+            </p>
+          ) : pricingPlans.length > 0 ? (
             <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
               {pricingPlans.map((tier, index) => {
                 const trialDays = Number(tier.trial_days || 0);
@@ -597,9 +602,15 @@ export const LandingPage = () => {
                 );
               })}
             </div>
+          ) : plansQuery.isError ? (
+            <p className="text-center text-sm text-muted-foreground">
+              {plansQuery.error instanceof Error
+                ? plansQuery.error.message
+                : "Unable to load pricing plans right now."}
+            </p>
           ) : (
             <p className="text-center text-sm text-muted-foreground">
-              Loading pricing plans...
+              No pricing plans are currently available.
             </p>
           )}
         </div>
