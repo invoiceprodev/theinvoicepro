@@ -489,7 +489,7 @@ export const LandingPage = () => {
               Loading pricing plans...
             </p>
           ) : visiblePricingPlans.length > 0 ? (
-            <div className="mx-auto grid max-w-7xl gap-6 md:grid-cols-2 xl:grid-cols-4 lg:gap-8">
+            <div className="mx-auto grid max-w-7xl justify-center gap-6 sm:grid-cols-2 xl:grid-cols-3 lg:gap-8">
               {visiblePricingPlans.map((tier, index) => {
                 const trialDays = Number(tier.trial_days || 0);
                 const requiresCard = planRequiresCard(tier);
