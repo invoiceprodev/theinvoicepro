@@ -1,3 +1,5 @@
+import { getAdminRoute } from "@/lib/admin-routing";
+
 const DEFAULT_ROLE_CLAIM = "https://theinvoicepro.co.za/roles";
 
 export type AuthAppKind = "customer" | "admin";
@@ -33,7 +35,7 @@ export function getAuth0Config(appKind: AuthAppKind): ResolvedAuth0Config {
         "https://api.theinvoicepro.co.za",
     redirectUri: isAdmin
       ? import.meta.env.VITE_ADMIN_AUTH0_REDIRECT_URI ||
-        `${window.location.origin}/admin/callback`
+        `${window.location.origin}${getAdminRoute("/callback")}`
       : import.meta.env.VITE_CUSTOMER_AUTH0_REDIRECT_URI ||
         import.meta.env.VITE_AUTH0_REDIRECT_URI ||
         `${window.location.origin}/auth/callback`,
