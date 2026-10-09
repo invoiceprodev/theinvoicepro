@@ -6,10 +6,14 @@ const jwks = createRemoteJWKSet(new URL(`https://${apiConfig.auth0Domain}/.well-
 export interface AuthenticatedUser {
   sub: string;
   email?: string;
+  emailVerified: boolean;
   name?: string;
   nickname?: string;
   roles: string[];
 }
+
+const EMAIL_CLAIM = "https://theinvoicepro.co.za/email";
+const EMAIL_VERIFIED_CLAIM = "https://theinvoicepro.co.za/email_verified";
 
 export async function verifyAccessToken(token: string): Promise<AuthenticatedUser> {
   const { payload } = await jwtVerify(token, jwks, {
@@ -26,7 +30,13 @@ function mapPayload(payload: JWTPayload): AuthenticatedUser {
 
   return {
     sub: String(payload.sub),
-    email: typeof payload.email === "string" ? payload.email : undefined,
+    email:
+      typeof payload[EMAIL_CLAIM] === "string"
+        ? payload[EMAIL_CLAIM]
+        : typeof payload.email === "string"
+          ? payload.email
+          : undefined,
+    emailVerified: payload[EMAIL_VERIFIED_CLAIM] === true || payload.email_verified === true,
     name: typeof payload.name === "string" ? payload.name : undefined,
     nickname: typeof payload.nickname === "string" ? payload.nickname : undefined,
     roles,

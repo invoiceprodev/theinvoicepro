@@ -70,6 +70,7 @@ function getTargetConfig(target, source) {
           source.SUPABASE_BRANDING_BUCKET || "company-branding",
         AUTH0_DOMAIN: source.AUTH0_DOMAIN,
         AUTH0_AUDIENCE: source.AUTH0_AUDIENCE || PROD.auth0Audience,
+        ADMIN_BOOTSTRAP_EMAIL: source.ADMIN_BOOTSTRAP_EMAIL,
         RESEND_API_KEY: source.RESEND_API_KEY,
         RESEND_FROM_EMAIL: source.RESEND_FROM_EMAIL,
         PAYFAST_MERCHANT_ID: source.PAYFAST_MERCHANT_ID,

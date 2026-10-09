@@ -63,7 +63,7 @@ export const AdminRegisterPage = () => {
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-white">Admin Registration</CardTitle>
             <CardDescription className="text-slate-400">
-              This creates the account only. Admin access still requires the admin role in Auth0.
+              Verify your email, then sign in. Admin access is granted only to the verified bootstrap email configured by the site owner.
             </CardDescription>
           </CardHeader>
 
@@ -163,7 +163,7 @@ export const AdminRegisterPage = () => {
                 </Button>
 
                 <p className="text-center text-xs text-slate-500">
-                  After signup, confirm your email. An Auth0 admin role must still be assigned before admin login will work.
+                  After signup, confirm your email before signing in. Other registrations do not receive admin access.
                 </p>
               </form>
             </Form>

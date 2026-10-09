@@ -145,6 +145,30 @@ Root/start expectations:
 - custom domain target port: `3000`
 - do not require a checked-in `.env` file in production
 
+For the one-time initial admin bootstrap, set `ADMIN_BOOTSTRAP_EMAIL` to the exact
+email address to promote. The API only grants the role when a verified Auth0
+access token contains that same email and `email_verified: true` (or the
+namespaced equivalents). If your Auth0 API access token does not already include
+those claims, add them in a Post Login Action:
+
+```js
+exports.onExecutePostLogin = async (event, api) => {
+  api.accessToken.setCustomClaim(
+    "https://theinvoicepro.co.za/email",
+    event.user.email
+  );
+  api.accessToken.setCustomClaim(
+    "https://theinvoicepro.co.za/email_verified",
+    event.user.email_verified === true
+  );
+};
+```
+
+Deploy the API and Action, register the allowlisted user, verify the email, then
+sign in so `/auth/sync-profile` creates the profile with `role = 'admin'`.
+Remove `ADMIN_BOOTSTRAP_EMAIL` from Railway after that profile is created; the
+stored admin role remains in `public.profiles`.
+
 Set these environment variables in Railway:
 
 ```env
@@ -154,6 +178,7 @@ ADMIN_APP_URL=https://admin.theinvoicepro.co.za
 
 AUTH0_DOMAIN=...
 AUTH0_AUDIENCE=https://api.theinvoicepro.co.za
+ADMIN_BOOTSTRAP_EMAIL=theinvoiceprodev@gmail.com
 
 SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=...

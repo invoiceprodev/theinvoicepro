@@ -30,6 +30,7 @@ export const apiConfig = {
   paymentProvider: (process.env.PAYMENT_PROVIDER || "paystack").toLowerCase(),
   auth0Domain: required("AUTH0_DOMAIN"),
   auth0Audience: required("AUTH0_AUDIENCE"),
+  adminBootstrapEmail: process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase() || "",
   supabaseUrl: requiredOneOf("SUPABASE_URL", "VITE_SUPABASE_URL"),
   supabaseServiceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY"),
   resendApiKey: process.env.RESEND_API_KEY || "",
