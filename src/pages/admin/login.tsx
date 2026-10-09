@@ -11,6 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InputPassword } from "@/components/refine-ui/form/input-password";
 import { getAdminRoute } from "@/lib/admin-routing";
+import { useAuth } from "@/contexts/auth-context";
 import { ShieldCheck, AlertTriangle, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +26,9 @@ const isInternalMode = import.meta.env.VITE_AUTH_MODE === "internal";
 
 export const AdminLoginPage = () => {
   const { mutate: login, error: loginError } = useLogin<LoginFormValues & { password?: string }>();
+  const { isAuthenticated, logout } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const location = useLocation();
   const unauthorized = useMemo(() => new URLSearchParams(location.search).get("error") === "unauthorized", [location.search]);
 
@@ -43,6 +46,15 @@ export const AdminLoginPage = () => {
       login(values);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const onLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -80,8 +92,22 @@ export const AdminLoginPage = () => {
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Admin access required</AlertTitle>
-                <AlertDescription>This account does not have admin access for this portal.</AlertDescription>
+                <AlertDescription>
+                  This account does not have admin access for this portal.
+                  {isAuthenticated && " Sign out to use another account."}
+                </AlertDescription>
               </Alert>
+            )}
+
+            {unauthorized && isAuthenticated && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-slate-600 text-slate-100 hover:bg-slate-700"
+                onClick={() => void onLogout()}
+                disabled={isLoggingOut}>
+                {isLoggingOut ? "Signing out..." : "Sign out"}
+              </Button>
             )}
 
             {loginError && (

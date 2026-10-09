@@ -74,6 +74,13 @@ export function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
     }
 
     if (isAdminRoute) {
+      if (
+        location.pathname === getAdminRoute("/login") &&
+        new URLSearchParams(location.search).get("error") === "unauthorized"
+      ) {
+        return <>{children}</>;
+      }
+
       return <Navigate to={buildAdminLoginRedirect("unauthorized")} replace />;
     }
 
