@@ -178,7 +178,7 @@ ADMIN_APP_URL=https://admin.theinvoicepro.co.za
 
 AUTH0_DOMAIN=...
 AUTH0_AUDIENCE=https://api.theinvoicepro.co.za
-ADMIN_BOOTSTRAP_EMAIL=theinvoiceprodev@gmail.com
+ADMIN_BOOTSTRAP_EMAIL=invoiceprodev@gmail.com
 
 SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=...
