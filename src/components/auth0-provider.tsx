@@ -161,7 +161,6 @@ function Auth0BridgeSync({ appKind }: { appKind: AuthAppKind }) {
             const syncResponse = await apiRequest<{ profile: Profile; created: boolean }>("/auth/sync-profile", {
               method: "POST",
               body: JSON.stringify({
-                email: user.email ?? null,
                 fullName:
                   handoff?.mode === "signup" && handoff.fullName
                     ? handoff.fullName
