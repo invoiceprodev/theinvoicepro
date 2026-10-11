@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { getAuth0BridgeSnapshot, subscribeAuth0Bridge } from "@/lib/auth0-bridge";
 import { getAppIdentityFromUser } from "@/lib/auth0-identity";
+import { getAdminRoute, isAdminContext } from "@/lib/admin-routing";
 import { getProfileBridgeSnapshot, subscribeProfileBridge } from "@/lib/profile-bridge";
 
 export interface User {
@@ -70,9 +71,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     },
     logout: async () => {
+      const isAdmin = isAdminContext(window.location.pathname, window.location.hostname);
       snapshot.logout?.({
         logoutParams: {
-          returnTo: window.location.origin,
+          returnTo: isAdmin
+            ? `${window.location.origin}${getAdminRoute("/login")}`
+            : window.location.origin,
         },
       });
     },
