@@ -1,8 +1,8 @@
 -- ============================================================
--- Public Free Plan
+-- Promo-only Free Plan
 -- ============================================================
--- Add the public $0 plan with unlimited invoices, clients, and team
--- members. Safe to re-run in the Supabase SQL Editor.
+-- Keep an inactive $0 plan available for explicit, approved promo scripts.
+-- It is not listed or assignable through public signup. Safe to re-run.
 
 BEGIN;
 
@@ -41,7 +41,7 @@ VALUES (
   0,
   false,
   false,
-  true
+  false
 )
 ON CONFLICT (name) DO UPDATE SET
   description = EXCLUDED.description,

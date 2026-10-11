@@ -70,6 +70,10 @@ function isAdminUser(user: AuthenticatedUser) {
   return getUserRoles(user).some((role) => role.toLowerCase() === "admin");
 }
 
+function isPromoOnlyPlan(plan?: { price?: unknown } | null) {
+  return Number(plan?.price) === 0;
+}
+
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
@@ -1099,6 +1103,7 @@ app.get("/public/plans", async (req: Request, res: Response) => {
   try {
     let query = adminSupabase.from("plans").select("*", { count: "exact" });
 
+    query = query.eq("is_active", true).gt("price", 0);
     query = applyCrudFilters(query, filters);
     query = applyCrudSorters(query, sorters);
     query = applyCrudPagination(query, pagination);
@@ -1180,6 +1185,11 @@ app.get("/public/plans/:id", async (req: Request, res: Response) => {
         return res.json({ data: fallback });
       }
 
+      res.status(404).json({ error: "Plan not found" });
+      return;
+    }
+
+    if (!data.is_active || isPromoOnlyPlan(data)) {
       res.status(404).json({ error: "Plan not found" });
       return;
     }
@@ -1563,6 +1573,27 @@ app.patch("/subscriptions/:id", async (req: AuthedRequest, res: Response) => {
 
   try {
     const values = (req.body || {}) as Record<string, unknown>;
+
+    if (typeof values.plan_id === "string") {
+      const { data: requestedPlan, error: requestedPlanError } = await adminSupabase
+        .from("plans")
+        .select("id, name, price")
+        .eq("id", values.plan_id)
+        .maybeSingle();
+
+      if (requestedPlanError) {
+        res.status(500).json({ error: requestedPlanError.message });
+        return;
+      }
+
+      if (isPromoOnlyPlan(requestedPlan)) {
+        res.status(400).json({
+          error: "Promo-only Free subscriptions must be assigned by an approved SQL script.",
+        });
+        return;
+      }
+    }
+
     const payload = {
       ...values,
       updated_at: new Date().toISOString(),
@@ -1816,6 +1847,13 @@ app.post("/plans", async (req: AuthedRequest, res: Response) => {
       return;
     }
 
+    if (isPromoOnlyPlan(payload)) {
+      res.status(400).json({
+        error: "Zero-price promo plans must be created by an approved SQL script.",
+      });
+      return;
+    }
+
     const { data, error } = await adminSupabase
       .from("plans")
       .insert(payload)
@@ -1851,6 +1889,29 @@ app.patch("/plans/:id", async (req: AuthedRequest, res: Response) => {
 
     if (!payload.name) {
       res.status(400).json({ error: "Plan name is required." });
+      return;
+    }
+
+    const { data: existingPlan, error: existingPlanError } = await adminSupabase
+      .from("plans")
+      .select("id, price")
+      .eq("id", req.params.id)
+      .maybeSingle();
+
+    if (existingPlanError) {
+      res.status(500).json({ error: existingPlanError.message });
+      return;
+    }
+
+    if (!existingPlan) {
+      res.status(404).json({ error: "Plan not found" });
+      return;
+    }
+
+    if (isPromoOnlyPlan(existingPlan) || isPromoOnlyPlan(payload)) {
+      res.status(400).json({
+        error: "Zero-price promo plans must be managed by an approved SQL script.",
+      });
       return;
     }
 
@@ -2560,6 +2621,11 @@ app.post(
         res
           .status(404)
           .json({ error: planError?.message || "Selected plan not found" });
+        return;
+      }
+
+      if (isPromoOnlyPlan(plan)) {
+        res.status(404).json({ error: "Selected plan not found" });
         return;
       }
 
@@ -3520,16 +3586,9 @@ app.post(
         (planName.includes("starter") ||
           planName.includes("trial") ||
           planName === "basic");
-      const isEligibleFreePlan =
-        Number(plan.price) === 0 &&
-        trialDays === 0 &&
-        !plan.requires_card &&
-        !plan.auto_renew &&
-        planName === "free";
-
-      if (!isEligibleTrial && !isEligibleFreePlan) {
+      if (!isEligibleTrial || isPromoOnlyPlan(plan)) {
         res.status(400).json({
-          error: "Selected plan cannot be activated without card setup.",
+          error: "Only eligible trial plans can be activated without card setup.",
         });
         return;
       }
@@ -3566,9 +3625,7 @@ app.post(
         plan_id: plan.id,
         status: trialDays > 0 ? "trial" : "active",
         start_date: startDate.toISOString().split("T")[0],
-        renewal_date: isEligibleFreePlan
-          ? null
-          : renewalDate.toISOString().split("T")[0],
+        renewal_date: renewalDate.toISOString().split("T")[0],
         trial_start_date: trialDays > 0 ? startDate.toISOString() : null,
         trial_end_date: trialDays > 0 ? renewalDate.toISOString() : null,
         auto_renew: Boolean(plan.auto_renew),
@@ -3635,6 +3692,11 @@ app.post(
           res.status(404).json({
             error: targetPlanError?.message || "Selected plan not found",
           });
+          return;
+        }
+
+        if (isPromoOnlyPlan(targetPlan)) {
+          res.status(404).json({ error: "Selected plan not found" });
           return;
         }
 
@@ -3718,6 +3780,11 @@ app.post(
         res.status(planError?.code === "PGRST116" ? 404 : 500).json({
           error: planError?.message || "Plan not found for subscription",
         });
+        return;
+      }
+
+      if (!plan.is_active || isPromoOnlyPlan(plan)) {
+        res.status(404).json({ error: "Plan not found for subscription" });
         return;
       }
 
@@ -3814,6 +3881,11 @@ app.post(
         res.status(planError?.code === "PGRST116" ? 404 : 500).json({
           error: planError?.message || "Plan not found for subscription",
         });
+        return;
+      }
+
+      if (!plan.is_active || isPromoOnlyPlan(plan)) {
+        res.status(404).json({ error: "Plan not found for subscription" });
         return;
       }
 
@@ -3926,6 +3998,11 @@ app.post(
           return;
         }
 
+        if (isPromoOnlyPlan(plan)) {
+          res.status(404).json({ error: "Selected plan not found" });
+          return;
+        }
+
         const { error: updatePlanError } = await adminSupabase
           .from("subscriptions")
           .update({
@@ -4032,6 +4109,11 @@ app.post(
           res
             .status(404)
             .json({ error: planError?.message || "Selected plan not found" });
+          return;
+        }
+
+        if (isPromoOnlyPlan(plan)) {
+          res.status(404).json({ error: "Selected plan not found" });
           return;
         }
 
@@ -4164,6 +4246,7 @@ app.post(
         .from("plans")
         .select("*")
         .eq("id", body.planId || subscription.plan_id)
+        .eq("is_active", true)
         .single();
 
       const { data: plan, error: planError } = await planQuery;
@@ -4172,6 +4255,11 @@ app.post(
         res.status(planError?.code === "PGRST116" ? 404 : 500).json({
           error: planError?.message || "Plan not found for subscription",
         });
+        return;
+      }
+
+      if (isPromoOnlyPlan(plan)) {
+        res.status(404).json({ error: "Plan not found for subscription" });
         return;
       }
 
