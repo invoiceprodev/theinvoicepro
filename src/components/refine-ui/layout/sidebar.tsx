@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useMenu, useLink, useRefineOptions, type TreeMenuItem } from "@refinedev/core";
-import { useLocation, useNavigate } from "react-router";
+import { useLocation } from "react-router";
 import {
   SidebarRail as ShadcnSidebarRail,
   Sidebar as ShadcnSidebar,
@@ -272,11 +272,9 @@ function SidebarHeader() {
 function SidebarFooter() {
   const { open } = useShadcnSidebar();
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
 
   const handleLogout = () => {
-    logout();
-    navigate("/");
+    void logout();
   };
 
   if (!user) return null;
