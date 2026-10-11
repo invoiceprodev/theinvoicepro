@@ -4482,7 +4482,6 @@ app.post("/auth/sync-profile", async (req: AuthedRequest, res: Response) => {
     user.nickname ||
     user.email ||
     (body.mode === "admin-login" ? "Admin" : "User");
-  const resolvedEmail = user.email?.trim() || null;
   const isBootstrapAdmin =
     Boolean(apiConfig.adminBootstrapEmail) &&
     user.emailVerified &&
@@ -4490,7 +4489,7 @@ app.post("/auth/sync-profile", async (req: AuthedRequest, res: Response) => {
 
   const { data: existingProfile, error: existingError } = await adminSupabase
     .from("profiles")
-    .select("id, role")
+    .select("id, role, business_email")
     .eq("auth0_user_id", user.sub)
     .maybeSingle();
 
@@ -4503,6 +4502,7 @@ app.post("/auth/sync-profile", async (req: AuthedRequest, res: Response) => {
     existingProfile?.role === "admin" || isAdmin || isBootstrapAdmin
       ? "admin"
       : "user";
+  const resolvedEmail = user.email?.trim() || existingProfile?.business_email?.trim() || null;
   const payload = {
     auth0_user_id: user.sub,
     auth_provider: "auth0",
