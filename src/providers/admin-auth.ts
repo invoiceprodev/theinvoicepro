@@ -28,6 +28,7 @@ async function beginAdminAuthFlow(email?: string) {
   await current.loginWithRedirect({
     appState: { returnTo: getAdminRoute("/dashboard") },
     authorizationParams: {
+      prompt: "login",
       login_hint: email || undefined,
     },
   });

@@ -279,6 +279,17 @@ Notes:
 
 Use separate Auth0 applications for customer and admin.
 
+Production application URLs:
+
+| Auth0 setting | Customer (`theinvoicepro.co.za`) | Admin (`admin.theinvoicepro.co.za`) |
+| --- | --- | --- |
+| Allowed Callback URLs | `https://theinvoicepro.co.za/auth/callback`, `https://www.theinvoicepro.co.za/auth/callback` | `https://admin.theinvoicepro.co.za/callback` |
+| Allowed Logout URLs | `https://theinvoicepro.co.za`, `https://www.theinvoicepro.co.za` | `https://admin.theinvoicepro.co.za/login` |
+| Allowed Web Origins | `https://theinvoicepro.co.za`, `https://www.theinvoicepro.co.za` | `https://admin.theinvoicepro.co.za` |
+| Allowed Origins (CORS) | `https://theinvoicepro.co.za`, `https://www.theinvoicepro.co.za` | `https://admin.theinvoicepro.co.za` |
+
+The customer Auth0 application's **Allowed Web Origins** must include the exact origin serving the SPA. If login is opened at `https://www.theinvoicepro.co.za`, add that origin to **Allowed Web Origins** (and **Allowed Origins (CORS)**) for the application whose client ID the customer frontend uses. This is the Auth0-side fix for browser CORS errors on `/oauth/token`; changing API CORS settings or redeploying the frontend does not replace it.
+
 Customer app URLs:
 
 - callback: `http://127.0.0.1:5173/auth/callback`
@@ -303,6 +314,14 @@ Notes:
 - the text shown on Auth0-hosted login comes from your Auth0 app and tenant branding
 - on the admin subdomain, routes resolve at `/login`, `/register`, `/forgot-password`, `/callback`, and `/dashboard` without an extra `/admin` prefix
 - if an admin user exists in Auth0 but cannot access the admin portal, verify `public.profiles.role = 'admin'`
+
+### One-time initial admin bootstrap
+
+You do not need to delete the existing Auth0 or Supabase records just to retry admin setup. Register or recover access to the Auth0 account for `invoiceprodev@gmail.com`, verify its email, and sign in to the admin app.
+
+For automatic promotion during the first profile sync, temporarily set `ADMIN_BOOTSTRAP_EMAIL=invoiceprodev@gmail.com` in the API's Railway environment. The API only grants this bootstrap role when the Auth0 access token confirms that exact email is verified. Remove the setting from Railway after the admin profile is created.
+
+After the verified Auth0 account has signed in and synced its profile to Supabase, you can run [`db/scripts/PROMOTE_INVOICEPRODEV_ADMIN.sql`](./db/scripts/PROMOTE_INVOICEPRODEV_ADMIN.sql) in the Supabase SQL Editor as a manual fallback. It aborts unless exactly one matching Auth0-backed profile exists. Do not run it before the account's first sign-in, and run it only after verifying control of the email address and Auth0 account.
 
 ## Production Reset
 

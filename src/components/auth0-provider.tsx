@@ -142,7 +142,17 @@ function Auth0BridgeSync({ appKind }: { appKind: AuthAppKind }) {
       });
 
       try {
-        const handoff = getPendingAuthHandoff();
+        const pendingHandoff = getPendingAuthHandoff();
+        const handoffMatchesUser = Boolean(
+          pendingHandoff?.email &&
+            user.email &&
+            pendingHandoff.email.trim().toLowerCase() === user.email.trim().toLowerCase(),
+        );
+        const handoff = handoffMatchesUser ? pendingHandoff : null;
+
+        if (pendingHandoff && !handoffMatchesUser) {
+          clearPendingAuthHandoff();
+        }
 
         let syncProfile: Profile | null = null;
         const maxAttempts = 3;
@@ -151,8 +161,11 @@ function Auth0BridgeSync({ appKind }: { appKind: AuthAppKind }) {
             const syncResponse = await apiRequest<{ profile: Profile; created: boolean }>("/auth/sync-profile", {
               method: "POST",
               body: JSON.stringify({
-                email: handoff?.email ?? user.email ?? null,
-                fullName: handoff?.fullName ?? user.name ?? user.nickname ?? user.email ?? "User",
+                email: user.email ?? null,
+                fullName:
+                  handoff?.mode === "signup" && handoff.fullName
+                    ? handoff.fullName
+                    : user.name ?? user.nickname ?? user.email ?? "User",
                 mode: handoff?.mode ?? "login",
               }),
             });
