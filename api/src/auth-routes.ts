@@ -109,6 +109,16 @@ async function auth0DbRequest<T>(
   return payload as T;
 }
 
+function getConfiguredAuth0Domain(requestedDomain: unknown): string | null {
+  if (typeof requestedDomain !== "string") return null;
+
+  const normalize = (domain: string) =>
+    domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  const configuredDomain = normalize(apiConfig.auth0Domain);
+
+  return normalize(requestedDomain) === configuredDomain ? apiConfig.auth0Domain : null;
+}
+
 /**
  * POST /auth/signup
  * Backend proxy for Auth0 Database Connection signup
@@ -126,7 +136,7 @@ authRouter.post("/signup", async (req: Request, res: Response) => {
   try {
     const { domain, clientId, connection, name, username, email, password } = req.body;
 
-    if (!domain || !clientId || !connection || !name || !username || !email || !password) {
+    if (!clientId || !connection || !name || !username || !email || !password) {
       res.status(400).json({
         name: "ValidationError",
         message: "Missing required fields: domain, clientId, connection, name, username, email, password",
@@ -134,8 +144,14 @@ authRouter.post("/signup", async (req: Request, res: Response) => {
       return;
     }
 
+    const configuredDomain = getConfiguredAuth0Domain(domain);
+    if (!configuredDomain) {
+      res.status(400).json({ name: "ValidationError", message: "Invalid Auth0 domain." });
+      return;
+    }
+
     const result = await auth0DbRequest<Record<string, unknown>>(
-      domain,
+      configuredDomain,
       clientId,
       connection,
       "/dbconnections/signup",
@@ -184,7 +200,7 @@ authRouter.post("/forgot-password", async (req: Request, res: Response) => {
   try {
     const { domain, clientId, connection, email } = req.body;
 
-    if (!domain || !clientId || !connection || !email) {
+    if (!clientId || !connection || !email) {
       res.status(400).json({
         name: "ValidationError",
         message: "Missing required fields: domain, clientId, connection, email",
@@ -192,8 +208,14 @@ authRouter.post("/forgot-password", async (req: Request, res: Response) => {
       return;
     }
 
+    const configuredDomain = getConfiguredAuth0Domain(domain);
+    if (!configuredDomain) {
+      res.status(400).json({ name: "ValidationError", message: "Invalid Auth0 domain." });
+      return;
+    }
+
     const result = await auth0DbRequest<string>(
-      domain,
+      configuredDomain,
       clientId,
       connection,
       "/dbconnections/change_password",

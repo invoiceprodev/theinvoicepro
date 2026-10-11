@@ -4473,7 +4473,6 @@ app.post("/auth/sync-profile", async (req: AuthedRequest, res: Response) => {
   const isAdmin = isAdminUser(user);
   const body = req.body as {
     fullName?: string;
-    email?: string | null;
     mode?: "login" | "signup" | "admin-login";
   };
 
@@ -4483,7 +4482,7 @@ app.post("/auth/sync-profile", async (req: AuthedRequest, res: Response) => {
     user.nickname ||
     user.email ||
     (body.mode === "admin-login" ? "Admin" : "User");
-  const resolvedEmail = body.email?.trim() || user.email || null;
+  const resolvedEmail = user.email?.trim() || null;
   const isBootstrapAdmin =
     Boolean(apiConfig.adminBootstrapEmail) &&
     user.emailVerified &&

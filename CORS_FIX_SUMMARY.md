@@ -1,14 +1,21 @@
-# CORS Error Fix - Implementation Summary
+# Auth0 CORS Error - Status and Required Fix
 
-## Issue Fixed
-**CORS Error**: `Access to fetch at 'https://dev-2deso6nwf6phu0hc.us.auth0.com/oauth/token' from origin 'https://www.theinvoicepro.co.za' has been blocked by CORS policy`
+## Reported Error
+`https://www.theinvoicepro.co.za` receives a CORS error when the Auth0 SPA SDK calls `https://dev-2deso6nwf6phu0hc.us.auth0.com/oauth/token`.
 
-## Root Cause
-The frontend was making direct HTTP requests to Auth0's secured endpoints from the browser, which violates CORS policy. Specifically:
-- `/dbconnections/signup` - for user registration
-- `/dbconnections/change_password` - for password reset requests
+The API CORS middleware does not control this request; the browser calls Auth0 directly. A live check returned `Access-Control-Allow-Origin: *` on the OPTIONS preflight, but no `Access-Control-Allow-Origin` on an actual POST response. API CORS changes or redeploying the frontend cannot resolve this error.
 
-## Solution Implemented
+## Required Auth0 Configuration
+In Auth0, open the customer application whose client ID is configured as `VITE_CUSTOMER_AUTH0_CLIENT_ID` (or the customer fallback `VITE_AUTH0_CLIENT_ID`). Add this exact origin under **Allowed Origins (CORS)**:
+
+`https://www.theinvoicepro.co.za`
+
+Also include it in **Allowed Web Origins** for SPA silent authentication. Keep the origin list explicit; do not use `*`. Verify that the same app has the matching production callback URL `https://www.theinvoicepro.co.za/auth/callback` and logout URL `https://www.theinvoicepro.co.za`.
+
+This dashboard change requires access to the Auth0 tenant and has not been applied from this repository.
+
+## Existing Backend Signup/Reset Proxy
+The API proxy routes below handle database signup and password reset only. They do **not** handle or fix `/oauth/token`.
 
 ### 1. Created Backend Auth Proxy (`api/src/auth-routes.ts`)
 New Express router with two public endpoints that proxy Auth0 requests:
@@ -23,11 +30,7 @@ POST /auth/forgot-password
 - Returns: Password reset email sent confirmation or error
 ```
 
-**Key Benefits:**
-- Backend-to-backend requests have no CORS restrictions
-- Auth0 credentials never exposed to browser
-- Error messages properly normalized before returning to frontend
-- Same user-friendly error handling as before
+The API-to-Auth0 requests avoid browser CORS for these two operations. Error messages are normalized before returning to the frontend.
 
 ### 2. Updated Frontend (`src/lib/auth0-db.ts`)
 Modified the authentication library to use the new backend endpoints:
@@ -45,12 +48,8 @@ Modified the authentication library to use the new backend endpoints:
 - Registered it under `/auth` path
 - Routes available at `http://api-base-url/auth/signup` and `http://api-base-url/auth/forgot-password`
 
-## Security Improvements
-✅ Auth0 domain, client ID, and connection name stay on backend only  
-✅ No sensitive Auth0 credentials in frontend code  
-✅ Better audit trail for authentication operations  
-✅ CORS policy no longer a blocker for secure operations  
-✅ Backend has full control over Auth0 interactions  
+## Security Notes
+The SPA's `/oauth/token` request is expected for a public Auth0 application. Do not add a client secret to the frontend or proxy the token exchange through the API as a CORS workaround. The signup/reset proxy receives the Auth0 domain, client ID, and connection from the browser; these are public application configuration values, not secrets.
 
 ## Testing Checklist
 
@@ -68,14 +67,14 @@ Modified the authentication library to use the new backend endpoints:
 - [ ] Test password reset flow
 - [ ] Verify error messages display correctly
 - [ ] Test with API gateway offline (should show "API gateway is not configured")
-- [ ] Verify no network requests to Auth0 domain from browser
+- [ ] Confirm signup/reset requests go to the API; the SPA still exchanges its authorization code directly with Auth0
 
 ### Integration Tests
 - [ ] Perform end-to-end signup flow
 - [ ] Perform end-to-end password reset flow
 - [ ] Monitor browser DevTools - should see:
-  - ✅ Requests to `/api/auth/signup` and `/api/auth/forgot-password`
-  - ✗ No requests directly to `dev-2deso6nwf6phu0hc.us.auth0.com`
+  - Requests to the API for `/auth/signup` and `/auth/forgot-password`
+  - A request to Auth0 `/oauth/token` for the SPA authorization-code exchange
 
 ## Files Modified
 1. **api/src/auth-routes.ts** - NEW: Backend auth proxy endpoints
