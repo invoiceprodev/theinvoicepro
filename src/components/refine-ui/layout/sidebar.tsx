@@ -290,7 +290,7 @@ function SidebarFooter() {
       <div className={cn("flex", "flex-col", "gap-2", "py-3")}>
         {open && (
           <div className={cn("flex", "flex-col", "gap-1", "px-3", "pb-2")}>
-            <span className={cn("text-sm", "font-semibold", "truncate")}>{user.name}</span>
+            <span className={cn("text-sm", "font-semibold", "truncate")}>{user.companyName || user.name}</span>
             <span className={cn("text-xs", "text-muted-foreground", "truncate")}>{user.email}</span>
           </div>
         )}

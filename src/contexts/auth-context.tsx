@@ -6,6 +6,7 @@ import { getProfileBridgeSnapshot, subscribeProfileBridge } from "@/lib/profile-
 export interface User {
   id: string;
   name: string;
+  companyName?: string;
   email?: string;
   role: "user" | "admin";
 }
@@ -40,6 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           snapshot.user?.nickname ||
           snapshot.user?.email ||
           "User",
+        companyName: profileSnapshot.profile.company_name || undefined,
         email: snapshot.user?.email,
         role: profileSnapshot.profile.role,
       };
