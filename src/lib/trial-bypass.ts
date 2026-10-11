@@ -19,18 +19,8 @@ export function canStartTrialWithoutCard(
   );
 }
 
-export function canStartFreePlanWithoutCard(
-  plan?: Pick<Plan, "price" | "trial_days" | "requires_card"> | null,
-) {
-  return (
-    Number(plan?.price) === 0 &&
-    Number(plan?.trial_days || 0) === 0 &&
-    !plan?.requires_card
-  );
-}
-
 export function canStartPlanWithoutCard(
-  plan?: Pick<Plan, "name" | "price" | "trial_days" | "requires_card"> | null,
+  plan?: Pick<Plan, "name" | "trial_days" | "requires_card"> | null,
 ) {
-  return canStartTrialWithoutCard(plan) || canStartFreePlanWithoutCard(plan);
+  return canStartTrialWithoutCard(plan);
 }
