@@ -213,11 +213,11 @@ export const InvoiceCreatePage: React.FC<InvoiceCreatePageProps> = ({ documentTy
       return;
     }
 
-    const computedLineItems = lineItems.map((item) => ({
+    const computedLineItems = values.lineItems.map((item) => ({
       description: item.description,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      total: item.quantity * item.unitPrice,
+      quantity: Number(item.quantity),
+      unitPrice: Number(item.unitPrice),
+      total: Number(item.quantity) * Number(item.unitPrice),
     }));
 
     const sub = computedLineItems.reduce((s, i) => s + i.total, 0);

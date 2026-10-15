@@ -41,7 +41,7 @@ const normalizeInvoicePayload = (values: Record<string, unknown>) => ({
   client_id: values.client_id || values.clientId,
   invoice_date: values.invoice_date || values.invoiceDate,
   due_date: values.due_date || values.dueDate,
-  status: values.status,
+  status: String(values.status || "draft").toLowerCase(),
   currency: values.currency || "ZAR",
   subtotal: values.subtotal || 0,
   tax_percentage: values.tax_percentage || values.taxPercentage || 0,
@@ -52,6 +52,21 @@ const normalizeInvoicePayload = (values: Record<string, unknown>) => ({
   notes: values.notes || "",
   lineItems: Array.isArray(values.lineItems) ? values.lineItems : [],
 });
+
+const normalizeInvoiceItems = (invoiceId: string, lineItems: unknown[]) =>
+  lineItems.map((lineItem) => {
+    const item = lineItem as Record<string, unknown>;
+    const quantity = Number(item.quantity ?? 0);
+    const unitPrice = Number(item.unit_price ?? item.unitPrice ?? 0);
+
+    return {
+      invoice_id: invoiceId,
+      description: String(item.description ?? "").trim(),
+      quantity,
+      unit_price: unitPrice,
+      total: Number(item.total ?? quantity * unitPrice),
+    };
+  });
 
 const normalizeExpensePayload = (values: Record<string, unknown>) => ({
   category: values.category,
@@ -216,7 +231,24 @@ export const dataProvider: DataProvider = {
         }
         return await apiRequest<{ data: unknown }>(`/${resource}/${params.id}`);
       }
-      return await baseDataProvider.getOne({ ...params, resource });
+      const result = await baseDataProvider.getOne({ ...params, resource });
+      if (resource !== "invoices") {
+        return result;
+      }
+
+      const { data: lineItems, error } = await supabaseClient
+        .from("invoice_items")
+        .select("*")
+        .eq("invoice_id", String(params.id))
+        .order("created_at", { ascending: true });
+      if (error) {
+        throw error;
+      }
+
+      return {
+        ...result,
+        data: { ...(result.data as Record<string, unknown>), lineItems: lineItems || [] },
+      };
     } catch (error) {
       console.error("[DATA PROVIDER] getOne error:", resource, error);
       throw toHttpError(error);
@@ -294,6 +326,40 @@ export const dataProvider: DataProvider = {
           body: JSON.stringify(body),
         });
       }
+      if (resource === "invoices") {
+        const values = params.variables as Record<string, unknown>;
+        const { lineItems, ...invoicePayload } = normalizeInvoicePayload(values);
+        const result = await baseDataProvider.create({
+          ...params,
+          resource,
+          variables: invoicePayload,
+        });
+        const invoice = result.data as Record<string, unknown>;
+        const invoiceId = String(invoice.id || "");
+
+        if (!invoiceId) {
+          throw new Error("Created invoice did not include an ID.");
+        }
+
+        const itemsPayload = normalizeInvoiceItems(invoiceId, lineItems);
+        const { data, error } = await supabaseClient
+          .from("invoice_items")
+          .insert(itemsPayload)
+          .select("*");
+
+        if (error) {
+          const { error: rollbackError } = await supabaseClient
+            .from("invoices")
+            .delete()
+            .eq("id", invoiceId);
+          if (rollbackError) {
+            console.error("[DATA PROVIDER] failed to roll back invoice after item creation failed:", rollbackError);
+          }
+          throw error;
+        }
+
+        return { ...result, data: { ...invoice, lineItems: data || [] } };
+      }
       return await baseDataProvider.create({ ...params, resource });
     } catch (error) {
       console.error("[DATA PROVIDER] create error:", resource, error);
@@ -327,6 +393,40 @@ export const dataProvider: DataProvider = {
           method: "PATCH",
           body: JSON.stringify(body),
         });
+      }
+      if (resource === "invoices") {
+        const values = params.variables as Record<string, unknown>;
+        const hasLineItems = Array.isArray(values.lineItems);
+        const { lineItems, ...invoicePayload } = normalizeInvoicePayload(values);
+        const result = await baseDataProvider.update({
+          ...params,
+          resource,
+          variables: invoicePayload,
+        });
+
+        if (!hasLineItems) {
+          return result;
+        }
+
+        const invoiceId = String(params.id);
+        const { error: deleteError } = await supabaseClient
+          .from("invoice_items")
+          .delete()
+          .eq("invoice_id", invoiceId);
+        if (deleteError) {
+          throw deleteError;
+        }
+
+        const itemsPayload = normalizeInvoiceItems(invoiceId, lineItems);
+        const { data, error: insertError } = itemsPayload.length
+          ? await supabaseClient.from("invoice_items").insert(itemsPayload).select("*")
+          : { data: [], error: null };
+        if (insertError) {
+          throw insertError;
+        }
+
+        const invoice = result.data as Record<string, unknown>;
+        return { ...result, data: { ...invoice, lineItems: data || [] } };
       }
       return await baseDataProvider.update({ ...params, resource });
     } catch (error) {

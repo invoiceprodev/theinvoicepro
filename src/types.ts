@@ -327,6 +327,7 @@ export interface Profile {
   business_phone?: string;
   business_address?: string;
   registration_number?: string;
+  vat_number?: string;
   invoice_prefix?: string;
   currency?: string;
   logo_url?: string;

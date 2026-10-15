@@ -2053,6 +2053,10 @@ app.patch("/settings/company", async (req: AuthedRequest, res: Response) => {
         typeof body.registrationNumber === "string"
           ? body.registrationNumber.trim()
           : profile.registration_number ?? null,
+      vat_number:
+        typeof body.vatNumber === "string"
+          ? body.vatNumber.trim()
+          : profile.vat_number ?? null,
       updated_at: new Date().toISOString(),
     };
 
