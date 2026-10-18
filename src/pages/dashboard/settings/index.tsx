@@ -124,7 +124,7 @@ function getCompanyInfoFromProfile(profile?: Profile | null): CompanyInfo {
     zip: address.zip,
     country: address.country,
     registrationNumber: profile?.registration_number || "",
-    taxId: "",
+    taxId: profile?.vat_number || "",
   };
 }
 
@@ -322,6 +322,7 @@ function CompanyTab() {
           businessPhone: info.phone,
           businessAddress: serializeBusinessAddress(info),
           registrationNumber: info.registrationNumber,
+          vatNumber: info.taxId,
         }),
       });
 
