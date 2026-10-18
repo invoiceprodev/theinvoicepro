@@ -221,7 +221,7 @@ export const generateInvoicePDF = async (
 
   // Line Items Table
   const tableData =
-    invoice.items?.map((item) => [
+    (invoice.items ?? invoice.lineItems)?.map((item) => [
       item.description,
       item.quantity.toString(),
       `${currency}${Number(item.unit_price).toFixed(2)}`,

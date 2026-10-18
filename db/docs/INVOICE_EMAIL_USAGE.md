@@ -88,5 +88,7 @@ await sendInvoiceEmail({
 | --------------------------------- | --------------------------------------------------------------- |
 | "Email service is not configured" | Check API env has `RESEND_API_KEY` and `RESEND_FROM_EMAIL`; restart the API |
 | "Failed to send email"            | Check API logs and Resend dashboard for delivery errors |
-| PDF not generating                | Ensure `invoice.items` and `invoice.client` are populated |
+| PDF not generating                | Ensure invoice line items (`items` or `lineItems`) and `invoice.client` are populated |
 | Emails go to spam                 | Verify your sender domain in Resend and configure SPF/DKIM |
+
+If sending fails, the dashboard displays the API or email-provider error returned by the server. The invoice remains in its current status until the email is accepted.

@@ -55,7 +55,9 @@ export const useSendInvoiceEmail = ({ invoice, onSuccess, onError }: UseSendInvo
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to send email";
       setError(errorMessage);
-      onError?.(err instanceof Error ? err : new Error(errorMessage));
+      const sendError = err instanceof Error ? err : new Error(errorMessage);
+      onError?.(sendError);
+      throw sendError;
     } finally {
       setIsSending(false);
     }

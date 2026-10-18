@@ -77,7 +77,7 @@ export function InvoiceShowPage({ documentType = "invoice" }: InvoiceShowPagePro
     queryOptions: { enabled: !!invoice?.id },
   });
   const lineItems = lineItemsQuery.data?.data || [];
-  const invoiceWithClient = invoice && client ? { ...invoice, client } : invoice;
+  const invoiceWithClient = invoice && client ? { ...invoice, client, items: lineItems } : invoice;
   const { sendEmail, isSending } = useSendInvoiceEmail({
     invoice: invoiceWithClient as Invoice,
     onSuccess: () => {
@@ -146,11 +146,15 @@ export function InvoiceShowPage({ documentType = "invoice" }: InvoiceShowPagePro
       return;
     }
 
-    await sendEmail({
-      recipientEmail: client.email,
-      recipientName: client.name,
-      includeAttachment: true,
-    });
+    try {
+      await sendEmail({
+        recipientEmail: client.email,
+        recipientName: client.name,
+        includeAttachment: true,
+      });
+    } catch {
+      return;
+    }
 
     if (invoiceStatus === "draft" || invoiceStatus === "pending") {
       updateInvoice(

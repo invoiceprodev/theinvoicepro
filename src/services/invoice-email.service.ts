@@ -67,7 +67,7 @@ export const sendInvoiceEmail = async ({
     });
   } catch (error) {
     console.error("Failed to send invoice email:", error);
-    throw new Error("Failed to send invoice email. Please try again.");
+    throw error instanceof Error ? error : new Error("Failed to send invoice email. Please try again.");
   }
 };
 
